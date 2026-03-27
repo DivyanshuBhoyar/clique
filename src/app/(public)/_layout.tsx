@@ -7,7 +7,7 @@ import { api } from '../../../convex/_generated/api';
 export default function PublicLayout() {
     const { isLoading, isAuthenticated } = useConvexAuth();
     const currentUser = useQuery(
-        api.auth.users.getCurrentUser,
+        api.users.getCurrentUser,
         isAuthenticated ? {} : "skip"
     );
 

@@ -18,8 +18,8 @@ import { api } from '../../../convex/_generated/api';
 
 export default function SetUsernameScreen() {
     const router = useRouter();
-    const ensureUser = useMutation(api.auth.users.ensureUser);
-    const saveUsername = useMutation(api.auth.users.saveUsername);
+    const ensureUser = useMutation(api.users.ensureUser);
+    const saveUsername = useMutation(api.users.saveUsername);
 
     const [username, setUsername] = useState('');
     const [isLoading, setIsLoading] = useState(false);

@@ -1,8 +1,9 @@
+import { Id } from "./_generated/dataModel";
 import { MutationCtx, QueryCtx } from "./_generated/server";
 
 /**
  * Get the authenticated user's ID from Convex Auth identity.
- * Looks up (or creates) the app-level user record by tokenIdentifier.
+ * In @convex-dev/auth, the identity.subject is the Id<"users">.
  */
 export async function getAuthUserId(ctx: QueryCtx | MutationCtx) {
     const identity = await ctx.auth.getUserIdentity();
@@ -10,23 +11,13 @@ export async function getAuthUserId(ctx: QueryCtx | MutationCtx) {
         throw new Error("Not authenticated");
     }
 
-    const user = await ctx.db
-        .query("users")
-        .withIndex("by_tokenIdentifier", (q) =>
-            q.eq("tokenIdentifier", identity.tokenIdentifier)
-        )
-        .unique();
-
-    if (!user) {
-        throw new Error("User not found. Please sign in again.");
-    }
-
-    return user._id;
+    return identity.subject as Id<"users">;
 }
 
 /**
  * Get or create a user record from Convex Auth identity.
- * Used during sign-in flow to ensure a user record exists.
+ * Note: @convex-dev/auth usually handles user creation during sign-in.
+ * This helper can be used to ensure custom fields are initialized.
  */
 export async function getOrCreateUser(ctx: MutationCtx) {
     const identity = await ctx.auth.getUserIdentity();
@@ -34,25 +25,22 @@ export async function getOrCreateUser(ctx: MutationCtx) {
         throw new Error("Not authenticated");
     }
 
-    const existing = await ctx.db
-        .query("users")
-        .withIndex("by_tokenIdentifier", (q) =>
-            q.eq("tokenIdentifier", identity.tokenIdentifier)
-        )
-        .unique();
+    const userId = identity.subject as Id<"users">;
+    const existing = await ctx.db.get(userId);
 
     if (existing) {
-        return existing._id;
+        return userId;
     }
 
     // Generate a random avatar using DiceBear for new users
     const randomSeed = Math.random().toString(36).substring(7);
     const avatarUrl = `https://api.dicebear.com/7.x/notionists/svg?seed=${randomSeed}`;
 
-    const userId = await ctx.db.insert("users", {
-        tokenIdentifier: identity.tokenIdentifier,
+    // Note: We use ctx.db.insert with the fixed ID if possible, 
+    // but usually convex-auth has already inserted it.
+    // If it hasn't, we insert it.
+    await ctx.db.insert("users", {
         email: identity.email,
-        displayName: identity.name,
         avatarUrl,
         createdAt: Date.now(),
     });

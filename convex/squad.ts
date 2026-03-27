@@ -85,47 +85,32 @@ export const joinSquad = mutation({
     },
 });
 
-
-
 export const getUserSquads = query({
     args: {
         userId: v.id("users"),
     },
-
     handler: async (ctx, args) => {
-        // 📥 get memberships
         const memberships = await ctx.db
             .query("memberships")
-            .withIndex("by_user", (q) =>
-                q.eq("userId", args.userId)
-            )
+            .withIndex("by_user", (q) => q.eq("userId", args.userId))
             .collect();
 
         if (memberships.length === 0) {
             return [];
         }
 
-        // 📥 fetch squads (batched)
         const squadIds = memberships.map((m) => m.squadId);
 
-        const squads = await ctx.db
-            .query("squads")
-            .filter((q) =>
-                q.or(
-                    ...squadIds.map((id) =>
-                        q.eq(q.field("_id"), id)
-                    )
-                )
-            )
-            .collect();
+        // Fetch squads for these memberships
+        const squads = await Promise.all(
+            squadIds.map((id) => ctx.db.get(id))
+        );
 
-        // 🧠 map for fast lookup
         const squadMap = new Map();
         for (const s of squads) {
-            squadMap.set(s._id, s);
+            if (s) squadMap.set(s._id, s);
         }
 
-        // 🔗 merge
         return memberships.map((m) => ({
             squad: squadMap.get(m.squadId) || null,
             membership: m,

@@ -1,5 +1,5 @@
 import { useAuthActions } from '@convex-dev/auth/react';
-import { useMutation, useQuery } from 'convex/react';
+import { useMutation } from 'convex/react';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
@@ -23,7 +23,6 @@ export default function HomeScreen() {
 
   const joinSquad = useMutation(api.squad.joinSquad);
 
-  const userSquads = useQuery(api.squad.getUserSquads, {});
 
   const handleCreateSquad = () => {
     router.push(`/create-squad`);
@@ -34,20 +33,7 @@ export default function HomeScreen() {
       alert("Please fill all fields to join.");
       return;
     }
-    setIsJoining(true);
-    try {
-      const squadId = await joinSquad({
-        name: squadName,
-        password,
-        nickname
-      });
-      router.push(`/squad/${squadId}/chat` as any);
-    } catch (err: any) {
-      console.error(err);
-      alert("Failed to join squad: " + err.message);
-    } finally {
-      setIsJoining(false);
-    }
+
   };
 
   return (
@@ -127,7 +113,7 @@ export default function HomeScreen() {
           />
         </View>
 
-        {userSquads && userSquads.length > 0 && (
+        {/* {userSquads && userSquads.length > 0 && (
           <ThemedView style={styles.squadsList}>
             <ThemedText style={styles.sectionTitle}>Your Squads</ThemedText>
             {userSquads.map((squad) => (
@@ -140,7 +126,7 @@ export default function HomeScreen() {
               />
             ))}
           </ThemedView>
-        )}
+        )} */}
       </SafeAreaView>
     </ThemedView>
   );
