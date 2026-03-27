@@ -1,0 +1,222 @@
+import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
+
+export const sendMessage = mutation({
+    args: {
+        squadId: v.id("squads"),
+        channelId: v.id("channels"),
+        userId: v.id("users"),
+        content: v.string(),
+        parentMessageId: v.optional(v.id("messages")),
+    },
+
+    handler: async (ctx, args) => {
+        const membership = await ctx.db
+            .query("memberships")
+            .withIndex("by_user_squad", (q) =>
+                q.eq("userId", args.userId).eq("squadId", args.squadId)
+            )
+            .first();
+
+        if (!membership) throw new Error("Not a member");
+
+        const channel = await ctx.db.get(args.channelId);
+        if (!channel || channel.squadId !== args.squadId) {
+            throw new Error("Invalid channel");
+        }
+
+        if (args.parentMessageId) {
+            const parent = await ctx.db.get(args.parentMessageId);
+            if (!parent || parent.channelId !== args.channelId) {
+                throw new Error("Invalid parent");
+            }
+        }
+
+        return await ctx.db.insert("messages", {
+            squadId: args.squadId,
+            channelId: args.channelId,
+            userId: args.userId,
+            content: args.content,
+            type: "text",
+            nickname: membership.nickname,
+            parentMessageId: args.parentMessageId,
+            createdAt: Date.now(),
+        });
+    },
+});
+
+
+
+export const getMessages = query({
+    args: {
+        channelId: v.id("channels"),
+        limit: v.optional(v.number()),
+        cursor: v.optional(v.number()),
+    },
+
+    handler: async (ctx, args) => {
+        const limit = args.limit ?? 50;
+
+        let q = ctx.db
+            .query("messages")
+            .withIndex("by_channel", (q) =>
+                q.eq("channelId", args.channelId)
+            )
+            .order("desc");
+
+        if (args.cursor) {
+            const cursor = args.cursor;
+            q = q.filter((q) =>
+                q.lt(q.field("createdAt"), cursor)
+            );
+        }
+
+        const messages = await q.take(limit);
+
+        const ids = messages.map((m) => m._id);
+
+        const reactions =
+            ids.length === 0
+                ? []
+                : await ctx.db
+                    .query("reactions")
+                    .filter((q) =>
+                        q.or(...ids.map((id) =>
+                            q.eq(q.field("messageId"), id)
+                        ))
+                    )
+                    .collect();
+
+        const reactionsMap = new Map();
+        reactions.forEach((r) => {
+            if (!reactionsMap.has(r.messageId)) {
+                reactionsMap.set(r.messageId, []);
+            }
+            reactionsMap.get(r.messageId).push(r);
+        });
+
+        const parentIds = [
+            ...new Set(
+                messages.map((m) => m.parentMessageId).filter(Boolean)
+            ),
+        ];
+
+        const parents =
+            parentIds.length === 0
+                ? []
+                : await ctx.db
+                    .query("messages")
+                    .filter((q) =>
+                        q.or(...parentIds.map((id) =>
+                            q.eq(q.field("_id"), id)
+                        ))
+                    )
+                    .collect();
+
+        const parentMap = new Map();
+        parents.forEach((p) => parentMap.set(p._id, p));
+
+        const enrichedMessages = messages.map((m) => {
+            const isDeleted = m.deleted === true;
+
+            const parent = m.parentMessageId
+                ? parentMap.get(m.parentMessageId)
+                : null;
+
+            return {
+                ...m,
+                content: isDeleted ? "This message was deleted" : m.content,
+                deleted: isDeleted,
+
+                reactions: reactionsMap.get(m._id) || [],
+
+                parentMessage: parent
+                    ? {
+                        ...parent,
+                        content: parent.deleted ? "This message was deleted" : parent.content,
+                        deleted: parent.deleted ?? false,
+                    }
+                    : null,
+            };
+        }); const enriched = messages.map((m) => ({
+            ...m,
+            reactions: reactionsMap.get(m._id) || [],
+            parentMessage: m.parentMessageId
+                ? parentMap.get(m.parentMessageId) || null
+                : null,
+        }));
+
+        enriched.reverse();
+
+        return {
+            messages: enriched,
+            nextCursor:
+                messages.length === limit
+                    ? messages[messages.length - 1].createdAt
+                    : null,
+        };
+    },
+});
+
+
+
+export const deleteMessage = mutation({
+    args: {
+        messageId: v.id("messages"),
+        userId: v.id("users"),
+    },
+
+    handler: async (ctx, args) => {
+        const message = await ctx.db.get(args.messageId);
+
+        if (!message) {
+            throw new Error("Message not found");
+        }
+
+        if (message.userId !== args.userId) {
+            throw new Error("Unauthorized");
+        }
+
+        if (message.deleted) {
+            return { success: true };
+        }
+
+        await ctx.db.patch(args.messageId, {
+            deleted: true,
+            content: "",
+        });
+
+        return { success: true };
+    },
+});
+
+export const editMessage = mutation({
+    args: {
+        messageId: v.id("messages"),
+        userId: v.id("users"),
+        content: v.string(),
+    },
+
+    handler: async (ctx, args) => {
+        const message = await ctx.db.get(args.messageId);
+
+        if (!message) {
+            throw new Error("Message not found");
+        }
+
+        if (message.userId !== args.userId) {
+            throw new Error("Unauthorized");
+        }
+
+        if (message.deleted) {
+            throw new Error("Cannot edit deleted message");
+        }
+
+        await ctx.db.patch(args.messageId, {
+            content: args.content,
+            editedAt: Date.now(),
+        });
+
+        return { success: true };
+    },
+});
