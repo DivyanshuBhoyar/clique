@@ -64,7 +64,7 @@ export default defineSchema({
     })
         .index("by_channel", ["channelId", "createdAt"])
         .index("by_squad", ["squadId"])
-        .index("by_parent", ["parentMessageId"]), // ✅ NEW
+        .index("by_parent", ["parentMessageId"]),
 
     typing: defineTable({
         squadId: v.id("squads"),
@@ -121,22 +121,25 @@ export default defineSchema({
         description: v.optional(v.string()),
         type: v.union(
             v.literal("event"),
-            v.literal("trip"),
-            v.literal("inside_joke"),
+            v.literal("wall"),
         ),
         createdBy: v.id("users"),
         createdAt: v.number(),
     })
-        .index("by_squad", ["squadId"])
-        .index("by_type", ["type"]),
+        .index("by_squad", ["squadId"]),
 
     memoryItems: defineTable({
         memoryId: v.id("memories"),
         userId: v.id("users"),
-        type: v.union(v.literal("text"), v.literal("image"), v.literal("link")),
+        type: v.union(
+            v.literal("text"),
+            v.literal("image"),
+            v.literal("link")
+        ),
         content: v.string(),
         createdAt: v.number(),
-    }).index("by_memory", ["memoryId"]),
+    })
+        .index("by_memory", ["memoryId"]),
 
     confessions: defineTable({
         squadId: v.id("squads"),
