@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { getCurrentUser } from "./users";
 
 export const createSquad = mutation({
     args: {
@@ -29,7 +30,6 @@ export const createSquad = mutation({
             joinedAt: now,
         });
 
-        // default channel
         await ctx.db.insert("channels", {
             squadId,
             name: "Lounge",
@@ -101,7 +101,6 @@ export const getUserSquads = query({
 
         const squadIds = memberships.map((m) => m.squadId);
 
-        // Fetch squads for these memberships
         const squads = await Promise.all(
             squadIds.map((id) => ctx.db.get(id))
         );
@@ -117,3 +116,45 @@ export const getUserSquads = query({
         }));
     },
 });
+
+
+export const getCurrentUserSquads = query({
+    args: {},
+
+    handler: async (ctx) => {
+        const identity = await ctx.auth.getUserIdentity();
+
+        if (!identity) {
+            throw new Error("Unauthorized");
+        }
+
+        const user = await getCurrentUser(ctx)
+
+        const memberships = await ctx.db
+            .query("memberships")
+            .withIndex("by_user", (q) =>
+                q.eq("userId", user._id)
+            )
+            .collect();
+
+        const squadIds = memberships.map((m) => m.squadId);
+
+        const squads = await ctx.db
+            .query("squads")
+            .filter((q) =>
+                q.or(...squadIds.map((id) =>
+                    q.eq(q.field("_id"), id)
+                ))
+            )
+            .collect();
+
+        const squadMap = new Map();
+        squads.forEach((s) => squadMap.set(s._id, s));
+
+        return memberships.map((m) => ({
+            squad: squadMap.get(m.squadId) || null,
+            membership: m,
+        }));
+    },
+});
+

@@ -10,8 +10,8 @@
 
 import type * as ResendOTP from "../ResendOTP.js";
 import type * as auth from "../auth.js";
-import type * as authHelpers from "../authHelpers.js";
 import type * as channel from "../channel.js";
+import type * as drops from "../drops.js";
 import type * as http from "../http.js";
 import type * as message from "../message.js";
 import type * as presence from "../presence.js";
@@ -29,8 +29,8 @@ import type {
 declare const fullApi: ApiFromModules<{
   ResendOTP: typeof ResendOTP;
   auth: typeof auth;
-  authHelpers: typeof authHelpers;
   channel: typeof channel;
+  drops: typeof drops;
   http: typeof http;
   message: typeof message;
   presence: typeof presence;

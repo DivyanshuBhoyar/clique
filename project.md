@@ -44,3 +44,32 @@ Privacy / Closed squads
 * Convex
 * Expo
 * TypeScript
+
+
+```typescript
+
+using auth protected routes with convex-auth
+import { customMutation } from "convex-helpers/server/customFunctions";
+import { getAuthUserId } from "@convex-dev/auth/server";
+import { mutation } from "./_generated/server";
+
+export const userMutation = customMutation(mutation, {
+  args: {},
+  input: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    const user = await ctx.db.get("users", userId);
+    if (!user) throw new Error("Unauthenticated");
+    return { ctx: { user }, args };
+  }
+});
+
+export const addNote = userMutation({
+  args: { note: v.string() },
+  handler: async (ctx, args) => {
+    await ctx.db.insert("notes", {
+      note: args.note,
+      authorId: ctx.user._id // type-safe!
+    });
+  }
+});
+```

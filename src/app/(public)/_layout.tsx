@@ -7,9 +7,10 @@ import { api } from '../../../convex/_generated/api';
 export default function PublicLayout() {
     const { isLoading, isAuthenticated } = useConvexAuth();
     const currentUser = useQuery(
-        api.users.getCurrentUser,
+        api.users.current,
         isAuthenticated ? {} : "skip"
     );
+    console.log(currentUser)
 
     if (isLoading) {
         return (
@@ -31,7 +32,7 @@ export default function PublicLayout() {
         }
 
         // User has no record yet or no username — send to set-username
-        if (currentUser === null || !currentUser.username) {
+        if (currentUser === null || !currentUser.name) {
             return <Redirect href={"/(public)/set-username" as any} />;
         } else {
             return <Redirect href={"/(auth)" as any} />;

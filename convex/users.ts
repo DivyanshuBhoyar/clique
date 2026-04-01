@@ -1,44 +1,53 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
-import { getOrCreateUser } from "./authHelpers";
+import { Id } from "./_generated/dataModel";
+import { MutationCtx, QueryCtx, query } from "./_generated/server";
 
-export const ensureUser = mutation({
-    args: {},
-    handler: async (ctx) => {
-        return await getOrCreateUser(ctx);
-    },
-});
-
-export const getCurrentUser = query({
+export const current = query({
     args: {},
     handler: async (ctx) => {
         const userId = await getAuthUserId(ctx);
-        if (!userId) {
-            return null;
-        }
-
-        return await ctx.db.get(userId);
+        if (!userId) return null;
+        return await ctx.db.get("users", userId);
     },
 });
 
-export const saveUsername = mutation({
-    args: { username: v.string() },
-    handler: async (ctx, args) => {
-        const userId = await getAuthUserId(ctx);
-        if (!userId) {
-            throw new Error("Not authenticated");
-        }
+type Ctx = QueryCtx | MutationCtx;
 
-        const user = await ctx.db.get(userId);
-        if (!user) {
-            throw new Error("User not found");
-        }
+export async function getCurrentUser(ctx: Ctx) {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+        throw new Error("Unauthenticated");
+    }
+    const user = await ctx.db.get("users", userId);
+    if (!user) throw new Error("Unauthenticated");
+    return user;
+}
 
-        await ctx.db.patch(user._id, {
-            username: args.username,
-        });
 
-        return user._id;
-    },
-});
+
+export async function requireMembership(
+    ctx: Ctx,
+    squadId: Id<"squads">
+) {
+    const userId = await getAuthUserId(ctx);
+
+    if (!userId) {
+        throw new Error("Unauthenticated");
+    }
+
+    const membership = await ctx.db
+        .query("memberships")
+        .withIndex("by_user_squad", (q) =>
+            q.eq("userId", userId).eq("squadId", squadId)
+        )
+        .first();
+
+    if (!membership) {
+        throw new Error("Not a member of this squad");
+    }
+
+    return {
+        userId,
+        membership,
+    };
+}
