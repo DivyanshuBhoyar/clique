@@ -9,9 +9,7 @@ export default defineSchema({
         passwordHash: v.string(),
         createdBy: v.id("users"),
         createdAt: v.number(),
-    })
-        .index("by_created", ["createdAt"]),
-
+    }).index("by_created", ["createdAt"]),
 
     memberships: defineTable({
         userId: v.id("users"),
@@ -27,7 +25,6 @@ export default defineSchema({
         .index("by_squad", ["squadId"])
         .index("by_user_squad", ["userId", "squadId"]),
 
-
     channels: defineTable({
         squadId: v.id("squads"),
         name: v.string(),
@@ -36,7 +33,7 @@ export default defineSchema({
             v.literal("topic"),
             v.literal("mood"),
             v.literal("thread"),
-            v.literal("ephemeral")
+            v.literal("ephemeral"),
         ),
         parentChannelId: v.optional(v.id("channels")),
         expiresAt: v.optional(v.number()),
@@ -46,8 +43,6 @@ export default defineSchema({
         .index("by_squad", ["squadId"])
         .index("by_parent", ["parentChannelId"]),
 
-
-
     messages: defineTable({
         channelId: v.id("channels"),
         squadId: v.id("squads"),
@@ -55,11 +50,7 @@ export default defineSchema({
 
         content: v.string(),
 
-        type: v.union(
-            v.literal("text"),
-            v.literal("image"),
-            v.literal("system")
-        ),
+        type: v.union(v.literal("text"), v.literal("image"), v.literal("system")),
 
         parentMessageId: v.optional(v.id("messages")),
 
@@ -74,7 +65,6 @@ export default defineSchema({
         .index("by_channel", ["channelId", "createdAt"])
         .index("by_squad", ["squadId"])
         .index("by_parent", ["parentMessageId"]), // ✅ NEW
-
 
     typing: defineTable({
         squadId: v.id("squads"),
@@ -95,7 +85,6 @@ export default defineSchema({
         .index("by_message", ["messageId"])
         .index("by_user_message", ["userId", "messageId"]),
 
-
     notes: defineTable({
         squadId: v.id("squads"),
         title: v.string(),
@@ -103,7 +92,7 @@ export default defineSchema({
         type: v.union(
             v.literal("personal"),
             v.literal("shared"),
-            v.literal("friend")
+            v.literal("friend"),
         ),
         ownerId: v.id("users"),
         targetUserId: v.optional(v.id("users")),
@@ -116,7 +105,6 @@ export default defineSchema({
         .index("by_channel", ["channelId"])
         .index("by_target_user", ["targetUserId"]),
 
-
     quotes: defineTable({
         squadId: v.id("squads"),
         content: v.string(),
@@ -127,7 +115,6 @@ export default defineSchema({
         .index("by_squad", ["squadId"])
         .index("by_created", ["createdAt"]),
 
-
     memories: defineTable({
         squadId: v.id("squads"),
         title: v.string(),
@@ -135,7 +122,7 @@ export default defineSchema({
         type: v.union(
             v.literal("event"),
             v.literal("trip"),
-            v.literal("inside_joke")
+            v.literal("inside_joke"),
         ),
         createdBy: v.id("users"),
         createdAt: v.number(),
@@ -143,20 +130,13 @@ export default defineSchema({
         .index("by_squad", ["squadId"])
         .index("by_type", ["type"]),
 
-
     memoryItems: defineTable({
         memoryId: v.id("memories"),
         userId: v.id("users"),
-        type: v.union(
-            v.literal("text"),
-            v.literal("image"),
-            v.literal("link")
-        ),
+        type: v.union(v.literal("text"), v.literal("image"), v.literal("link")),
         content: v.string(),
         createdAt: v.number(),
-    })
-        .index("by_memory", ["memoryId"]),
-
+    }).index("by_memory", ["memoryId"]),
 
     confessions: defineTable({
         squadId: v.id("squads"),
@@ -176,13 +156,10 @@ export default defineSchema({
         .index("by_squad", ["squadId"])
         .index("by_created", ["createdAt"]),
 
-
     pollOptions: defineTable({
         pollId: v.id("polls"),
         text: v.string(),
-    })
-        .index("by_poll", ["pollId"]),
-
+    }).index("by_poll", ["pollId"]),
 
     pollVotes: defineTable({
         pollId: v.id("polls"),
@@ -192,7 +169,6 @@ export default defineSchema({
         .index("by_poll", ["pollId"])
         .index("by_user_poll", ["userId", "pollId"]),
 
-
     weeklyQuestions: defineTable({
         squadId: v.id("squads"),
         question: v.string(),
@@ -201,7 +177,6 @@ export default defineSchema({
     })
         .index("by_squad", ["squadId"])
         .index("by_created", ["createdAt"]),
-
 
     weeklyAnswers: defineTable({
         questionId: v.id("weeklyQuestions"),
@@ -213,17 +188,15 @@ export default defineSchema({
         .index("by_question", ["questionId"])
         .index("by_user_question", ["userId", "questionId"]),
 
-
     drops: defineTable({
         squadId: v.id("squads"),
         userId: v.id("users"),
-        category: v.string(),          // extensible: "song", "movie", "book", "lifehack", "quote", "random", or any custom label
+        category: v.string(), // extensible: "song", "movie", "book", "lifehack", "quote", "random", or any custom label
         content: v.string(),
         createdAt: v.number(),
     })
         .index("by_squad", ["squadId", "createdAt"])
         .index("by_user", ["userId", "createdAt"]),
-
 
     dropReactions: defineTable({
         dropId: v.id("drops"),
@@ -234,12 +207,10 @@ export default defineSchema({
         .index("by_drop", ["dropId"])
         .index("by_user_drop", ["userId", "dropId"]),
 
-
     dropComments: defineTable({
         dropId: v.id("drops"),
         userId: v.id("users"),
         content: v.string(),
         createdAt: v.number(),
-    })
-        .index("by_drop", ["dropId", "createdAt"]),
+    }).index("by_drop", ["dropId", "createdAt"]),
 });

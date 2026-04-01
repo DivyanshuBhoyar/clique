@@ -8,10 +8,9 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
       if (args.existingUserId) {
         return args.existingUserId;
       }
-      // New user — inject createdAt since it's required by our schema
+      // New user
       return ctx.db.insert("users", {
         ...args.profile,
-        createdAt: Date.now(),
       });
     },
   },

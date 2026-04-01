@@ -26,7 +26,7 @@ export default function RootLayout() {
       storage={
         Platform.OS === "android" || Platform.OS === "ios"
           ? secureStorage
-          : undefined
+          : window.localStorage
       }
     >
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>

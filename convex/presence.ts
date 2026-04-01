@@ -1,21 +1,14 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { requireMembership } from "./users";
 
 export const updatePresence = mutation({
     args: {
         squadId: v.id("squads"),
-        userId: v.id("users"),
     },
 
     handler: async (ctx, args) => {
-        const m = await ctx.db
-            .query("memberships")
-            .withIndex("by_user_squad", (q) =>
-                q.eq("userId", args.userId).eq("squadId", args.squadId)
-            )
-            .first();
-
-        if (!m) return;
+        const { membership: m } = await requireMembership(ctx, args.squadId);
 
         await ctx.db.patch(m._id, {
             lastActiveAt: Date.now(),

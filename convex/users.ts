@@ -1,6 +1,8 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
-import { MutationCtx, QueryCtx, query } from "./_generated/server";
+import { MutationCtx, QueryCtx, mutation, query } from "./_generated/server";
+
 
 export const current = query({
     args: {},
@@ -51,3 +53,17 @@ export async function requireMembership(
         membership,
     };
 }
+
+export const saveUsername = mutation({
+    args: {
+        username: v.string(),
+        image: v.optional(v.string())
+    },
+    handler: async (ctx, args) => {
+        const user = await getCurrentUser(ctx);
+        await ctx.db.patch(user._id, {
+            name: args.username,
+            ...(args.image ? { image: args.image } : {})
+        });
+    }
+});

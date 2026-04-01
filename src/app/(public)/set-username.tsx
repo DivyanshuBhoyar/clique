@@ -18,7 +18,6 @@ import { api } from '../../../convex/_generated/api';
 
 export default function SetUsernameScreen() {
     const router = useRouter();
-    const ensureUser = useMutation(api.users.ensureUser);
     const saveUsername = useMutation(api.users.saveUsername);
 
     const [username, setUsername] = useState('');
@@ -37,9 +36,9 @@ export default function SetUsernameScreen() {
 
         setIsLoading(true);
         try {
-            // Make sure the user record exists first
-            await ensureUser();
-            await saveUsername({ username: trimmed });
+            // Auth automatically ensures the user, just update details
+            const avatarUrl = `https://api.dicebear.com/9.x/micah/svg?seed=${encodeURIComponent(trimmed)}`;
+            await saveUsername({ username: trimmed, image: avatarUrl });
             router.replace('/(auth)' as any);
         } catch (err: any) {
             console.error(err);

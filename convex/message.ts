@@ -1,24 +1,18 @@
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { requireMembership } from "./users";
 
 export const sendMessage = mutation({
     args: {
         squadId: v.id("squads"),
         channelId: v.id("channels"),
-        userId: v.id("users"),
         content: v.string(),
         parentMessageId: v.optional(v.id("messages")),
     },
 
     handler: async (ctx, args) => {
-        const membership = await ctx.db
-            .query("memberships")
-            .withIndex("by_user_squad", (q) =>
-                q.eq("userId", args.userId).eq("squadId", args.squadId)
-            )
-            .first();
-
-        if (!membership) throw new Error("Not a member");
+        const { userId, membership } = await requireMembership(ctx, args.squadId);
 
         const channel = await ctx.db.get(args.channelId);
         if (!channel || channel.squadId !== args.squadId) {
@@ -35,7 +29,7 @@ export const sendMessage = mutation({
         return await ctx.db.insert("messages", {
             squadId: args.squadId,
             channelId: args.channelId,
-            userId: args.userId,
+            userId,
             content: args.content,
             type: "text",
             nickname: membership.nickname,
@@ -163,17 +157,19 @@ export const getMessages = query({
 export const deleteMessage = mutation({
     args: {
         messageId: v.id("messages"),
-        userId: v.id("users"),
     },
 
     handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) throw new Error("Unauthenticated");
+
         const message = await ctx.db.get(args.messageId);
 
         if (!message) {
             throw new Error("Message not found");
         }
 
-        if (message.userId !== args.userId) {
+        if (message.userId !== userId) {
             throw new Error("Unauthorized");
         }
 
@@ -193,18 +189,20 @@ export const deleteMessage = mutation({
 export const editMessage = mutation({
     args: {
         messageId: v.id("messages"),
-        userId: v.id("users"),
         content: v.string(),
     },
 
     handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) throw new Error("Unauthenticated");
+
         const message = await ctx.db.get(args.messageId);
 
         if (!message) {
             throw new Error("Message not found");
         }
 
-        if (message.userId !== args.userId) {
+        if (message.userId !== userId) {
             throw new Error("Unauthorized");
         }
 

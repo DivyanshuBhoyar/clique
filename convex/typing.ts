@@ -1,18 +1,20 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { requireMembership } from "./users";
 
 export const setTyping = mutation({
     args: {
         squadId: v.id("squads"),
         channelId: v.id("channels"),
-        userId: v.id("users"),
     },
 
     handler: async (ctx, args) => {
+        const { userId } = await requireMembership(ctx, args.squadId);
+
         const existing = await ctx.db
             .query("typing")
             .withIndex("by_user_channel", (q) =>
-                q.eq("userId", args.userId)
+                q.eq("userId", userId)
                     .eq("channelId", args.channelId)
             )
             .first();
@@ -27,7 +29,7 @@ export const setTyping = mutation({
             await ctx.db.insert("typing", {
                 squadId: args.squadId,
                 channelId: args.channelId,
-                userId: args.userId,
+                userId,
                 lastTypingAt: now,
             });
         }

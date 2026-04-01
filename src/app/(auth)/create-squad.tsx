@@ -32,8 +32,7 @@ export default function CreateSquadScreen() {
                 password,
                 nickname
             });
-
-            router.replace(`/squad/${squadId}`);
+            router.replace(`/squad/${squadId}/chat` as any);
         } catch (err: any) {
             console.error(err);
             alert("Failed to create squad: " + err.message);
