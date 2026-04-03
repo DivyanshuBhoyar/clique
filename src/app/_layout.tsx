@@ -3,8 +3,15 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { ConvexReactClient } from "convex/react";
 import { Slot } from 'expo-router';
 import * as SecureStore from "expo-secure-store";
+import * as WebBrowser from "expo-web-browser";
 import React from 'react';
 import { Platform, useColorScheme } from 'react-native';
+
+// Required for OAuth on mobile: detects the redirect deep-link and closes
+// the browser session so Convex Auth can complete the sign-in flow.
+if (Platform.OS !== "web") {
+  WebBrowser.maybeCompleteAuthSession();
+}
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 

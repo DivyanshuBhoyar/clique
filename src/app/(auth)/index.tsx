@@ -34,6 +34,21 @@ export default function HomeScreen() {
       return;
     }
 
+    try {
+      setIsJoining(true);
+      const squadId = await joinSquad({ squadName, password, nickname });
+
+      setShowJoinForm(false);
+      setSquadName('');
+      setPassword('');
+      setNickname('');
+
+      router.push(`/squad/${squadId}/chat` as any);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Failed to join squad");
+    } finally {
+      setIsJoining(false);
+    }
   };
 
   return (

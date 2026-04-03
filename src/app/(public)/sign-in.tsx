@@ -3,6 +3,7 @@ import { useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
+    Platform,
     StyleSheet,
     TextInput,
     View,
@@ -23,6 +24,25 @@ export default function SignInScreen() {
     const [email, setEmail] = useState('');
     const [code, setCode] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+
+    const handleGoogleSignIn = async () => {
+        const isMobile = Platform.OS === 'ios' || Platform.OS === 'android';
+        if (!isMobile) {
+            // Web: triggers a full-page redirect to Google, fire-and-forget
+            void signIn('google');
+            return;
+        }
+        // Mobile: open browser with deep-link redirect back to app
+        setIsLoading(true);
+        try {
+            await signIn('google', { redirectTo: 'clique://' });
+        } catch (err: any) {
+            console.error(err);
+            Alert.alert('Error', 'Google sign-in failed. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const handleSendOTP = async () => {
         if (!email.trim()) {
@@ -135,6 +155,24 @@ export default function SignInScreen() {
                         </>
                     )}
                 </View>
+
+                <View style={styles.divider}>
+                    <View style={styles.dividerLine} />
+                    <ThemedText style={styles.dividerText}>or</ThemedText>
+                    <View style={styles.dividerLine} />
+                </View>
+
+                <View style={styles.authSection}>
+                    {isLoading ? (
+                        <ActivityIndicator size="small" color="#007AFF" />
+                    ) : (
+                        <Button
+                            title="Sign in with Google"
+                            color="#DB4437"
+                            onPress={handleGoogleSignIn}
+                        />
+                    )}
+                </View>
             </SafeAreaView>
         </ThemedView>
     );
@@ -181,5 +219,20 @@ const styles = StyleSheet.create({
         padding: Spacing.three,
         fontSize: 18,
         textAlign: 'center',
+    },
+    divider: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        gap: Spacing.two,
+    },
+    dividerLine: {
+        flex: 1,
+        height: 1,
+        backgroundColor: '#ddd',
+    },
+    dividerText: {
+        fontSize: 14,
+        color: '#888',
     },
 });

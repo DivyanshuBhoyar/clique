@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "homie-squad",
-    "slug": "homie-squad",
+    "name": "clique-cove",
+    "slug": "clique-cove",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "homiesquad",
+    "scheme": "clique",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon"
@@ -17,7 +17,8 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.cliquecove"
     },
     "web": {
       "output": "static",
@@ -40,6 +41,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c95d3e3b-101a-47dd-9bcf-fb8bf35d7ff1"
+      }
     }
   }
 }
