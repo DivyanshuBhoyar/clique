@@ -9,7 +9,9 @@ export default defineSchema({
         passwordHash: v.string(),
         createdBy: v.id("users"),
         createdAt: v.number(),
-    }).index("by_created", ["createdAt"]),
+    })
+        .index("by_created", ["createdAt"])
+        .index("by_name", ["name"]),
 
     memberships: defineTable({
         userId: v.id("users"),

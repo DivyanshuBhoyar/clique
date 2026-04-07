@@ -1,11 +1,20 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery } from 'convex/react';
 import { Tabs, useLocalSearchParams } from 'expo-router';
+import { useEffect } from 'react';
 import { api } from '../../../../../convex/_generated/api';
 import { Id } from '../../../../../convex/_generated/dataModel';
 
 export default function SquadTabsLayout() {
     const { id } = useLocalSearchParams();
     const squadId = typeof id === 'string' ? id as Id<"squads"> : undefined;
+
+    // Persist last visited squad for auto-redirect on next app open
+    useEffect(() => {
+        if (squadId) {
+            AsyncStorage.setItem('lastSquadId', squadId);
+        }
+    }, [squadId]);
 
     // Fetch squad details to show the name in the header
     const squad = useQuery(api.squad.getSquad, squadId ? { id: squadId } : "skip");

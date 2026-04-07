@@ -4,7 +4,7 @@ export default function ChatLayout() {
     return (
         <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="index" />
-            <Stack.Screen name="[chatId]" />
+            <Stack.Screen name="[channelId]" />
         </Stack>
     );
 }

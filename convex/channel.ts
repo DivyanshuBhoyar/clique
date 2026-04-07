@@ -1,6 +1,17 @@
 import { v } from "convex/values";
-import { mutation } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { requireMembership } from "./users";
+
+export const getChannels = query({
+    args: { squadId: v.id("squads") },
+    handler: async (ctx, args) => {
+        await requireMembership(ctx, args.squadId);
+        return await ctx.db
+            .query("channels")
+            .withIndex("by_squad", (q) => q.eq("squadId", args.squadId))
+            .collect();
+    },
+});
 
 export const createChannel = mutation({
     args: {
