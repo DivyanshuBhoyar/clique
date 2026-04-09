@@ -2,9 +2,9 @@ import { Stack } from 'expo-router';
 
 export default function ChatLayout() {
     return (
-        <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="index" />
-            <Stack.Screen name="[channelId]" />
+        <Stack>
+            <Stack.Screen name="index" options={{ headerShown: false }} />
+            <Stack.Screen name="[channelId]" options={{ headerShown: true, headerBackTitle: "Back" }} />
         </Stack>
     );
 }
