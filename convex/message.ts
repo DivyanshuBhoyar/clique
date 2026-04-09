@@ -51,19 +51,14 @@ export const getMessages = query({
     handler: async (ctx, args) => {
         const limit = args.limit ?? 50;
 
-        let q = ctx.db
+        const q = ctx.db
             .query("messages")
             .withIndex("by_channel", (q) =>
-                q.eq("channelId", args.channelId)
+                args.cursor
+                    ? q.eq("channelId", args.channelId).lt("createdAt", args.cursor)
+                    : q.eq("channelId", args.channelId)
             )
             .order("desc");
-
-        if (args.cursor) {
-            const cursor = args.cursor;
-            q = q.filter((q) =>
-                q.lt(q.field("createdAt"), cursor)
-            );
-        }
 
         const messages = await q.take(limit);
 
@@ -132,18 +127,12 @@ export const getMessages = query({
                     }
                     : null,
             };
-        }); const enriched = messages.map((m) => ({
-            ...m,
-            reactions: reactionsMap.get(m._id) || [],
-            parentMessage: m.parentMessageId
-                ? parentMap.get(m.parentMessageId) || null
-                : null,
-        }));
+        });
 
-        enriched.reverse();
+        enrichedMessages.reverse();
 
         return {
-            messages: enriched,
+            messages: enrichedMessages,
             nextCursor:
                 messages.length === limit
                     ? messages[messages.length - 1].createdAt

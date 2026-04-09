@@ -66,7 +66,7 @@ export const createSquad = mutation({
 
 export const joinSquad = mutation({
     args: {
-        squadId: v.id("squads"),
+        squadName: v.string(),
         password: v.string(),
         nickname: v.string(),
         vibe: v.optional(v.string()),
@@ -77,8 +77,14 @@ export const joinSquad = mutation({
         const userId = await getAuthUserId(ctx);
         if (!userId) throw new Error("Unauthenticated");
 
-        const squad = await ctx.db.get(args.squadId);
+        const squad = await ctx.db
+            .query("squads")
+            .withIndex("by_name", (q) => q.eq("name", args.squadName))
+            .first();
+
         if (!squad) throw new Error("Squad not found");
+
+        const squadId = squad._id;
 
         const valid = await comparePassword(
             args.password,
@@ -90,22 +96,22 @@ export const joinSquad = mutation({
         const existing = await ctx.db
             .query("memberships")
             .withIndex("by_user_squad", (q) =>
-                q.eq("userId", userId).eq("squadId", args.squadId)
+                q.eq("userId", userId).eq("squadId", squadId)
             )
             .first();
 
-        if (existing) return args.squadId;
+        if (existing) return squadId;
 
         await ctx.db.insert("memberships", {
             userId,
-            squadId: args.squadId,
+            squadId: squadId,
             nickname: args.nickname,
             vibe: args.vibe,
             statusText: args.statusText,
             joinedAt: Date.now(),
         });
 
-        return args.squadId;
+        return squadId;
     },
 });
 
@@ -191,3 +197,19 @@ export const getSquad = query({
     },
 });
 
+export const leaveSquad = mutation({
+    args: { squadId: v.id("squads") },
+    handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) throw new Error("Unauthenticated");
+
+        const membership = await ctx.db
+            .query("memberships")
+            .withIndex("by_user_squad", (q) =>
+                q.eq("userId", userId).eq("squadId", args.squadId)
+            )
+            .first();
+
+        if (membership) await ctx.db.delete(membership._id);
+    },
+});
