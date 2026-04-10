@@ -1,7 +1,13 @@
+import { MessageReactions } from '@/components/chat/message-reactions';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
-import { StyleSheet } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
+
+interface Reaction {
+    emoji: string;
+    userId: string;
+}
 
 interface MessageItemProps {
     messageId: string;
@@ -10,24 +16,46 @@ interface MessageItemProps {
     createdAt: number;
     deleted?: boolean;
     isOwnMessage: boolean;
+    reactions?: Reaction[];
+    currentUserId?: string;
+    onToggleReaction?: (messageId: string, emoji: string) => void;
+    onLongPress?: () => void;
 }
 
-export function MessageItem({ nickname, content, createdAt, deleted, isOwnMessage }: MessageItemProps) {
+export function MessageItem({
+    messageId,
+    nickname,
+    content,
+    createdAt,
+    deleted,
+    isOwnMessage,
+    reactions = [],
+    currentUserId,
+    onToggleReaction,
+    onLongPress,
+}: MessageItemProps) {
     const time = new Date(createdAt).toLocaleTimeString([], {
         hour: '2-digit',
         minute: '2-digit',
     });
 
     return (
-        <ThemedView style={[styles.container, isOwnMessage && styles.containerRight]}>
-            {!isOwnMessage && (
-                <ThemedText type="smallBold">{nickname ?? 'Unknown'}</ThemedText>
-            )}
-            <ThemedText style={isOwnMessage && !deleted ? styles.ownMessage : styles.content}>
-                {content}
-            </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">{time}</ThemedText>
-        </ThemedView>
+        <Pressable onLongPress={onLongPress} delayLongPress={300}>
+            <ThemedView style={[styles.container, isOwnMessage && styles.containerRight]}>
+                {!isOwnMessage && (
+                    <ThemedText type="smallBold">{nickname ?? 'Unknown'}</ThemedText>
+                )}
+                <ThemedText style={isOwnMessage && !deleted ? styles.ownMessage : styles.content}>
+                    {content}
+                </ThemedText>
+                <MessageReactions
+                    reactions={reactions}
+                    currentUserId={currentUserId}
+                    onToggle={(emoji) => onToggleReaction?.(messageId, emoji)}
+                />
+                <ThemedText type="small" themeColor="textSecondary">{time}</ThemedText>
+            </ThemedView>
+        </Pressable>
     );
 }
 

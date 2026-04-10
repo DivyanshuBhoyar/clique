@@ -7,9 +7,10 @@ import { useTheme } from '@/hooks/use-theme';
 
 interface MessageInputProps {
     onSend: (content: string) => Promise<void>;
+    onTyping?: () => void;
 }
 
-export function MessageInput({ onSend }: MessageInputProps) {
+export function MessageInput({ onSend, onTyping }: MessageInputProps) {
     const [text, setText] = useState('');
     const [sending, setSending] = useState(false);
     const theme = useTheme();
@@ -32,11 +33,16 @@ export function MessageInput({ onSend }: MessageInputProps) {
         }
     };
 
+    const handleChangeText = (value: string) => {
+        setText(value);
+        onTyping?.();
+    };
+
     return (
         <View style={[styles.container, { borderColor: theme.textSecondary }]}>
             <TextInput
                 value={text}
-                onChangeText={setText}
+                onChangeText={handleChangeText}
                 placeholder="Type a message..."
                 placeholderTextColor={theme.textSecondary}
                 style={[styles.input, { color: theme.text }]}

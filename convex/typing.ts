@@ -40,6 +40,7 @@ export const setTyping = mutation({
 export const getTypingUsers = query({
     args: {
         channelId: v.id("channels"),
+        squadId: v.id("squads"),
     },
 
     handler: async (ctx, args) => {
@@ -52,8 +53,23 @@ export const getTypingUsers = query({
 
         const now = Date.now();
 
-        return entries
-            .filter((e) => now - e.lastTypingAt < 3000) // 3 sec window
-            .map((e) => e.userId);
+        const active = entries.filter((e) => now - e.lastTypingAt < 3000);
+
+        const withNicknames = await Promise.all(
+            active.map(async (e) => {
+                const membership = await ctx.db
+                    .query("memberships")
+                    .withIndex("by_user_squad", (q) =>
+                        q.eq("userId", e.userId).eq("squadId", args.squadId)
+                    )
+                    .first();
+                return {
+                    userId: e.userId,
+                    nickname: membership?.nickname ?? "Someone",
+                };
+            })
+        );
+
+        return withNicknames;
     },
 });

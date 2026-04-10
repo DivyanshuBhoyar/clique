@@ -1,4 +1,5 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireMembership } from "./users";
@@ -44,25 +45,20 @@ export const sendMessage = mutation({
 export const getMessages = query({
     args: {
         channelId: v.id("channels"),
-        limit: v.optional(v.number()),
-        cursor: v.optional(v.number()),
+        paginationOpts: paginationOptsValidator,
     },
 
     handler: async (ctx, args) => {
-        const limit = args.limit ?? 50;
-
-        const q = ctx.db
+        const page = await ctx.db
             .query("messages")
             .withIndex("by_channel", (q) =>
-                args.cursor
-                    ? q.eq("channelId", args.channelId).lt("createdAt", args.cursor)
-                    : q.eq("channelId", args.channelId)
+                q.eq("channelId", args.channelId)
             )
-            .order("desc");
+            .order("desc")
+            .paginate(args.paginationOpts);
 
-        const messages = await q.take(limit);
-
-        const ids = messages.map((m) => m._id);
+        // Enrich the current page with reactions and parent messages
+        const ids = page.page.map((m) => m._id);
 
         const reactions =
             ids.length === 0
@@ -86,7 +82,7 @@ export const getMessages = query({
 
         const parentIds = [
             ...new Set(
-                messages.map((m) => m.parentMessageId).filter(Boolean)
+                page.page.map((m) => m.parentMessageId).filter(Boolean)
             ),
         ];
 
@@ -105,7 +101,7 @@ export const getMessages = query({
         const parentMap = new Map();
         parents.forEach((p) => parentMap.set(p._id, p));
 
-        const enrichedMessages = messages.map((m) => {
+        const enrichedPage = page.page.map((m) => {
             const isDeleted = m.deleted === true;
 
             const parent = m.parentMessageId
@@ -129,14 +125,9 @@ export const getMessages = query({
             };
         });
 
-        enrichedMessages.reverse();
-
         return {
-            messages: enrichedMessages,
-            nextCursor:
-                messages.length === limit
-                    ? messages[messages.length - 1].createdAt
-                    : null,
+            ...page,
+            page: enrichedPage,
         };
     },
 });
