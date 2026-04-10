@@ -20,15 +20,13 @@ export function MessageInput({ onSend }: MessageInputProps) {
         if (!canSend) return;
 
         const content = text.trim();
-        // Clear immediately so user can start typing next message
         setText('');
         setSending(true);
 
         try {
             await onSend(content);
         } catch {
-            // Restore text on failure so user doesn't lose their message
-            setText(content);
+            setText(content); // restore
         } finally {
             setSending(false);
         }

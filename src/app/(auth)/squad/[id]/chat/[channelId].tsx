@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from 'convex/react';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { ActivityIndicator, FlatList, Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -15,6 +15,7 @@ import { Id } from '@/convex/_generated/dataModel';
 export default function ChannelChatScreen() {
     const { id: squadId, channelId } = useLocalSearchParams<{ id: string; channelId: string }>();
     const navigation = useNavigation();
+    const flatListRef = useRef<FlatList>(null);
 
     const sendMessage = useMutation(api.message.sendMessage);
     const currentUser = useQuery(api.users.current);
@@ -29,6 +30,7 @@ export default function ChannelChatScreen() {
         api.channel.getChannels,
         squadId ? { squadId: squadId as Id<"squads"> } : "skip"
     );
+
     useEffect(() => {
         if (channels && channelId) {
             const channel = channels.find(c => c._id === channelId);
@@ -37,6 +39,14 @@ export default function ChannelChatScreen() {
             }
         }
     }, [channels, channelId, navigation]);
+
+    // Auto-scroll to bottom when new messages arrive
+    // With inverted FlatList, offset 0 = bottom (newest messages)
+    useEffect(() => {
+        if (messagesResult?.messages.length) {
+            flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+        }
+    }, [messagesResult?.messages.length]);
 
     if (messagesResult === undefined) {
         return (
@@ -68,6 +78,7 @@ export default function ChannelChatScreen() {
                     ) : (
                         <Pressable style={styles.inner} onPress={Keyboard.dismiss}>
                             <FlatList
+                                ref={flatListRef}
                                 data={invertedData}
                                 keyExtractor={(item) => item._id}
                                 renderItem={({ item }) => (
