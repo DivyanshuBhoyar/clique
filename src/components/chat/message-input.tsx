@@ -20,11 +20,15 @@ export function MessageInput({ onSend }: MessageInputProps) {
         if (!canSend) return;
 
         const content = text.trim();
+        // Clear immediately so user can start typing next message
+        setText('');
         setSending(true);
 
         try {
             await onSend(content);
-            setText(''); // clear only on success
+        } catch {
+            // Restore text on failure so user doesn't lose their message
+            setText(content);
         } finally {
             setSending(false);
         }
@@ -38,7 +42,6 @@ export function MessageInput({ onSend }: MessageInputProps) {
                 placeholder="Type a message..."
                 placeholderTextColor={theme.textSecondary}
                 style={[styles.input, { color: theme.text }]}
-                editable={!sending}
                 returnKeyType="send"
                 onSubmitEditing={handleSend}
             />

@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from 'convex/react';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useEffect } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, FlatList, Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MessageInput } from '@/components/chat/message-input';
@@ -16,11 +16,9 @@ export default function ChannelChatScreen() {
     const { id: squadId, channelId } = useLocalSearchParams<{ id: string; channelId: string }>();
     const navigation = useNavigation();
 
-    // Mutations & Queries
     const sendMessage = useMutation(api.message.sendMessage);
     const currentUser = useQuery(api.users.current);
 
-    // Real-time message subscription
     const messagesResult = useQuery(
         api.message.getMessages,
         channelId ? { channelId: channelId as Id<"channels"> } : "skip"
@@ -31,8 +29,6 @@ export default function ChannelChatScreen() {
         api.channel.getChannels,
         squadId ? { squadId: squadId as Id<"squads"> } : "skip"
     );
-
-    // Set the header title to the channel name once loaded
     useEffect(() => {
         if (channels && channelId) {
             const channel = channels.find(c => c._id === channelId);
@@ -42,7 +38,6 @@ export default function ChannelChatScreen() {
         }
     }, [channels, channelId, navigation]);
 
-    // Loading state
     if (messagesResult === undefined) {
         return (
             <SafeAreaView style={styles.loading}>
@@ -59,44 +54,52 @@ export default function ChannelChatScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
-            <ThemedView style={styles.inner}>
-                {messages.length === 0 ? (
-                    <View style={styles.empty}>
-                        <ThemedText themeColor="textSecondary">
-                            No messages yet. Say hi!
-                        </ThemedText>
-                    </View>
-                ) : (
-                    <FlatList
-                        data={invertedData}
-                        keyExtractor={(item) => item._id}
-                        renderItem={({ item }) => (
-                            <MessageItem
-                                messageId={item._id}
-                                nickname={item.nickname}
-                                content={item.content}
-                                createdAt={item.createdAt}
-                                deleted={item.deleted}
-                                isOwnMessage={item.userId === currentUser?._id}
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                style={styles.inner}
+            >
+                <ThemedView style={styles.inner}>
+                    {messages.length === 0 ? (
+                        <View style={styles.empty}>
+                            <ThemedText themeColor="textSecondary">
+                                No messages yet. Say hi!
+                            </ThemedText>
+                        </View>
+                    ) : (
+                        <Pressable style={styles.inner} onPress={Keyboard.dismiss}>
+                            <FlatList
+                                data={invertedData}
+                                keyExtractor={(item) => item._id}
+                                renderItem={({ item }) => (
+                                    <MessageItem
+                                        messageId={item._id}
+                                        nickname={item.nickname}
+                                        content={item.content}
+                                        createdAt={item.createdAt}
+                                        deleted={item.deleted}
+                                        isOwnMessage={item.userId === currentUser?._id}
+                                    />
+                                )}
+                                inverted
+                                initialNumToRender={15}
+                                maxToRenderPerBatch={10}
+                                windowSize={10}
+                                contentContainerStyle={styles.listContent}
+                                keyboardShouldPersistTaps="handled"
                             />
-                        )}
-                        inverted
-                        initialNumToRender={15}
-                        maxToRenderPerBatch={10}
-                        windowSize={10}
-                        contentContainerStyle={styles.listContent}
+                        </Pressable>
+                    )}
+                    <MessageInput
+                        onSend={async (content) => {
+                            await sendMessage({
+                                squadId: squadId as Id<"squads">,
+                                channelId: channelId as Id<"channels">,
+                                content,
+                            });
+                        }}
                     />
-                )}
-                <MessageInput
-                    onSend={async (content) => {
-                        await sendMessage({
-                            squadId: squadId as Id<"squads">,
-                            channelId: channelId as Id<"channels">,
-                            content,
-                        });
-                    }}
-                />
-            </ThemedView>
+                </ThemedView>
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 }

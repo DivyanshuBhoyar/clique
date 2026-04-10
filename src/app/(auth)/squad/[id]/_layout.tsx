@@ -24,6 +24,7 @@ export default function SquadTabsLayout() {
             screenOptions={{
                 headerShown: true,
                 headerTitle: squad?.name || "Loading...",
+                tabBarHideOnKeyboard: true,
                 tabBarActiveTintColor: '#000',
                 tabBarInactiveTintColor: '#888',
                 tabBarStyle: {
