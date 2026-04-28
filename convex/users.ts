@@ -13,6 +13,15 @@ export const current = query({
     },
 });
 
+export const currentAvatarUrl = query({
+    args: {},
+    handler: async (ctx) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) return null;
+        return await getAvatarUrl(ctx, userId);
+    },
+});
+
 type Ctx = QueryCtx | MutationCtx;
 
 export async function getCurrentUser(ctx: Ctx) {
@@ -67,3 +76,72 @@ export const saveUsername = mutation({
         });
     }
 });
+
+export const updateAvatar = mutation({
+    args: {
+        storageId: v.id("_storage"),
+    },
+    handler: async (ctx, args) => {
+        const user = await getCurrentUser(ctx);
+        const existing = await ctx.db
+            .query("userAvatars")
+            .withIndex("by_user", (q) => q.eq("userId", user._id))
+            .first();
+        if (existing) {
+            await ctx.db.patch(existing._id, { storageId: args.storageId });
+        } else {
+            await ctx.db.insert("userAvatars", {
+                userId: user._id,
+                storageId: args.storageId,
+            });
+        }
+    },
+});
+
+export const removeAvatar = mutation({
+    args: {},
+    handler: async (ctx) => {
+        const user = await getCurrentUser(ctx);
+        const existing = await ctx.db
+            .query("userAvatars")
+            .withIndex("by_user", (q) => q.eq("userId", user._id))
+            .first();
+        if (existing) {
+            await ctx.db.delete(existing._id);
+        }
+    },
+});
+
+export async function getAvatarUrl(ctx: QueryCtx, userId: Id<"users">): Promise<string | null> {
+    const [avatar, user] = await Promise.all([
+        ctx.db
+            .query("userAvatars")
+            .withIndex("by_user", (q) => q.eq("userId", userId))
+            .first(),
+        ctx.db.get(userId),
+    ]);
+    if (avatar) {
+        return await ctx.storage.getUrl(avatar.storageId);
+    }
+    return user?.image ?? null;
+}
+
+export async function enrichUser(
+    ctx: QueryCtx,
+    userId: Id<"users">,
+    squadId: Id<"squads">
+): Promise<{ nickname: string; avatarUrl: string | null }> {
+    const [membership, avatarUrl] = await Promise.all([
+        ctx.db
+            .query("memberships")
+            .withIndex("by_user_squad", (q) =>
+                q.eq("userId", userId).eq("squadId", squadId)
+            )
+            .first(),
+        getAvatarUrl(ctx, userId),
+    ]);
+    return {
+        nickname: membership?.nickname ?? "Unknown",
+        avatarUrl,
+    };
+}

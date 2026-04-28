@@ -4,6 +4,10 @@ import { v } from "convex/values";
 
 export default defineSchema({
     ...authTables,
+    userAvatars: defineTable({
+        userId: v.id("users"),
+        storageId: v.id("_storage"),
+    }).index("by_user", ["userId"]),
     squads: defineTable({
         name: v.string(),
         passwordHash: v.string(),
@@ -18,6 +22,8 @@ export default defineSchema({
         squadId: v.id("squads"),
         nickname: v.string(),
         vibe: v.optional(v.string()),
+        vibeLabel: v.optional(v.string()),
+        vibeUpdatedAt: v.optional(v.number()),
         statusText: v.optional(v.string()),
         streakCount: v.optional(v.number()),
         lastActiveAt: v.optional(v.number()),
@@ -39,6 +45,7 @@ export default defineSchema({
         ),
         parentChannelId: v.optional(v.id("channels")),
         expiresAt: v.optional(v.number()),
+        gracePeriodMs: v.optional(v.number()),
         createdBy: v.id("users"),
         createdAt: v.number(),
     })
@@ -87,6 +94,14 @@ export default defineSchema({
         .index("by_message", ["messageId"])
         .index("by_user_message", ["userId", "messageId"]),
 
+    channelReadStatus: defineTable({
+        userId: v.id("users"),
+        channelId: v.id("channels"),
+        lastReadAt: v.number(),
+    })
+        .index("by_user_channel", ["userId", "channelId"])
+        .index("by_user", ["userId"]),
+
     notes: defineTable({
         squadId: v.id("squads"),
         title: v.string(),
@@ -95,10 +110,14 @@ export default defineSchema({
             v.literal("personal"),
             v.literal("shared"),
             v.literal("friend"),
+            v.literal("journal"),
         ),
         ownerId: v.id("users"),
         targetUserId: v.optional(v.id("users")),
         channelId: v.optional(v.id("channels")),
+        tag: v.optional(v.string()),
+        pinned: v.optional(v.boolean()),
+        lastEditedBy: v.optional(v.id("users")),
         createdAt: v.number(),
         updatedAt: v.number(),
     })
@@ -119,8 +138,9 @@ export default defineSchema({
 
     memories: defineTable({
         squadId: v.id("squads"),
-        title: v.string(),
-        description: v.optional(v.string()),
+        title: v.optional(v.string()),
+        content: v.optional(v.string()),
+        coverStorageId: v.optional(v.id("_storage")),
         type: v.union(
             v.literal("event"),
             v.literal("wall"),
@@ -134,11 +154,13 @@ export default defineSchema({
         memoryId: v.id("memories"),
         userId: v.id("users"),
         type: v.union(
-            v.literal("text"),
-            v.literal("image"),
-            v.literal("link")
+            v.literal("reflection"),
+            v.literal("photo"),
+            v.literal("link"),
         ),
         content: v.string(),
+        caption: v.optional(v.string()),
+        storageId: v.optional(v.id("_storage")),
         createdAt: v.number(),
     })
         .index("by_memory", ["memoryId"]),
@@ -149,7 +171,17 @@ export default defineSchema({
         createdAt: v.number(),
     })
         .index("by_squad", ["squadId"])
+        .index("by_squad_created", ["squadId", "createdAt"])
         .index("by_created", ["createdAt"]),
+
+    confessionReactions: defineTable({
+        confessionId: v.id("confessions"),
+        userId: v.id("users"),
+        emoji: v.string(),
+        createdAt: v.number(),
+    })
+        .index("by_confession", ["confessionId"])
+        .index("by_user_confession", ["userId", "confessionId"]),
 
     polls: defineTable({
         squadId: v.id("squads"),
@@ -218,4 +250,56 @@ export default defineSchema({
         content: v.string(),
         createdAt: v.number(),
     }).index("by_drop", ["dropId", "createdAt"]),
+
+    dropVotes: defineTable({
+        dropId: v.id("drops"),
+        userId: v.id("users"),
+        value: v.union(v.literal("up"), v.literal("down")),
+        createdAt: v.number(),
+    })
+        .index("by_drop", ["dropId"])
+        .index("by_user_drop", ["userId", "dropId"]),
+
+    commentVotes: defineTable({
+        commentId: v.id("dropComments"),
+        userId: v.id("users"),
+        value: v.union(v.literal("up"), v.literal("down")),
+        createdAt: v.number(),
+    })
+        .index("by_comment", ["commentId"])
+        .index("by_user_comment", ["userId", "commentId"]),
+
+    memoryReactions: defineTable({
+        memoryId: v.id("memories"),
+        userId: v.id("users"),
+        emoji: v.string(),
+        createdAt: v.number(),
+    })
+        .index("by_memory", ["memoryId"])
+        .index("by_user_memory", ["userId", "memoryId"]),
+
+    memoryComments: defineTable({
+        memoryId: v.id("memories"),
+        userId: v.id("users"),
+        content: v.string(),
+        createdAt: v.number(),
+    })
+        .index("by_memory", ["memoryId", "createdAt"]),
+
+    memoryItemReactions: defineTable({
+        itemId: v.id("memoryItems"),
+        userId: v.id("users"),
+        emoji: v.string(),
+        createdAt: v.number(),
+    })
+        .index("by_item", ["itemId"])
+        .index("by_user_item", ["userId", "itemId"]),
+
+    memoryItemComments: defineTable({
+        itemId: v.id("memoryItems"),
+        userId: v.id("users"),
+        content: v.string(),
+        createdAt: v.number(),
+    })
+        .index("by_item", ["itemId", "createdAt"]),
 });
