@@ -1,3 +1,5 @@
+import { getAuthUserId } from "@convex-dev/auth/server";
+import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireMembership } from "./users";
@@ -7,7 +9,6 @@ export const createConfession = mutation({
         squadId: v.id("squads"),
         content: v.string(),
     },
-
     handler: async (ctx, args) => {
         await requireMembership(ctx, args.squadId);
 
@@ -17,44 +18,98 @@ export const createConfession = mutation({
             createdAt: Date.now(),
         });
     },
-})
+});
 
 export const getConfessions = query({
     args: {
         squadId: v.id("squads"),
-        limit: v.optional(v.number()),
-        cursor: v.optional(v.number()),
+        paginationOpts: paginationOptsValidator,
     },
-
     handler: async (ctx, args) => {
-        const limit = args.limit ?? 20;
+        const { userId } = await requireMembership(ctx, args.squadId);
 
-        await requireMembership(ctx, args.squadId);
-
-        let q = ctx.db
+        const result = await ctx.db
             .query("confessions")
-            .withIndex("by_squad", (q) =>
+            .withIndex("by_squad_created", (q) =>
                 q.eq("squadId", args.squadId)
             )
-            .order("desc");
+            .order("desc")
+            .paginate(args.paginationOpts);
 
-        if (args.cursor !== undefined) {
-            const cursor = args.cursor;
-            q = q.filter((q) =>
-                q.lt(q.field("createdAt"), cursor)
-            );
+        const enriched = [];
+        for (const confession of result.page) {
+            const reactions = await ctx.db
+                .query("confessionReactions")
+                .withIndex("by_confession", (q) =>
+                    q.eq("confessionId", confession._id)
+                )
+                .collect();
+
+            const grouped = new Map<string, { emoji: string; count: number; hasReacted: boolean }>();
+            for (const r of reactions) {
+                const existing = grouped.get(r.emoji);
+                if (existing) {
+                    existing.count++;
+                    if (r.userId === userId) existing.hasReacted = true;
+                } else {
+                    grouped.set(r.emoji, {
+                        emoji: r.emoji,
+                        count: 1,
+                        hasReacted: r.userId === userId,
+                    });
+                }
+            }
+
+            enriched.push({
+                ...confession,
+                reactions: Array.from(grouped.values()),
+            });
         }
 
-        const confessions = await q.take(limit);
-
-        const nextCursor =
-            confessions.length === limit
-                ? confessions[confessions.length - 1].createdAt
-                : null;
-
         return {
-            confessions: confessions.reverse(),
-            nextCursor,
+            ...result,
+            page: enriched,
         };
+    },
+});
+
+export const toggleConfessionReaction = mutation({
+    args: {
+        confessionId: v.id("confessions"),
+        emoji: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) throw new Error("Unauthenticated");
+
+        const confession = await ctx.db.get(args.confessionId);
+        if (!confession) throw new Error("Confession not found");
+
+        await requireMembership(ctx, confession.squadId);
+
+        const existing = await ctx.db
+            .query("confessionReactions")
+            .withIndex("by_user_confession", (q) =>
+                q.eq("userId", userId).eq("confessionId", args.confessionId)
+            )
+            .first();
+
+        if (existing) {
+            if (existing.emoji === args.emoji) {
+                await ctx.db.delete(existing._id);
+                return { action: "removed" };
+            }
+            await ctx.db.patch(existing._id, { emoji: args.emoji });
+            return { action: "updated" };
+        }
+
+        await ctx.db.insert("confessionReactions", {
+            confessionId: args.confessionId,
+            userId,
+            emoji: args.emoji,
+            createdAt: Date.now(),
+        });
+
+        return { action: "added" };
     },
 });

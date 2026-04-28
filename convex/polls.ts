@@ -10,7 +10,6 @@ export const createPoll = mutation({
         options: v.array(v.string()),
         expiresAt: v.optional(v.number()),
     },
-
     handler: async (ctx, args) => {
         const { userId } = await requireMembership(ctx, args.squadId);
 
@@ -26,7 +25,6 @@ export const createPoll = mutation({
             createdAt: Date.now(),
         });
 
-        // insert options
         for (const text of args.options) {
             await ctx.db.insert("pollOptions", {
                 pollId,
@@ -38,18 +36,16 @@ export const createPoll = mutation({
     },
 });
 
-
 export const votePoll = mutation({
     args: {
         pollId: v.id("polls"),
         optionId: v.id("pollOptions"),
     },
-
     handler: async (ctx, args) => {
-        const userId = (await requireMembership(ctx, (await ctx.db.get(args.pollId))!.squadId)).userId;
-
         const poll = await ctx.db.get(args.pollId);
         if (!poll) throw new Error("Poll not found");
+
+        const { userId } = await requireMembership(ctx, poll.squadId);
 
         if (poll.expiresAt && Date.now() > poll.expiresAt) {
             throw new Error("Poll expired");
@@ -78,57 +74,51 @@ export const votePoll = mutation({
     },
 });
 
-
-
 export const getPolls = query({
     args: {
         squadId: v.id("squads"),
     },
-
     handler: async (ctx, args) => {
-        await requireMembership(ctx, args.squadId);
+        const { userId } = await requireMembership(ctx, args.squadId);
 
-        const polls: Doc<"polls">[] = await ctx.db
+        const polls = await ctx.db
             .query("polls")
             .withIndex("by_squad", (q) =>
                 q.eq("squadId", args.squadId)
             )
             .order("desc")
-            .collect();
+            .take(20);
 
-        const pollIds = polls.map((p) => p._id);
+        const enriched = [];
+        for (const poll of polls) {
+            const options = await ctx.db
+                .query("pollOptions")
+                .withIndex("by_poll", (q) => q.eq("pollId", poll._id))
+                .collect();
 
-        const options = await ctx.db
-            .query("pollOptions")
-            .collect();
+            const votes = await ctx.db
+                .query("pollVotes")
+                .withIndex("by_poll", (q) => q.eq("pollId", poll._id))
+                .collect();
 
-        const votes = await ctx.db
-            .query("pollVotes")
-            .collect();
-
-        // group options
-        const optionsMap = new Map<Id<"polls">, Doc<"pollOptions">[]>();
-        for (const o of options) {
-            if (!optionsMap.has(o.pollId)) {
-                optionsMap.set(o.pollId, []);
+            const voteCount = new Map<Id<"pollOptions">, number>();
+            for (const v of votes) {
+                voteCount.set(v.optionId, (voteCount.get(v.optionId) || 0) + 1);
             }
-            optionsMap.get(o.pollId)!.push(o);
+
+            const myVote = votes.find((v) => v.userId === userId);
+
+            enriched.push({
+                ...poll,
+                options: options.map((o) => ({
+                    ...o,
+                    votes: voteCount.get(o._id) || 0,
+                })),
+                totalVotes: votes.length,
+                myVoteOptionId: myVote?.optionId ?? null,
+            });
         }
 
-        const voteCount = new Map<Id<"pollOptions">, number>();
-        for (const v of votes) {
-            voteCount.set(
-                v.optionId,
-                (voteCount.get(v.optionId) || 0) + 1
-            );
-        }
-
-        return polls.map((p) => ({
-            ...p,
-            options: (optionsMap.get(p._id) || []).map((o) => ({
-                ...o,
-                votes: voteCount.get(o._id) || 0,
-            })),
-        }));
+        return enriched;
     },
 });

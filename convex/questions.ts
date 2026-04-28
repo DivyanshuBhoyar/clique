@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireMembership } from "./users";
+import { enrichUser, requireMembership } from "./users";
 
 export const createWeeklyQuestion = mutation({
     args: {
@@ -96,5 +96,59 @@ export const getWeeklyQuestions = query({
                 (a: any) => a.userId === userId
             ),
         }));
+    },
+});
+
+export const getCurrentQuestion = query({
+    args: {
+        squadId: v.id("squads"),
+    },
+    handler: async (ctx, args) => {
+        const { userId } = await requireMembership(ctx, args.squadId);
+
+        const [question] = await ctx.db
+            .query("weeklyQuestions")
+            .withIndex("by_squad", (q) => q.eq("squadId", args.squadId))
+            .order("desc")
+            .take(1);
+
+        if (!question) {
+            const memberCount = (await ctx.db
+                .query("memberships")
+                .withIndex("by_squad", (q) => q.eq("squadId", args.squadId))
+                .collect()).length;
+
+            return { question: null, answers: [], myAnswer: null, answerCount: 0, squadMemberCount: memberCount };
+        }
+
+        const answers = await ctx.db
+            .query("weeklyAnswers")
+            .withIndex("by_question", (q) => q.eq("questionId", question._id))
+            .collect();
+
+        const enrichedAnswers = [];
+        for (const a of answers) {
+            const { nickname, avatarUrl } = await enrichUser(ctx, a.userId, args.squadId);
+
+            enrichedAnswers.push({
+                ...a,
+                nickname,
+                avatarUrl,
+            });
+        }
+
+        const myAnswer = answers.find((a) => a.userId === userId) ?? null;
+        const memberCount = (await ctx.db
+            .query("memberships")
+            .withIndex("by_squad", (q) => q.eq("squadId", args.squadId))
+            .collect()).length;
+
+        return {
+            question,
+            answers: enrichedAnswers,
+            myAnswer,
+            answerCount: answers.length,
+            squadMemberCount: memberCount,
+        };
     },
 });

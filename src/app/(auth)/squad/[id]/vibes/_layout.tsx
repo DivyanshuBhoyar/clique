@@ -4,7 +4,6 @@ export default function VibesLayout() {
     return (
         <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="index" />
-            <Stack.Screen name="[vibeId]" />
         </Stack>
     );
 }
