@@ -4,6 +4,7 @@ import { Redirect, Stack, useSegments } from "expo-router";
 import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 
+import { Colors } from "@/constants/theme";
 import { api } from "../../../convex/_generated/api";
 
 export default function PublicLayout() {
@@ -24,7 +25,7 @@ export default function PublicLayout() {
   if (isLoading) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color={Colors.light.accent} />
       </View>
     );
   }
@@ -37,7 +38,7 @@ export default function PublicLayout() {
         <View
           style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
         >
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color={Colors.light.accent} />
         </View>
       );
     }
@@ -48,7 +49,7 @@ export default function PublicLayout() {
         <View
           style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
         >
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color={Colors.light.accent} />
         </View>
       );
     }

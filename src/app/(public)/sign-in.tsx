@@ -13,12 +13,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '@/components/button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Radius, Shadows, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 
 type Step = 'email' | 'otp';
 
 export default function SignInScreen() {
     const { signIn } = useAuthActions();
+    const theme = useTheme();
 
     const [step, setStep] = useState<Step>('email');
     const [email, setEmail] = useState('');
@@ -28,11 +30,9 @@ export default function SignInScreen() {
     const handleGoogleSignIn = async () => {
         const isMobile = Platform.OS === 'ios' || Platform.OS === 'android';
         if (!isMobile) {
-            // Web: triggers a full-page redirect to Google, fire-and-forget
             void signIn('google');
             return;
         }
-        // Mobile: open browser with deep-link redirect back to app
         setIsLoading(true);
         try {
             await signIn('google', { redirectTo: 'clique://' });
@@ -69,8 +69,6 @@ export default function SignInScreen() {
         setIsLoading(true);
         try {
             await signIn('resend-otp', { email: email.trim(), code: code.trim() });
-            // On success, ConvexAuthProvider updates isAuthenticated automatically.
-            // The (public)/_layout.tsx will redirect to (auth).
         } catch (err: any) {
             console.error(err);
             Alert.alert('Error', 'Invalid code. Please try again.');
@@ -82,11 +80,18 @@ export default function SignInScreen() {
     return (
         <ThemedView style={styles.container}>
             <SafeAreaView style={styles.safeArea}>
-                <View style={styles.heroSection}>
-                    <ThemedText type="title" style={styles.title}>
+                <View style={[styles.heroSection, {
+                    backgroundColor: theme.accentSoft,
+                    borderColor: theme.outline,
+                    shadowColor: theme.shadow,
+                    shadowOffset: Shadows.sm.offset,
+                    shadowOpacity: Shadows.sm.opacity,
+                    shadowRadius: Shadows.sm.radius,
+                }]}>
+                    <ThemedText type="title" style={{ textAlign: 'center' }}>
                         Homie Squad
                     </ThemedText>
-                    <ThemedText style={styles.subtitle}>
+                    <ThemedText type="small" themeColor="textSecondary" style={{ marginTop: Spacing.sm }}>
                         Are you ready to vibe?
                     </ThemedText>
                 </View>
@@ -98,24 +103,20 @@ export default function SignInScreen() {
                                 Enter your email to sign in
                             </ThemedText>
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, { color: theme.text, borderColor: theme.outline, backgroundColor: theme.inputBackground }]}
                                 value={email}
                                 onChangeText={setEmail}
                                 placeholder="you@example.com"
-                                placeholderTextColor="#888"
+                                placeholderTextColor={theme.textTertiary}
                                 keyboardType="email-address"
                                 autoCapitalize="none"
                                 autoCorrect={false}
                                 editable={!isLoading}
                             />
                             {isLoading ? (
-                                <ActivityIndicator size="small" color="#007AFF" />
+                                <ActivityIndicator size="small" color={theme.accent} />
                             ) : (
-                                <Button
-                                    title="Send Code"
-                                    color="#007AFF"
-                                    onPress={handleSendOTP}
-                                />
+                                <Button title="Send Code" color={theme.accent} onPress={handleSendOTP} />
                             )}
                         </>
                     ) : (
@@ -124,32 +125,21 @@ export default function SignInScreen() {
                                 Enter the code sent to {email}
                             </ThemedText>
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, { color: theme.text, borderColor: theme.outline, backgroundColor: theme.inputBackground }]}
                                 value={code}
                                 onChangeText={setCode}
                                 placeholder="12345678"
-                                placeholderTextColor="#888"
+                                placeholderTextColor={theme.textTertiary}
                                 keyboardType="number-pad"
                                 autoCapitalize="none"
                                 editable={!isLoading}
                             />
                             {isLoading ? (
-                                <ActivityIndicator size="small" color="#007AFF" />
+                                <ActivityIndicator size="small" color={theme.accent} />
                             ) : (
                                 <>
-                                    <Button
-                                        title="Verify Code"
-                                        color="#007AFF"
-                                        onPress={handleVerifyOTP}
-                                    />
-                                    <Button
-                                        title="Back"
-                                        color="#888"
-                                        onPress={() => {
-                                            setStep('email');
-                                            setCode('');
-                                        }}
-                                    />
+                                    <Button title="Verify Code" color={theme.accent} onPress={handleVerifyOTP} />
+                                    <Button title="Back" color={theme.textTertiary} onPress={() => { setStep('email'); setCode(''); }} />
                                 </>
                             )}
                         </>
@@ -157,20 +147,16 @@ export default function SignInScreen() {
                 </View>
 
                 <View style={styles.divider}>
-                    <View style={styles.dividerLine} />
-                    <ThemedText style={styles.dividerText}>or</ThemedText>
-                    <View style={styles.dividerLine} />
+                    <View style={[styles.dividerLine, { backgroundColor: theme.outlineLight }]} />
+                    <ThemedText type="small" themeColor="textTertiary">or</ThemedText>
+                    <View style={[styles.dividerLine, { backgroundColor: theme.outlineLight }]} />
                 </View>
 
                 <View style={styles.authSection}>
                     {isLoading ? (
-                        <ActivityIndicator size="small" color="#007AFF" />
+                        <ActivityIndicator size="small" color={theme.accent} />
                     ) : (
-                        <Button
-                            title="Sign in with Google"
-                            color="#DB4437"
-                            onPress={handleGoogleSignIn}
-                        />
+                        <Button title="Sign in with Google" color="#DB4437" onPress={handleGoogleSignIn} />
                     )}
                 </View>
             </SafeAreaView>
@@ -184,55 +170,41 @@ const styles = StyleSheet.create({
     },
     safeArea: {
         flex: 1,
-        paddingHorizontal: Spacing.four,
+        paddingHorizontal: Spacing.xxl,
         justifyContent: 'center',
-        gap: Spacing.three,
+        gap: Spacing.lg,
     },
     heroSection: {
         alignItems: 'center',
-        marginBottom: 40,
-    },
-    title: {
-        textAlign: 'center',
-        fontSize: 40,
-        fontWeight: 'bold',
-    },
-    subtitle: {
-        fontSize: 18,
-        color: '#666',
-        marginTop: 10,
+        marginBottom: Spacing.huge,
+        paddingVertical: Spacing.xxl,
+        borderRadius: Radius.lg,
+        borderWidth: 2,
     },
     authSection: {
-        paddingHorizontal: 20,
-        gap: Spacing.three,
+        paddingHorizontal: Spacing.xl,
+        gap: Spacing.lg,
     },
     label: {
         fontSize: 16,
         textAlign: 'center',
-        marginBottom: Spacing.two,
+        marginBottom: Spacing.sm,
     },
     input: {
-        backgroundColor: '#f5f5f5',
-        borderWidth: 1,
-        borderColor: '#eee',
-        borderRadius: 8,
-        padding: Spacing.three,
+        borderWidth: 2,
+        borderRadius: Radius.md,
+        padding: Spacing.lg,
         fontSize: 18,
         textAlign: 'center',
     },
     divider: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 20,
-        gap: Spacing.two,
+        paddingHorizontal: Spacing.xl,
+        gap: Spacing.sm,
     },
     dividerLine: {
         flex: 1,
         height: 1,
-        backgroundColor: '#ddd',
-    },
-    dividerText: {
-        fontSize: 14,
-        color: '#888',
     },
 });

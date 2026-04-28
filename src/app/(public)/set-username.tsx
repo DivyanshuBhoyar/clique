@@ -13,11 +13,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '@/components/button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Radius, Shadows, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { api } from '../../../convex/_generated/api';
 
 export default function SetUsernameScreen() {
     const router = useRouter();
+    const theme = useTheme();
     const saveUsername = useMutation(api.users.saveUsername);
 
     const [username, setUsername] = useState('');
@@ -36,7 +38,6 @@ export default function SetUsernameScreen() {
 
         setIsLoading(true);
         try {
-            // Auth automatically ensures the user, just update details
             const avatarUrl = `https://api.dicebear.com/9.x/micah/svg?seed=${encodeURIComponent(trimmed)}`;
             await saveUsername({ username: trimmed, image: avatarUrl });
             router.replace('/(auth)' as any);
@@ -51,35 +52,38 @@ export default function SetUsernameScreen() {
     return (
         <ThemedView style={styles.container}>
             <SafeAreaView style={styles.safeArea}>
-                <View style={styles.heroSection}>
-                    <ThemedText type="title" style={styles.title}>
-                        Welcome! 👋
+                <View style={[styles.heroSection, {
+                    backgroundColor: theme.accentSoft,
+                    borderColor: theme.outline,
+                    shadowColor: theme.shadow,
+                    shadowOffset: Shadows.sm.offset,
+                    shadowOpacity: Shadows.sm.opacity,
+                    shadowRadius: Shadows.sm.radius,
+                }]}>
+                    <ThemedText type="title" style={{ textAlign: 'center' }}>
+                        Welcome!
                     </ThemedText>
-                    <ThemedText style={styles.subtitle}>
+                    <ThemedText type="small" themeColor="textSecondary" style={{ marginTop: Spacing.sm }}>
                         What should we call you?
                     </ThemedText>
                 </View>
 
                 <View style={styles.formSection}>
                     <TextInput
-                        style={styles.input}
+                        style={[styles.input, { color: theme.text, borderColor: theme.outline, backgroundColor: theme.inputBackground }]}
                         value={username}
                         onChangeText={setUsername}
                         placeholder="Pick a username"
-                        placeholderTextColor="#888"
+                        placeholderTextColor={theme.textTertiary}
                         autoCapitalize="none"
                         autoCorrect={false}
                         editable={!isLoading}
                     />
 
                     {isLoading ? (
-                        <ActivityIndicator size="small" color="#007AFF" />
+                        <ActivityIndicator size="small" color={theme.accent} />
                     ) : (
-                        <Button
-                            title="Let's Go!"
-                            color="#007AFF"
-                            onPress={handleSave}
-                        />
+                        <Button title="Let's Go!" color={theme.accent} onPress={handleSave} />
                     )}
                 </View>
             </SafeAreaView>
@@ -93,34 +97,25 @@ const styles = StyleSheet.create({
     },
     safeArea: {
         flex: 1,
-        paddingHorizontal: Spacing.four,
+        paddingHorizontal: Spacing.xxl,
         justifyContent: 'center',
-        gap: Spacing.three,
+        gap: Spacing.lg,
     },
     heroSection: {
         alignItems: 'center',
-        marginBottom: 40,
-    },
-    title: {
-        textAlign: 'center',
-        fontSize: 32,
-        fontWeight: 'bold',
-    },
-    subtitle: {
-        fontSize: 18,
-        color: '#666',
-        marginTop: 10,
+        marginBottom: Spacing.huge,
+        paddingVertical: Spacing.xxl,
+        borderRadius: Radius.lg,
+        borderWidth: 2,
     },
     formSection: {
-        paddingHorizontal: 20,
-        gap: Spacing.three,
+        paddingHorizontal: Spacing.xl,
+        gap: Spacing.lg,
     },
     input: {
-        backgroundColor: '#f5f5f5',
-        borderWidth: 1,
-        borderColor: '#eee',
-        borderRadius: 8,
-        padding: Spacing.three,
+        borderWidth: 2,
+        borderRadius: Radius.md,
+        padding: Spacing.lg,
         fontSize: 18,
         textAlign: 'center',
     },

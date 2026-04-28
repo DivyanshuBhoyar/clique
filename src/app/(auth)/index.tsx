@@ -9,11 +9,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '@/components/button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Radius, Shadows, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { api } from '@/convex/_generated/api';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const theme = useTheme();
   const { signOut } = useAuthActions();
 
   const [showJoinForm, setShowJoinForm] = useState(false);
@@ -26,7 +28,6 @@ export default function HomeScreen() {
   const joinSquad = useMutation(api.squad.joinSquad);
   const userSquads = useQuery(api.squad.getUserSquads);
 
-  // Auto-redirect: prefer last visited squad, fall back to first squad
   useEffect(() => {
     if (hasRedirected) return;
     if (!userSquads) return;
@@ -34,7 +35,6 @@ export default function HomeScreen() {
     const redirect = async () => {
       let targetId: string | null = null;
 
-      // Try last visited squad stored in AsyncStorage
       const lastId = await AsyncStorage.getItem('lastSquadId');
       if (lastId && userSquads.some(e => e.squad?._id === lastId)) {
         targetId = lastId;
@@ -82,97 +82,104 @@ export default function HomeScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <ThemedView style={styles.heroSection}>
+          <View style={[styles.heroSection, { backgroundColor: theme.accentSoft }]}>
             <ThemedText type="title" style={styles.title}>
               Homie Squad
             </ThemedText>
-            <ThemedText style={styles.subtitle}>
+            <ThemedText type="small" themeColor="textSecondary">
               Are you ready to vibe?
             </ThemedText>
-          </ThemedView>
+          </View>
 
-          {/* Joined Squads */}
           {userSquads && userSquads.length > 0 && (
-            <ThemedView style={styles.squadsList}>
-              <ThemedText style={styles.sectionTitle}>Your Squads</ThemedText>
+            <View style={styles.squadsList}>
+              <ThemedText type="bodyBold" style={{ marginBottom: Spacing.sm }}>Your Squads</ThemedText>
               {userSquads.map((entry) => {
                 if (!entry.squad) return null;
                 return (
                   <TouchableOpacity
                     key={entry.squad._id}
-                    style={styles.squadCard}
+                    style={[styles.squadCard, {
+                      backgroundColor: theme.surface,
+                      borderColor: theme.outline,
+                      shadowColor: theme.shadow,
+                      shadowOffset: Shadows.sm.offset,
+                      shadowOpacity: Shadows.sm.opacity,
+                      shadowRadius: Shadows.sm.radius,
+                      elevation: 3,
+                    }]}
                     onPress={() => router.push(`/squad/${entry.squad!._id}/chat` as any)}
                     activeOpacity={0.7}
                   >
                     <ThemedText style={styles.squadCardName}>{entry.squad.name}</ThemedText>
-                    <ThemedText style={styles.squadCardNickname}>as {entry.membership.nickname}</ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary">as {entry.membership.nickname}</ThemedText>
                   </TouchableOpacity>
                 );
               })}
-            </ThemedView>
+            </View>
           )}
 
-          <ThemedView style={styles.actionContainer}>
+          <View style={styles.actionContainer}>
             <Button
               title="Create a New Squad"
-              color="#007AFF"
+              color={theme.accent}
               onPress={handleCreateSquad}
             />
 
             {!showJoinForm ? (
               <Button
                 title="Join Squad By Name"
-                color="#34C759"
+                color={theme.success}
                 onPress={() => setShowJoinForm(true)}
               />
             ) : (
-              <View style={styles.joinForm}>
-                <ThemedText style={styles.formLabel}>Squad Name</ThemedText>
+              <View style={[styles.joinForm, { backgroundColor: theme.surface, borderColor: theme.outline }]}>
+                <ThemedText type="smallBold" style={{ marginTop: Spacing.sm }}>Squad Name</ThemedText>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: theme.text, borderColor: theme.outline, backgroundColor: theme.inputBackground }]}
                   value={squadName}
                   onChangeText={setSquadName}
                   placeholder="e.g. Weekend Warriors"
-                  placeholderTextColor="#888"
+                  placeholderTextColor={theme.textTertiary}
                 />
 
-                <ThemedText style={styles.formLabel}>Password</ThemedText>
+                <ThemedText type="smallBold" style={{ marginTop: Spacing.sm }}>Password</ThemedText>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: theme.text, borderColor: theme.outline, backgroundColor: theme.inputBackground }]}
                   value={password}
                   onChangeText={setPassword}
                   placeholder="Secret password"
-                  placeholderTextColor="#888"
+                  placeholderTextColor={theme.textTertiary}
                   secureTextEntry
                 />
 
-                <ThemedText style={styles.formLabel}>Your Nickname</ThemedText>
+                <ThemedText type="smallBold" style={{ marginTop: Spacing.sm }}>Your Nickname</ThemedText>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: theme.text, borderColor: theme.outline, backgroundColor: theme.inputBackground }]}
                   value={nickname}
                   onChangeText={setNickname}
                   placeholder="What should we call you?"
-                  placeholderTextColor="#888"
+                  placeholderTextColor={theme.textTertiary}
                 />
 
                 <Button
                   title={isJoining ? "Joining..." : "Join"}
-                  color="#34C759"
+                  color={theme.success}
                   onPress={submitJoinSquad}
                 />
                 <Button
                   title="Cancel"
-                  color="#888"
+                  color={theme.textTertiary}
                   onPress={() => setShowJoinForm(false)}
                 />
               </View>
             )}
-          </ThemedView>
+          </View>
 
           <View style={styles.signOutSection}>
             <Button
               title="Sign Out"
-              color="#FF3B30"
+              color={theme.error}
               onPress={() => signOut()}
             />
           </View>
@@ -185,49 +192,33 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   safeArea: {
     flex: 1,
-    paddingHorizontal: Spacing.four,
+    paddingHorizontal: Spacing.xxl,
   },
   scrollContent: {
     paddingVertical: Spacing.six,
-    gap: Spacing.four,
+    gap: Spacing.xxl,
   },
   heroSection: {
     alignItems: 'center',
-    marginBottom: 20,
-    backgroundColor: 'transparent',
+    marginBottom: Spacing.xl,
+    paddingVertical: Spacing.xxl,
+    borderRadius: Radius.lg,
+    borderWidth: 2,
   },
   title: {
     textAlign: 'center',
-    fontSize: 40,
-    fontWeight: 'bold',
-  },
-  subtitle: {
-    fontSize: 18,
-    color: '#666',
-    marginTop: 10,
   },
   squadsList: {
-    backgroundColor: 'transparent',
-    gap: Spacing.two,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#333',
-    marginBottom: Spacing.two,
-    letterSpacing: 0.5,
+    gap: Spacing.sm,
   },
   squadCard: {
-    backgroundColor: '#f5f5f5',
-    borderWidth: 1.5,
-    borderColor: '#eee',
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    borderWidth: 2,
+    borderRadius: Radius.md,
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -236,39 +227,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  squadCardNickname: {
-    fontSize: 13,
-    color: '#888',
-  },
   actionContainer: {
-    gap: Spacing.three,
-    backgroundColor: 'transparent',
+    gap: Spacing.lg,
     width: '100%',
   },
   joinForm: {
-    backgroundColor: '#fff',
-    padding: Spacing.four,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#eee',
-    gap: Spacing.two,
-    marginTop: Spacing.two,
-  },
-  formLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginTop: Spacing.two,
+    padding: Spacing.xxl,
+    borderRadius: Radius.lg,
+    borderWidth: 2,
+    gap: Spacing.xs,
+    marginTop: Spacing.sm,
   },
   input: {
-    backgroundColor: '#f5f5f5',
-    borderWidth: 1,
-    borderColor: '#eee',
-    borderRadius: 8,
-    padding: Spacing.three,
+    borderWidth: 2,
+    borderRadius: Radius.md,
+    padding: Spacing.lg,
     fontSize: 16,
-    marginBottom: Spacing.two,
+    marginBottom: Spacing.sm,
   },
   signOutSection: {
-    paddingTop: Spacing.two,
+    paddingTop: Spacing.sm,
   },
 });

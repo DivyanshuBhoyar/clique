@@ -6,6 +6,7 @@ import * as SecureStore from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
 import React from 'react';
 import { Platform, useColorScheme } from 'react-native';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 // Required for OAuth on mobile: detects the redirect deep-link and closes
 // the browser session so Convex Auth can complete the sign-in flow.
@@ -26,7 +27,8 @@ const secureStorage = {
 };
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
+  const navTheme = { ...DefaultTheme, colors: { ...DefaultTheme.colors, background: '#faf9f7' } };
+
   return (
     <ConvexAuthProvider
       client={convex}
@@ -36,10 +38,12 @@ export default function RootLayout() {
           : window.localStorage
       }
     >
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <AnimatedSplashOverlay />
-        <Slot />
-      </ThemeProvider>
+      <KeyboardProvider>
+        <ThemeProvider value={navTheme}>
+          <AnimatedSplashOverlay />
+          <Slot />
+        </ThemeProvider>
+      </KeyboardProvider>
     </ConvexAuthProvider>
   );
 }

@@ -7,11 +7,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '@/components/button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { api } from '../../../convex/_generated/api';
 
 export default function CreateSquadScreen() {
     const router = useRouter();
+    const theme = useTheme();
     const [name, setName] = useState('');
     const [password, setPassword] = useState('');
     const [nickname, setNickname] = useState('');
@@ -51,41 +53,42 @@ export default function CreateSquadScreen() {
                 <ThemedView style={styles.form}>
                     <ThemedText>Squad Name</ThemedText>
                     <TextInput
-                        style={styles.input}
+                        style={[styles.input, { color: theme.text, backgroundColor: theme.inputBackground, borderColor: theme.inputBorder }]}
                         value={name}
                         onChangeText={setName}
                         placeholder="e.g. Weekend Warriors"
-                        placeholderTextColor="#888"
+                        placeholderTextColor={theme.placeholder}
                     />
 
                     <ThemedText>Squad Password</ThemedText>
                     <TextInput
-                        style={styles.input}
+                        style={[styles.input, { color: theme.text, backgroundColor: theme.inputBackground, borderColor: theme.inputBorder }]}
                         value={password}
                         onChangeText={setPassword}
                         placeholder="Secret password"
-                        placeholderTextColor="#888"
+                        placeholderTextColor={theme.placeholder}
                         secureTextEntry
                     />
 
                     <ThemedText>Your Nickname</ThemedText>
                     <TextInput
-                        style={styles.input}
+                        style={[styles.input, { color: theme.text, backgroundColor: theme.inputBackground, borderColor: theme.inputBorder }]}
                         value={nickname}
                         onChangeText={setNickname}
                         placeholder="What should we call you?"
-                        placeholderTextColor="#888"
+                        placeholderTextColor={theme.placeholder}
                     />
                 </ThemedView>
 
                 <Button
                     title={isSubmitting ? "Creating..." : "Create Squad"}
+                    color={theme.accent}
                     onPress={handleCreate}
                 />
 
                 <Button
                     title="Cancel"
-                    color="#888"
+                    color={theme.textTertiary}
                     onPress={() => router.back()}
                     style={{ marginTop: 10 }}
                 />
@@ -97,7 +100,6 @@ export default function CreateSquadScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
     },
     safeArea: {
         flex: 1,
@@ -114,10 +116,8 @@ const styles = StyleSheet.create({
         marginBottom: Spacing.six,
     },
     input: {
-        backgroundColor: '#f5f5f5',
-        borderWidth: 1,
-        borderColor: '#eee',
-        borderRadius: 8,
+        borderWidth: 2,
+        borderRadius: Radius.md,
         padding: Spacing.three,
         fontSize: 16,
     }

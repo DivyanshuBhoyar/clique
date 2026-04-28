@@ -1,6 +1,7 @@
 import { useConvexAuth } from 'convex/react';
 import { Redirect, Stack } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
+import { Colors } from '@/constants/theme';
 
 export default function AuthLayout() {
     const { isLoading, isAuthenticated } = useConvexAuth();
@@ -8,7 +9,7 @@ export default function AuthLayout() {
     if (isLoading) {
         return (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                <ActivityIndicator size="large" color="#007AFF" />
+                <ActivityIndicator size="large" color={Colors.light.accent} />
             </View>
         );
     }
