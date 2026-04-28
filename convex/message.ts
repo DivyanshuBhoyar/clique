@@ -2,7 +2,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireMembership } from "./users";
+import { enrichUser, requireMembership } from "./users";
 
 export const sendMessage = mutation({
     args: {
@@ -18,6 +18,11 @@ export const sendMessage = mutation({
         const channel = await ctx.db.get(args.channelId);
         if (!channel || channel.squadId !== args.squadId) {
             throw new Error("Invalid channel");
+        }
+
+        // Ephemeral channel expiry guard
+        if (channel.type === "ephemeral" && channel.expiresAt && Date.now() > channel.expiresAt) {
+            throw new Error("This room has expired");
         }
 
         if (args.parentMessageId) {
@@ -101,6 +106,18 @@ export const getMessages = query({
         const parentMap = new Map();
         parents.forEach((p) => parentMap.set(p._id, p));
 
+        // Collect unique user+squad pairs for avatar resolution
+        const userIds = [...new Set(page.page.map((m) => m.userId))];
+        const squadId = page.page[0]?.squadId;
+
+        const avatarMap = new Map<string, string | null>();
+        if (squadId) {
+            for (const uid of userIds) {
+                const { avatarUrl } = await enrichUser(ctx, uid, squadId);
+                avatarMap.set(uid, avatarUrl);
+            }
+        }
+
         const enrichedPage = page.page.map((m) => {
             const isDeleted = m.deleted === true;
 
@@ -112,6 +129,7 @@ export const getMessages = query({
                 ...m,
                 content: isDeleted ? "This message was deleted" : m.content,
                 deleted: isDeleted,
+                avatarUrl: avatarMap.get(m.userId) ?? null,
 
                 reactions: reactionsMap.get(m._id) || [],
 
