@@ -1,9 +1,9 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
-import { Doc, Id } from "./_generated/dataModel";
+import { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
-import { requireMembership } from "./users";
-
+import { enrichUser, requireMembership } from "./users";
 
 export const createDrop = mutation({
     args: {
@@ -11,7 +11,6 @@ export const createDrop = mutation({
         category: v.string(),
         content: v.string(),
     },
-
     handler: async (ctx, args) => {
         const { userId } = await requireMembership(ctx, args.squadId);
 
@@ -25,111 +24,104 @@ export const createDrop = mutation({
     },
 });
 
-
 export const getDrops = query({
     args: {
         squadId: v.id("squads"),
-        limit: v.optional(v.number()),
-        cursor: v.optional(v.number()),
+        paginationOpts: paginationOptsValidator,
     },
-
     handler: async (ctx, args) => {
-        const limit = args.limit ?? 20;
+        const { userId } = await requireMembership(ctx, args.squadId);
 
-        await requireMembership(ctx, args.squadId);
-
-        let q = ctx.db
+        const result = await ctx.db
             .query("drops")
-            .withIndex("by_squad", (q) =>
-                q.eq("squadId", args.squadId)
-            )
-            .order("desc");
+            .withIndex("by_squad", (q) => q.eq("squadId", args.squadId))
+            .order("desc")
+            .paginate(args.paginationOpts);
 
-        if (args.cursor) {
-            const { cursor } = args;
-            q = q.filter((q) =>
-                q.lt(q.field("createdAt"), cursor)
-            );
+        const enriched = [];
+        for (const drop of result.page) {
+            const [reactions, comments, { nickname, avatarUrl }, votes] = await Promise.all([
+                ctx.db
+                    .query("dropReactions")
+                    .withIndex("by_drop", (q) => q.eq("dropId", drop._id))
+                    .collect(),
+                ctx.db
+                    .query("dropComments")
+                    .withIndex("by_drop", (q) => q.eq("dropId", drop._id))
+                    .collect(),
+                enrichUser(ctx, drop.userId, drop.squadId),
+                ctx.db
+                    .query("dropVotes")
+                    .withIndex("by_drop", (q) => q.eq("dropId", drop._id))
+                    .collect(),
+            ]);
+
+            const upvotes = votes.filter((v) => v.value === "up").length;
+            const downvotes = votes.filter((v) => v.value === "down").length;
+            const userVote = votes.find((v) => v.userId === userId)?.value ?? null;
+
+            enriched.push({
+                ...drop,
+                nickname,
+                avatarUrl,
+                reactions,
+                commentCount: comments.length,
+                upvotes,
+                downvotes,
+                userVote,
+            });
         }
-
-        const drops = await q.take(limit);
-        const dropIds = drops.map((d) => d._id);
-
-        let reactions: Doc<"dropReactions">[] = [];
-
-        if (dropIds.length > 0) {
-            reactions = await ctx.db
-                .query("dropReactions")
-                .filter((q) =>
-                    q.or(
-                        ...dropIds.map((id) =>
-                            q.eq(q.field("dropId"), id)
-                        )
-                    )
-                )
-                .collect();
-        }
-
-        const reactionsMap = new Map<Id<"drops">, Doc<"dropReactions">[]>();
-
-        for (const r of reactions) {
-            if (!reactionsMap.has(r.dropId)) {
-                reactionsMap.set(r.dropId, []);
-            }
-            reactionsMap.get(r.dropId)!.push(r);
-        }
-
-        // COMMENTS (batched)
-        let comments: Doc<"dropComments">[] = [];
-
-        if (dropIds.length > 0) {
-            comments = await ctx.db
-                .query("dropComments")
-                .filter((q) =>
-                    q.or(
-                        ...dropIds.map((id) =>
-                            q.eq(q.field("dropId"), id)
-                        )
-                    )
-                )
-                .collect();
-        }
-
-        const commentCountMap = new Map<Id<"drops">, number>();
-
-        for (const c of comments) {
-            commentCountMap.set(
-                c.dropId,
-                (commentCountMap.get(c.dropId) || 0) + 1
-            );
-        }
-
-        // Merge 
-        const enriched = drops.map((d) => ({
-            ...d,
-            reactions: reactionsMap.get(d._id) || [],
-            commentCount: commentCountMap.get(d._id) || 0,
-        }));
-
-        enriched.reverse();
 
         return {
-            drops: enriched,
-            nextCursor:
-                drops.length === limit
-                    ? (drops[drops.length - 1].createdAt as number | null)
-                    : null,
+            ...result,
+            page: enriched,
         };
     },
 });
 
+export const getDrop = query({
+    args: {
+        dropId: v.id("drops"),
+    },
+    handler: async (ctx, args) => {
+        const drop = await ctx.db.get(args.dropId);
+        if (!drop) return null;
+
+        const { userId } = await requireMembership(ctx, drop.squadId);
+
+        const [reactions, { nickname, avatarUrl }, votes] = await Promise.all([
+            ctx.db
+                .query("dropReactions")
+                .withIndex("by_drop", (q) => q.eq("dropId", drop._id))
+                .collect(),
+            enrichUser(ctx, drop.userId, drop.squadId),
+            ctx.db
+                .query("dropVotes")
+                .withIndex("by_drop", (q) => q.eq("dropId", drop._id))
+                .collect(),
+        ]);
+
+        const upvotes = votes.filter((v) => v.value === "up").length;
+        const downvotes = votes.filter((v) => v.value === "down").length;
+        const userVote = votes.find((v) => v.userId === userId)?.value ?? null;
+
+        return {
+            ...drop,
+            nickname,
+            avatarUrl,
+            reactions,
+            upvotes,
+            downvotes,
+            userVote,
+        };
+    },
+});
 
 export const toggleDropReaction = mutation({
     args: {
         dropId: v.id("drops"),
         emoji: v.string(),
     },
-
     handler: async (ctx, args) => {
         const userId = await getAuthUserId(ctx);
         if (!userId) throw new Error("Unauthenticated");
@@ -144,14 +136,18 @@ export const toggleDropReaction = mutation({
             .withIndex("by_user_drop", (q) =>
                 q.eq("userId", userId).eq("dropId", args.dropId)
             )
-            .filter((q) =>
-                q.eq(q.field("emoji"), args.emoji)
-            )
             .first();
 
-        if (existing) {
-            await ctx.db.delete(existing._id);
+        const match = existing?.emoji === args.emoji;
+
+        if (match) {
+            await ctx.db.delete(existing!._id);
             return { removed: true };
+        }
+
+        if (existing) {
+            await ctx.db.patch(existing._id, { emoji: args.emoji });
+            return { updated: true };
         }
 
         await ctx.db.insert("dropReactions", {
@@ -165,13 +161,11 @@ export const toggleDropReaction = mutation({
     },
 });
 
-
 export const addDropComment = mutation({
     args: {
         dropId: v.id("drops"),
         content: v.string(),
     },
-
     handler: async (ctx, args) => {
         const userId = await getAuthUserId(ctx);
         if (!userId) throw new Error("Unauthenticated");
@@ -190,46 +184,135 @@ export const addDropComment = mutation({
     },
 });
 
-
 export const getDropComments = query({
     args: {
         dropId: v.id("drops"),
-        limit: v.optional(v.number()),
-        cursor: v.optional(v.number()),
+        paginationOpts: paginationOptsValidator,
     },
-
     handler: async (ctx, args) => {
-        const limit = args.limit ?? 30;
+        const drop = await ctx.db.get(args.dropId);
+        if (!drop) throw new Error("Drop not found");
+
+        const { userId } = await requireMembership(ctx, drop.squadId);
+
+        const result = await ctx.db
+            .query("dropComments")
+            .withIndex("by_drop", (q) => q.eq("dropId", args.dropId))
+            .order("asc")
+            .paginate(args.paginationOpts);
+
+        const enriched = [];
+        for (const comment of result.page) {
+            const [{ nickname, avatarUrl }, votes] = await Promise.all([
+                enrichUser(ctx, comment.userId, drop.squadId),
+                ctx.db
+                    .query("commentVotes")
+                    .withIndex("by_comment", (q) => q.eq("commentId", comment._id))
+                    .collect(),
+            ]);
+
+            const upvotes = votes.filter((v) => v.value === "up").length;
+            const downvotes = votes.filter((v) => v.value === "down").length;
+            const userVote = votes.find((v) => v.userId === userId)?.value ?? null;
+
+            enriched.push({
+                ...comment,
+                nickname,
+                avatarUrl,
+                upvotes,
+                downvotes,
+                userVote,
+            });
+        }
+
+        return {
+            ...result,
+            page: enriched,
+        };
+    },
+});
+
+export const toggleDropVote = mutation({
+    args: {
+        dropId: v.id("drops"),
+        value: v.union(v.literal("up"), v.literal("down")),
+    },
+    handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) throw new Error("Unauthenticated");
 
         const drop = await ctx.db.get(args.dropId);
         if (!drop) throw new Error("Drop not found");
 
         await requireMembership(ctx, drop.squadId);
 
-        let q = ctx.db
-            .query("dropComments")
-            .withIndex("by_drop", (q) =>
-                q.eq("dropId", args.dropId)
+        const existing = await ctx.db
+            .query("dropVotes")
+            .withIndex("by_user_drop", (q) =>
+                q.eq("userId", userId).eq("dropId", args.dropId)
             )
-            .order("desc");
+            .first();
 
-        if (args.cursor !== undefined) {
-            const { cursor } = args;
-            q = q.filter((q) =>
-                q.lt(q.field("createdAt"), cursor)
-            );
+        if (!existing) {
+            await ctx.db.insert("dropVotes", {
+                dropId: args.dropId,
+                userId,
+                value: args.value,
+                createdAt: Date.now(),
+            });
+            return { action: "added" };
         }
 
-        const comments = await q.take(limit);
+        if (existing.value === args.value) {
+            await ctx.db.delete(existing._id);
+            return { action: "removed" };
+        }
 
-        const nextCursor =
-            comments.length === limit
-                ? comments[comments.length - 1].createdAt
-                : null;
+        await ctx.db.patch(existing._id, { value: args.value });
+        return { action: "flipped" };
+    },
+});
 
-        return {
-            comments: comments.reverse(),
-            nextCursor,
-        };
+export const toggleCommentVote = mutation({
+    args: {
+        commentId: v.id("dropComments"),
+        value: v.union(v.literal("up"), v.literal("down")),
+    },
+    handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) throw new Error("Unauthenticated");
+
+        const comment = await ctx.db.get(args.commentId);
+        if (!comment) throw new Error("Comment not found");
+
+        const drop = await ctx.db.get(comment.dropId);
+        if (!drop) throw new Error("Drop not found");
+
+        await requireMembership(ctx, drop.squadId);
+
+        const existing = await ctx.db
+            .query("commentVotes")
+            .withIndex("by_user_comment", (q) =>
+                q.eq("userId", userId).eq("commentId", args.commentId)
+            )
+            .first();
+
+        if (!existing) {
+            await ctx.db.insert("commentVotes", {
+                commentId: args.commentId,
+                userId,
+                value: args.value,
+                createdAt: Date.now(),
+            });
+            return { action: "added" };
+        }
+
+        if (existing.value === args.value) {
+            await ctx.db.delete(existing._id);
+            return { action: "removed" };
+        }
+
+        await ctx.db.patch(existing._id, { value: args.value });
+        return { action: "flipped" };
     },
 });
