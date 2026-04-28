@@ -1,4 +1,4 @@
-import { Spacing } from '@/constants/theme';
+import { Colors, Radius, Spacing } from '@/constants/theme';
 import React from 'react';
 import { Pressable, StyleSheet, Text, ViewStyle } from 'react-native';
 
@@ -9,7 +9,7 @@ interface ButtonProps {
     style?: ViewStyle;
 }
 
-export function Button({ title, onPress, color = '#007AFF', style }: ButtonProps) {
+export function Button({ title, onPress, color = Colors.light.accent, style }: ButtonProps) {
     return (
         <Pressable
             onPress={onPress}
@@ -29,7 +29,7 @@ const styles = StyleSheet.create({
     container: {
         paddingVertical: Spacing.three,
         paddingHorizontal: Spacing.six,
-        borderRadius: 8,
+        borderRadius: Radius.md,
         alignItems: 'center',
         justifyContent: 'center',
     },
