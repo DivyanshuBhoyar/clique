@@ -24,9 +24,9 @@ Drops feed — a scrollable feed. Each drop card has:
 - Comments count → taps into the comment thread. Each drop can have comments
 
 Memory:
-1. Quotes
-2. Memory board/inside jokes archive
-3. Events/Trip collection wall, people share photos, links, reflections etc
+This is the emotional heart of the app. Three sub-sections, accessible via a pill segmented control at the top:
+Wall — a masonry/grid layout. Cards can be: a quote, an inside joke entry, or a photo. Each card has a subtle colored tag (quote = amber, joke = pink, photo = default). Long-press to react. Tap opens full detail.
+Events/Trips — a vertical timeline. Each event is a card with: cover photo, title, date range, and a "reflections" count. Tapping opens the event detail screen which is like a mini scrapbook — photos grid, links, and a reactions/comment section per item.
 
 Fun
 Anonymous confessions within group
@@ -46,30 +46,3 @@ Privacy / Closed squads
 * TypeScript
 
 
-```typescript
-
-using auth protected routes with convex-auth
-import { customMutation } from "convex-helpers/server/customFunctions";
-import { getAuthUserId } from "@convex-dev/auth/server";
-import { mutation } from "./_generated/server";
-
-export const userMutation = customMutation(mutation, {
-  args: {},
-  input: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    const user = await ctx.db.get("users", userId);
-    if (!user) throw new Error("Unauthenticated");
-    return { ctx: { user }, args };
-  }
-});
-
-export const addNote = userMutation({
-  args: { note: v.string() },
-  handler: async (ctx, args) => {
-    await ctx.db.insert("notes", {
-      note: args.note,
-      authorId: ctx.user._id // type-safe!
-    });
-  }
-});
-```
