@@ -1,4 +1,4 @@
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -20,27 +20,29 @@ export function MessageActions({ visible, isOwnMessage, onClose, onDelete, onRea
     return (
         <Modal transparent animationType="fade" onRequestClose={onClose}>
             <Pressable style={styles.overlay} onPress={onClose}>
-                <View style={[styles.sheet, { backgroundColor: theme.background }]}>
-                    {/* Reaction row */}
-                    <View style={styles.reactionRow}>
+                <View style={[styles.sheet, { backgroundColor: theme.surface, borderColor: theme.outline, borderTopWidth: 2 }]}>
+                    <View style={[styles.reactionRow, { borderBottomColor: theme.outlineLight }]}>
                         {REACTIONS.map((emoji) => (
                             <Pressable
                                 key={emoji}
                                 onPress={() => { onReact(emoji); onClose(); }}
                                 style={styles.reactionButton}
+                                accessibilityRole="button"
+                                accessibilityLabel={`React with ${emoji}`}
                             >
                                 <Text style={styles.emoji}>{emoji}</Text>
                             </Pressable>
                         ))}
                     </View>
 
-                    {/* Delete — only for own messages */}
                     {isOwnMessage && (
                         <Pressable
                             onPress={() => { onDelete(); onClose(); }}
-                            style={[styles.actionButton, styles.deleteButton]}
+                            style={[styles.actionButton, { borderBottomColor: theme.outlineLight }]}
+                            accessibilityRole="button"
+                            accessibilityLabel="Delete message"
                         >
-                            <Text style={styles.deleteText}>Delete</Text>
+                            <Text style={[styles.deleteText, { color: theme.error }]}>Delete</Text>
                         </Pressable>
                     )}
 
@@ -60,33 +62,34 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(0,0,0,0.4)',
     },
     sheet: {
-        borderTopLeftRadius: 16,
-        borderTopRightRadius: 16,
-        paddingBottom: Spacing.five,
+        borderTopLeftRadius: Radius.xl,
+        borderTopRightRadius: Radius.xl,
+        paddingBottom: Spacing.xxxl,
     },
     reactionRow: {
         flexDirection: 'row',
         justifyContent: 'space-around',
-        paddingVertical: Spacing.three,
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(0,0,0,0.1)',
+        paddingVertical: Spacing.lg,
+        borderBottomWidth: 1.5,
     },
     reactionButton: {
-        padding: Spacing.two,
+        padding: Spacing.sm,
+        minHeight: 44,
+        minWidth: 44,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     emoji: {
         fontSize: 28,
     },
     actionButton: {
-        paddingVertical: Spacing.three,
+        paddingVertical: Spacing.lg,
         alignItems: 'center',
-    },
-    deleteButton: {
+        minHeight: 48,
+        justifyContent: 'center',
         borderBottomWidth: 1,
-        borderBottomColor: 'rgba(0,0,0,0.1)',
     },
     deleteText: {
-        color: '#FF3B30',
         fontSize: 16,
         fontWeight: '600',
     },

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 interface MessageInputProps {
@@ -27,7 +27,7 @@ export function MessageInput({ onSend, onTyping }: MessageInputProps) {
         try {
             await onSend(content);
         } catch {
-            setText(content); // restore
+            setText(content);
         } finally {
             setSending(false);
         }
@@ -39,12 +39,12 @@ export function MessageInput({ onSend, onTyping }: MessageInputProps) {
     };
 
     return (
-        <View style={[styles.container, { borderColor: theme.textSecondary }]}>
+        <View style={[styles.container, { borderColor: theme.outlineLight, backgroundColor: theme.surface }]}>
             <TextInput
                 value={text}
                 onChangeText={handleChangeText}
                 placeholder="Type a message..."
-                placeholderTextColor={theme.textSecondary}
+                placeholderTextColor={theme.textTertiary}
                 style={[styles.input, { color: theme.text }]}
                 returnKeyType="send"
                 onSubmitEditing={handleSend}
@@ -52,9 +52,17 @@ export function MessageInput({ onSend, onTyping }: MessageInputProps) {
             <Pressable
                 onPress={handleSend}
                 disabled={!canSend}
-                style={[styles.sendButton, !canSend && styles.sendDisabled]}
+                style={[
+                    styles.sendButton,
+                    {
+                        backgroundColor: canSend ? theme.accent : theme.backgroundElement,
+                        borderColor: canSend ? theme.accent : theme.outlineLight,
+                    },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Send message"
             >
-                <ThemedText style={styles.sendText}>
+                <ThemedText style={[styles.sendText, { color: canSend ? '#fff' : theme.textTertiary }]}>
                     {sending ? '...' : 'Send'}
                 </ThemedText>
             </Pressable>
@@ -66,19 +74,24 @@ const styles = StyleSheet.create({
     container: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: Spacing.two,
-        paddingVertical: Spacing.one,
-        borderTopWidth: 1,
+        paddingHorizontal: Spacing.sm,
+        paddingVertical: Spacing.xs,
+        borderTopWidth: 2,
     },
     input: {
         flex: 1,
-        minHeight: 40,
-        paddingHorizontal: Spacing.two,
+        minHeight: 44,
+        paddingHorizontal: Spacing.sm,
         fontSize: 16,
     },
     sendButton: {
-        paddingHorizontal: Spacing.three,
-        paddingVertical: Spacing.one,
+        paddingHorizontal: Spacing.lg,
+        paddingVertical: Spacing.sm,
+        borderRadius: Radius.sm,
+        borderWidth: 2,
+        minHeight: 44,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     sendDisabled: {
         opacity: 0.4,

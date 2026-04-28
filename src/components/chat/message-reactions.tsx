@@ -1,5 +1,5 @@
-import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { Radius, Spacing } from '@/constants/theme';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 interface Reaction {
@@ -14,9 +14,10 @@ interface MessageReactionsProps {
 }
 
 export function MessageReactions({ reactions, currentUserId, onToggle }: MessageReactionsProps) {
+    const theme = useTheme();
+
     if (reactions.length === 0) return null;
 
-    // Group by emoji → count + whether current user reacted
     const grouped = new Map<string, { count: number; hasMine: boolean }>();
     for (const r of reactions) {
         const existing = grouped.get(r.emoji) ?? { count: 0, hasMine: false };
@@ -31,10 +32,18 @@ export function MessageReactions({ reactions, currentUserId, onToggle }: Message
                 <Pressable
                     key={emoji}
                     onPress={() => onToggle(emoji)}
-                    style={[styles.chip, hasMine && styles.chipActive]}
+                    style={[
+                        styles.chip,
+                        {
+                            borderColor: hasMine ? theme.accent : theme.outlineLight,
+                            backgroundColor: hasMine ? theme.accentSoft : theme.backgroundElement,
+                        },
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${emoji} reaction, ${count}`}
                 >
                     <Text style={styles.emoji}>{emoji}</Text>
-                    {count > 1 && <Text style={styles.count}>{count}</Text>}
+                    {count > 1 && <Text style={[styles.count, { color: theme.textSecondary }]}>{count}</Text>}
                 </Pressable>
             ))}
         </View>
@@ -51,16 +60,10 @@ const styles = StyleSheet.create({
     chip: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: Spacing.two,
+        paddingHorizontal: Spacing.sm,
         paddingVertical: 2,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: 'rgba(0,0,0,0.15)',
-        backgroundColor: 'rgba(0,0,0,0.05)',
-    },
-    chipActive: {
-        backgroundColor: '#E3F2FD',
-        borderColor: '#2196F3',
+        borderRadius: Radius.sm,
+        borderWidth: 1.5,
     },
     emoji: {
         fontSize: 14,
@@ -68,6 +71,5 @@ const styles = StyleSheet.create({
     count: {
         fontSize: 12,
         marginLeft: 2,
-        color: '#666',
     },
 });

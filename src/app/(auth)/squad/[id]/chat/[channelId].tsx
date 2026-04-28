@@ -1,16 +1,22 @@
 import { useMutation, usePaginatedQuery, useQuery } from 'convex/react';
-import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MessageActions } from '@/components/chat/message-actions';
+import { ChannelSwitcher } from '@/components/chat/channel-switcher';
+import { EphemeralCountdown } from '@/components/chat/ephemeral-countdown';
 import { MessageInput } from '@/components/chat/message-input';
 import { MessageItem } from '@/components/chat/message-item';
 import { TypingIndicator } from '@/components/chat/typing-indicator';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { useAutoScroll } from '@/hooks/use-auto-scroll';
+import { useTypingThrottle } from '@/hooks/use-typing-throttle';
+import { formatDeleteIn } from '@/utils/time';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 
@@ -19,20 +25,20 @@ const PAGE_SIZE = 50;
 export default function ChannelChatScreen() {
     const { id: squadId, channelId } = useLocalSearchParams<{ id: string; channelId: string }>();
     const navigation = useNavigation();
+    const router = useRouter();
     const flatListRef = useRef<FlatList>(null);
+    const theme = useTheme();
 
     const sendMessage = useMutation(api.message.sendMessage);
     const deleteMessage = useMutation(api.message.deleteMessage);
     const toggleReaction = useMutation(api.reaction.toggleReaction);
-    const setTyping = useMutation(api.typing.setTyping);
+    const markChannelRead = useMutation(api.channel.markChannelRead);
+
     const currentUser = useQuery(api.users.current);
-
-    // Selected message for action sheet
-    const [selectedMessage, setSelectedMessage] = useState<{
-        id: string;
-        isOwn: boolean;
-    } | null>(null);
-
+    const channels = useQuery(
+        api.channel.getChannels,
+        squadId ? { squadId: squadId as Id<"squads"> } : "skip"
+    );
     const typingUsers = useQuery(
         api.typing.getTypingUsers,
         squadId && channelId
@@ -40,74 +46,57 @@ export default function ChannelChatScreen() {
             : "skip"
     );
 
-    // Typing throttle: 2s
-    const lastTypingAt = useRef(0);
-    const handleTyping = useCallback(() => {
-        const now = Date.now();
-        if (now - lastTypingAt.current > 2000) {
-            lastTypingAt.current = now;
-            setTyping({
-                squadId: squadId as Id<"squads">,
-                channelId: channelId as Id<"channels">,
-            });
-        }
-    }, [setTyping, squadId, channelId]);
-
-    // Paginated messages — Convex handles cursors, accumulation, and real-time
-    const {
-        results: messages,
-        loadMore,
-        status,
-    } = usePaginatedQuery(
+    const { results: messages, loadMore, status } = usePaginatedQuery(
         api.message.getMessages,
         channelId ? { channelId: channelId as Id<"channels"> } : "skip",
         { initialNumItems: PAGE_SIZE }
     );
-
     const loadingMore = status === "LoadingMore";
     const canLoadMore = status === "CanLoadMore";
 
-    // for header name
-    const channels = useQuery(
-        api.channel.getChannels,
-        squadId ? { squadId: squadId as Id<"squads"> } : "skip"
+    const channelExpiry = useQuery(
+        api.channel.getChannelExpiry,
+        channelId ? { channelId: channelId as Id<"channels"> } : "skip"
     );
+    const isEphemeral = channelExpiry !== null;
+    const isExpired = channelExpiry?.isExpired ?? false;
+
+    const [selectedMessage, setSelectedMessage] = useState<{ id: string; isOwn: boolean } | null>(null);
+    const [showSwitcher, setShowSwitcher] = useState(false);
+
+    const handleTyping = useTypingThrottle(
+        squadId as Id<"squads"> | undefined,
+        channelId as Id<"channels"> | undefined
+    );
+    useAutoScroll(flatListRef, messages?.length ?? 0);
 
     useEffect(() => {
         if (channels && channelId) {
             const channel = channels.find(c => c._id === channelId);
             if (channel) {
-                navigation.setOptions({ headerTitle: channel.name });
+                navigation.setOptions({
+                    headerTitle: () => (
+                        <Pressable onPress={() => setShowSwitcher(true)}>
+                            <ThemedText style={{ fontSize: 17, fontWeight: '600', color: theme.text }}>
+                                {channel.name} ▾
+                            </ThemedText>
+                        </Pressable>
+                    ),
+                });
             }
         }
-    }, [channels, channelId, navigation]);
+    }, [channels, channelId, navigation, theme]);
 
-    // Auto-scroll when new messages arrive (not when loading older)
-    const prevCount = useRef(0);
     useEffect(() => {
-        if (messages.length > prevCount.current) {
-            flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+        if (channelId) {
+            markChannelRead({ channelId: channelId as Id<"channels"> });
         }
-        prevCount.current = messages.length;
-    }, [messages.length]);
+    }, [channelId]);
 
-    // Load older messages when scrolled to top (end of inverted list)
     const handleEndReached = useCallback(() => {
-        if (canLoadMore) {
-            loadMore(PAGE_SIZE);
-        }
+        if (canLoadMore) loadMore(PAGE_SIZE);
     }, [canLoadMore, loadMore]);
 
-    // Initial loading
-    if (messages === undefined) {
-        return (
-            <SafeAreaView style={styles.loading}>
-                <ActivityIndicator size="large" />
-            </SafeAreaView>
-        );
-    }
-
-    // Handlers for message actions
     const handleDelete = useCallback(async () => {
         if (selectedMessage) {
             await deleteMessage({ messageId: selectedMessage.id as Id<"messages"> });
@@ -124,7 +113,14 @@ export default function ChannelChatScreen() {
         await toggleReaction({ messageId: messageId as Id<"messages">, emoji });
     }, [toggleReaction]);
 
-    // results come in desc order (newest first) — pass directly to inverted FlatList
+    if (messages === undefined) {
+        return (
+            <SafeAreaView style={[styles.loading, { backgroundColor: theme.background }]}>
+                <ActivityIndicator size="large" color={theme.accent} />
+            </SafeAreaView>
+        );
+    }
+
     return (
         <SafeAreaView style={styles.container}>
             <KeyboardAvoidingView
@@ -134,9 +130,7 @@ export default function ChannelChatScreen() {
                 <ThemedView style={styles.inner}>
                     {messages.length === 0 ? (
                         <View style={styles.empty}>
-                            <ThemedText themeColor="textSecondary">
-                                No messages yet. Say hi!
-                            </ThemedText>
+                            <ThemedText type="small" themeColor="textSecondary">No messages yet. Say hi!</ThemedText>
                         </View>
                     ) : (
                         <Pressable style={styles.inner} onPress={Keyboard.dismiss}>
@@ -148,6 +142,7 @@ export default function ChannelChatScreen() {
                                     <MessageItem
                                         messageId={item._id}
                                         nickname={item.nickname}
+                                        avatarUrl={item.avatarUrl}
                                         content={item.content}
                                         createdAt={item.createdAt}
                                         deleted={item.deleted}
@@ -170,31 +165,58 @@ export default function ChannelChatScreen() {
                                 onEndReached={handleEndReached}
                                 onEndReachedThreshold={0.5}
                                 ListFooterComponent={loadingMore ? (
-                                    <ActivityIndicator size="small" style={styles.loadingMore} />
+                                    <ActivityIndicator size="small" color={theme.accent} style={styles.loadingMore} />
                                 ) : null}
                             />
                         </Pressable>
                     )}
-                    <TypingIndicator
-                        typingUsers={typingUsers ?? []}
-                        currentUserId={currentUser?._id}
-                    />
-                    <MessageInput
-                        onTyping={handleTyping}
-                        onSend={async (content) => {
-                            await sendMessage({
-                                squadId: squadId as Id<"squads">,
-                                channelId: channelId as Id<"channels">,
-                                content,
-                            });
-                        }}
-                    />
+
+                    <TypingIndicator typingUsers={typingUsers ?? []} currentUserId={currentUser?._id} />
+
+                    {isEphemeral && isExpired ? (
+                        <View style={[styles.expiredBanner, { borderTopColor: theme.outlineLight }]}>
+                            <ThemedText type="small" style={{ color: theme.error, fontWeight: '600' }}>
+                                This room has expired
+                            </ThemedText>
+                            {channelExpiry?.deleteAt && (
+                                <ThemedText type="caption" themeColor="textSecondary">
+                                    Deletes in {formatDeleteIn(channelExpiry.deleteAt - Date.now())}
+                                </ThemedText>
+                            )}
+                        </View>
+                    ) : (
+                        <MessageInput
+                            onTyping={handleTyping}
+                            onSend={async (content) => {
+                                await sendMessage({
+                                    squadId: squadId as Id<"squads">,
+                                    channelId: channelId as Id<"channels">,
+                                    content,
+                                });
+                            }}
+                        />
+                    )}
+
+                    {isEphemeral && !isExpired && channelExpiry?.expiresAt && (
+                        <EphemeralCountdown expiresAt={channelExpiry.expiresAt} />
+                    )}
+
                     <MessageActions
                         visible={selectedMessage !== null}
                         isOwnMessage={selectedMessage?.isOwn ?? false}
                         onClose={() => setSelectedMessage(null)}
                         onDelete={handleDelete}
                         onReact={handleReact}
+                    />
+
+                    <ChannelSwitcher
+                        visible={showSwitcher}
+                        squadId={squadId as Id<"squads">}
+                        currentChannelId={channelId ?? ""}
+                        onClose={() => setShowSwitcher(false)}
+                        onSwitch={(newChannelId) => {
+                            router.replace(`/squad/${squadId}/chat/${newChannelId}`);
+                        }}
                     />
                 </ThemedView>
             </KeyboardAvoidingView>
@@ -203,26 +225,16 @@ export default function ChannelChatScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    loading: {
-        flex: 1,
-        justifyContent: 'center',
+    container: { flex: 1 },
+    loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    inner: { flex: 1 },
+    empty: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    listContent: { paddingVertical: Spacing.sm },
+    loadingMore: { paddingVertical: Spacing.lg },
+    expiredBanner: {
+        paddingVertical: Spacing.lg,
+        paddingHorizontal: Spacing.lg,
         alignItems: 'center',
-    },
-    inner: {
-        flex: 1,
-    },
-    empty: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    listContent: {
-        paddingVertical: Spacing.two,
-    },
-    loadingMore: {
-        paddingVertical: Spacing.three,
+        borderTopWidth: 1.5,
     },
 });
