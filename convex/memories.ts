@@ -3,6 +3,7 @@ import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { enrichUser, requireMembership } from "./users";
+import { assertLength } from "./validators";
 
 
 export const createMemory = mutation({
@@ -15,6 +16,9 @@ export const createMemory = mutation({
     },
     handler: async (ctx, args) => {
         const { userId } = await requireMembership(ctx, args.squadId);
+
+        if (args.title) assertLength("Title", args.title, 100);
+        if (args.content) assertLength("Content", args.content, 2000);
 
         if (args.type === "wall" && !args.content?.trim()) {
             throw new Error("Wall memory requires content");
@@ -46,6 +50,12 @@ export const deleteMemory = mutation({
         if (!memory) throw new Error("Memory not found");
         if (memory.createdBy !== userId) throw new Error("Not authorized");
 
+        const bookmarks = await ctx.db
+            .query("bookmarks")
+            .withIndex("by_memory", (q) => q.eq("memoryId", args.memoryId))
+            .collect();
+        for (const b of bookmarks) await ctx.db.delete(b._id);
+
         await ctx.db.delete(args.memoryId);
     },
 });
@@ -71,15 +81,15 @@ export const getWallMemories = query({
 
         const result = await ctx.db
             .query("memories")
-            .withIndex("by_squad", (q) => q.eq("squadId", args.squadId))
+            .withIndex("by_squad_type", (q) => q.eq("squadId", args.squadId).eq("type", "wall"))
             .order("desc")
             .paginate(args.paginationOpts);
 
-        const page = result.page.filter((m) => m.type === "wall");
+        const page = result.page;
 
         const enriched = [];
         for (const memory of page) {
-            const [reactions, { nickname, avatarUrl }, comments] = await Promise.all([
+            const [reactions, { nickname, avatarUrl }, comments, bookmark] = await Promise.all([
                 ctx.db
                     .query("memoryReactions")
                     .withIndex("by_memory", (q) => q.eq("memoryId", memory._id))
@@ -89,6 +99,10 @@ export const getWallMemories = query({
                     .query("memoryComments")
                     .withIndex("by_memory", (q) => q.eq("memoryId", memory._id))
                     .collect(),
+                ctx.db
+                    .query("bookmarks")
+                    .withIndex("by_user_memory", (q) => q.eq("userId", userId).eq("memoryId", memory._id))
+                    .first(),
             ]);
 
             enriched.push({
@@ -97,6 +111,7 @@ export const getWallMemories = query({
                 avatarUrl,
                 reactions,
                 commentCount: comments.length,
+                isBookmarked: !!bookmark,
             });
         }
 
@@ -115,15 +130,15 @@ export const getEventMemories = query({
 
         const result = await ctx.db
             .query("memories")
-            .withIndex("by_squad", (q) => q.eq("squadId", args.squadId))
+            .withIndex("by_squad_type", (q) => q.eq("squadId", args.squadId).eq("type", "event"))
             .order("desc")
             .paginate(args.paginationOpts);
 
-        const page = result.page.filter((m) => m.type === "event");
+        const page = result.page;
 
         const enriched = [];
         for (const memory of page) {
-            const [reactions, { nickname, avatarUrl }, items, coverUrl] = await Promise.all([
+            const [reactions, { nickname, avatarUrl }, items, coverUrl, bookmark] = await Promise.all([
                 ctx.db
                     .query("memoryReactions")
                     .withIndex("by_memory", (q) => q.eq("memoryId", memory._id))
@@ -136,6 +151,10 @@ export const getEventMemories = query({
                 memory.coverStorageId
                     ? ctx.storage.getUrl(memory.coverStorageId)
                     : Promise.resolve(null),
+                ctx.db
+                    .query("bookmarks")
+                    .withIndex("by_user_memory", (q) => q.eq("userId", userId).eq("memoryId", memory._id))
+                    .first(),
             ]);
 
             enriched.push({
@@ -147,6 +166,7 @@ export const getEventMemories = query({
                 reflectionCount: items.filter((i) => i.type === "reflection").length,
                 photoCount: items.filter((i) => i.type === "photo").length,
                 linkCount: items.filter((i) => i.type === "link").length,
+                isBookmarked: !!bookmark,
             });
         }
 
@@ -344,6 +364,9 @@ export const addMemoryItem = mutation({
 
         const { userId } = await requireMembership(ctx, memory.squadId);
 
+        assertLength("Content", args.content, 1000);
+        if (args.caption) assertLength("Caption", args.caption, 200);
+
         return await ctx.db.insert("memoryItems", {
             memoryId: args.memoryId,
             userId,
@@ -371,6 +394,8 @@ export const addMemoryComment = mutation({
 
         await requireMembership(ctx, memory.squadId);
 
+        assertLength("Comment", args.content, 500);
+
         return await ctx.db.insert("memoryComments", {
             memoryId: args.memoryId,
             userId,
@@ -397,6 +422,8 @@ export const addMemoryItemComment = mutation({
         if (!memory) throw new Error("Memory not found");
 
         await requireMembership(ctx, memory.squadId);
+
+        assertLength("Comment", args.content, 500);
 
         return await ctx.db.insert("memoryItemComments", {
             itemId: args.itemId,
@@ -475,3 +502,33 @@ export const getMemoryItemComments = query({
         return { ...result, page: enriched };
     },
 });
+
+export const deleteMemoryItem = mutation({
+    args: { itemId: v.id("memoryItems") },
+    handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) throw new Error("Unauthenticated");
+
+        const item = await ctx.db.get(args.itemId);
+        if (!item) throw new Error("Item not found");
+        if (item.userId !== userId) throw new Error("Unauthorized");
+
+        // Cascade: item reactions
+        const reactions = await ctx.db
+            .query("memoryItemReactions")
+            .withIndex("by_item", (q) => q.eq("itemId", args.itemId))
+            .collect();
+        for (const r of reactions) await ctx.db.delete(r._id);
+
+        // Cascade: item comments
+        const comments = await ctx.db
+            .query("memoryItemComments")
+            .withIndex("by_item", (q) => q.eq("itemId", args.itemId))
+            .collect();
+        for (const c of comments) await ctx.db.delete(c._id);
+
+        await ctx.db.delete(args.itemId);
+        return { success: true };
+    },
+});
+

@@ -1,29 +1,36 @@
 import { useMutation, usePaginatedQuery, useQuery } from 'convex/react';
-import { useGlobalSearchParams, useNavigation, useRouter } from 'expo-router';
-import { useCallback, useLayoutEffect, useState } from 'react';
 import { Image } from 'expo-image';
-import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { useGlobalSearchParams, useRouter } from 'expo-router';
+import { Heart, MoreHorizontal } from 'lucide-react-native';
+import { useCallback, useState } from 'react';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { DropReactions } from '@/components/drops/drop-reactions';
+import { AddItemModal } from '@/components/memories/add-item-modal';
+import { ItemCommentsModal } from '@/components/memories/item-comments-modal';
+import { ScrapbookSection } from '@/components/memories/scrapbook-section';
+import { WallQuoteCard } from '@/components/memories/wall-quote-card';
 import { ImageViewer } from '@/components/image-viewer';
-import { MemoryItemCard } from '@/components/memories/memory-item-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Radius, Spacing } from '@/constants/theme';
+import { DashedSeparator } from '@/components/ui/dashed-separator';
+import { EmojiPickerModal } from '@/components/ui/emoji-picker-modal';
+import { EmojiReactionStrip } from '@/components/ui/emoji-reaction-strip';
+import { LoadingState } from '@/components/ui/loading-state';
+import { NotFoundState } from '@/components/ui/not-found-state';
+import { PaginatedList } from '@/components/ui/paginated-list';
+import { ScreenHeader } from '@/components/ui/screen-header';
+import { UserAvatar } from '@/components/user-avatar';
+import { LineHeight, Spacing, Typography, Weight } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
-import { useImageUpload } from '@/hooks/use-image-upload';
 import { useTheme } from '@/hooks/use-theme';
 import { formatRelativeTime } from '@/utils/time';
 
 const COMMENTS_PAGE_SIZE = 20;
 
-type AddDropType = 'reflection' | 'photo' | 'link';
-
 export default function MemoryDetailScreen() {
-    const { id, memoryId } = useGlobalSearchParams<{ id: string; memoryId: string }>();
-    const squadId = (typeof id === 'string' ? id : undefined) as Id<"squads"> | undefined;
+    const { memoryId } = useGlobalSearchParams<{ memoryId: string }>();
     const theme = useTheme();
     const router = useRouter();
 
@@ -53,19 +60,13 @@ export default function MemoryDetailScreen() {
     const [commentText, setCommentText] = useState('');
     const [sending, setSending] = useState(false);
     const [coverViewerVisible, setCoverViewerVisible] = useState(false);
+    const [reactionTarget, setReactionTarget] = useState<{ type: 'memory' | 'item'; id: string } | null>(null);
 
-    // Add drop modal
-    const [showAddDrop, setShowAddDrop] = useState(false);
-    const [dropType, setDropType] = useState<AddDropType>('reflection');
-    const [dropContent, setDropContent] = useState('');
-    const [dropCaption, setDropCaption] = useState('');
-    const [sendingDrop, setSendingDrop] = useState(false);
-    const [photoStorageId, setPhotoStorageId] = useState<Id<"_storage"> | null>(null);
-    const { previewUri: dropPreviewUri, uploading: uploadingPhoto, pickAndUpload: pickDropPhoto, reset: resetDropPhoto } = useImageUpload();
+    // Add item modal
+    const [showAddItem, setShowAddItem] = useState(false);
 
     // Item comments modal
     const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
-    const [itemCommentText, setItemCommentText] = useState('');
     const [sendingItemComment, setSendingItemComment] = useState(false);
 
     const {
@@ -77,9 +78,6 @@ export default function MemoryDetailScreen() {
         expandedItemId ? { itemId: expandedItemId as Id<"memoryItems"> } : "skip",
         { initialNumItems: COMMENTS_PAGE_SIZE },
     );
-
-    const canLoadMore = status === "CanLoadMore";
-    const loadingMore = status === "LoadingMore";
 
     const handleToggleReaction = useCallback(
         (emoji: string) => {
@@ -108,41 +106,33 @@ export default function MemoryDetailScreen() {
         }
     };
 
-    const handleAddDrop = async () => {
-        const trimmed = dropContent.trim();
-        if (!trimmed || sendingDrop || !memoryId) return;
-        setSendingDrop(true);
-        try {
-            await addMemoryItem({
-                memoryId: memoryId as Id<"memories">,
-                type: dropType,
-                content: trimmed,
-                caption: dropCaption.trim() || undefined,
-                storageId: dropType === 'photo' && photoStorageId ? photoStorageId : undefined,
-            });
-            setDropContent('');
-            setDropCaption('');
-            setPhotoStorageId(null);
-            resetDropPhoto();
-            setShowAddDrop(false);
-        } finally {
-            setSendingDrop(false);
-        }
-    };
+    const handleAddItem = useCallback(async (args: {
+        type: 'reflection' | 'photo' | 'link';
+        content: string;
+        caption?: string;
+        storageId?: Id<"_storage">;
+    }) => {
+        if (!memoryId) return;
+        await addMemoryItem({
+            memoryId: memoryId as Id<"memories">,
+            type: args.type,
+            content: args.content,
+            caption: args.caption,
+            storageId: args.storageId,
+        });
+    }, [memoryId, addMemoryItem]);
 
-    const handleSendItemComment = async () => {
-        const trimmed = itemCommentText.trim();
-        if (!trimmed || sendingItemComment || !expandedItemId) return;
+    const handleSendItemComment = async (content: string) => {
+        if (!expandedItemId) return;
         setSendingItemComment(true);
         try {
-            await addItemComment({ itemId: expandedItemId as Id<"memoryItems">, content: trimmed });
-            setItemCommentText('');
+            await addItemComment({ itemId: expandedItemId as Id<"memoryItems">, content });
         } finally {
             setSendingItemComment(false);
         }
     };
 
-    const navigation = useNavigation();
+    const isOwner = detail?.isOwner ?? false;
 
     const handleDelete = () => {
         if (!memoryId) return;
@@ -157,127 +147,108 @@ export default function MemoryDetailScreen() {
         ]);
     };
 
-    const handleEndReached = useCallback(() => {
-        if (canLoadMore) loadMore(COMMENTS_PAGE_SIZE);
-    }, [canLoadMore, loadMore]);
-
-    const isOwner = detail?.isOwner ?? false;
-
-    useLayoutEffect(() => {
-        navigation.setOptions({
-            headerRight: isOwner
-                ? () => (
-                    <Pressable onPress={handleDelete} hitSlop={12}>
-                        <ThemedText type="small" style={{ color: theme.error, fontWeight: '600' }}>Delete</ThemedText>
-                    </Pressable>
-                )
-                : undefined,
-        });
-    }, [navigation, isOwner, handleDelete]);
-
     if (detail === undefined) {
-        return (
-            <SafeAreaView style={[styles.loading, { backgroundColor: theme.background }]}>
-                <ActivityIndicator size="large" color={theme.accent} />
-            </SafeAreaView>
-        );
+        return <LoadingState />;
     }
 
     if (detail === null) {
-        return (
-            <SafeAreaView style={[styles.loading, { backgroundColor: theme.background }]}>
-                <ThemedText>Memory not found.</ThemedText>
-            </SafeAreaView>
-        );
+        return <NotFoundState message="Memory not found." />;
     }
 
-    const { memory, nickname, reactions, comments: initialComments, items, coverUrl } = detail;
-
+    const { memory, nickname, reactions, items, coverUrl } = detail;
     const isWall = memory.type === 'wall';
     const isEvent = memory.type === 'event';
+    const totalComments = comments.length;
+
+    const groupedReactions = (() => {
+        const map = new Map();
+        for (const r of reactions) {
+            const ex = map.get(r.emoji) ?? { count: 0, reacted: false };
+            ex.count++;
+            if (r.userId === currentUser?._id) ex.reacted = true;
+            map.set(r.emoji, ex);
+        }
+        return [...map.entries()].map(([emoji, { count, reacted }]) => ({ emoji, count, reacted }));
+    })();
 
     return (
         <ThemedView style={styles.container}>
-            <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+            <SafeAreaView style={styles.safeArea} edges={[]}>
+                <ScreenHeader
+                    title={isWall ? 'Memory 💛' : (detail.memory.title ?? 'Event 🎉')}
+                    onBack={() => router.back()}
+                    rightIcon={MoreHorizontal}
+                    onRightPress={isOwner ? handleDelete : undefined}
+                />
                 <KeyboardAvoidingView
                     behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                     style={styles.inner}
                 >
-                    <FlatList
+                    <PaginatedList
                         data={comments}
                         keyExtractor={(item) => item._id}
+                        status={status}
+                        loadMore={loadMore}
+                        pageSize={COMMENTS_PAGE_SIZE}
+                        contentContainerStyle={styles.listContent}
                         ListHeaderComponent={
                             <View style={styles.header}>
-                                <ThemedText type="small" themeColor="textSecondary">
-                                    by {nickname} · {formatRelativeTime(memory.createdAt)}
-                                </ThemedText>
-
                                 {isWall && (
-                                    <ThemedText style={styles.wallText}>{memory.content}</ThemedText>
-                                )}
-
-                                {isEvent && memory.title && (
-                                    <ThemedText style={styles.eventTitle}>{memory.title}</ThemedText>
+                                    <WallQuoteCard content={memory.content ?? ''} title={memory.title} />
                                 )}
 
                                 {isEvent && coverUrl && (
                                     <Pressable onPress={() => setCoverViewerVisible(true)}>
-                                        <Image source={{ uri: coverUrl }} style={styles.detailCoverImage} contentFit="cover" />
+                                        <Image source={{ uri: coverUrl }} style={styles.coverImage} contentFit="cover" />
                                     </Pressable>
                                 )}
+                                {isEvent && memory.title && (
+                                    <ThemedText style={styles.eventTitle}>{memory.title}</ThemedText>
+                                )}
 
-                                <DropReactions
-                                    reactions={reactions}
-                                    currentUserId={currentUser?._id}
+                                <View style={styles.authorRow}>
+                                    <UserAvatar uri={null} size={28} fallbackText={nickname} />
+                                    <ThemedText type="small" style={{ fontWeight: Weight.semibold }}>@{nickname}</ThemedText>
+                                    <ThemedText type="caption" themeColor="textSecondary">
+                                        {'·'} {formatRelativeTime(memory.createdAt)}
+                                    </ThemedText>
+                                </View>
+
+                                <DashedSeparator marginVertical={Spacing.sm} />
+
+                                <EmojiReactionStrip
+                                    reactions={groupedReactions}
                                     onToggle={handleToggleReaction}
+                                    onAdd={() => setReactionTarget({ type: 'memory', id: memory._id })}
+                                    wrap
                                 />
 
-                                {isEvent && (
-                                    <View style={[styles.scrapbook, { borderTopColor: theme.outlineLight }]}>
-                                        <View style={styles.scrapbookHeader}>
-                                            <ThemedText style={styles.sectionTitle}>Scrapbook</ThemedText>
-                                            <Pressable
-                                                onPress={() => { setDropType('reflection'); setDropContent(''); setDropCaption(''); setPhotoStorageId(null); resetDropPhoto(); setShowAddDrop(true); }}
-                                                style={[styles.addDropBtn, { borderColor: theme.accent, borderRadius: Radius.lg }]}
-                                            >
-                                                <ThemedText style={styles.addDropBtnText}>+ Drop</ThemedText>
-                                            </Pressable>
-                                        </View>
+                                {totalComments > 0 && (
+                                    <ThemedText type="small" style={[styles.commentCountLink, { color: theme.accent }]}>
+                                        {totalComments} comment{totalComments !== 1 ? 's' : ''} 💬
+                                    </ThemedText>
+                                )}
 
-                                        {items.length === 0 ? (
-                                            <ThemedText type="small" themeColor="textSecondary" style={styles.emptyItems}>
-                                                No drops yet. Be the first to add one!
-                                            </ThemedText>
-                                        ) : (
-                                            items.map((item) => (
-                                                <View key={item._id} style={styles.itemWrap}>
-                                                    <MemoryItemCard
-                                                        type={item.type}
-                                                        content={item.content}
-                                                        caption={item.caption}
-                                                        photoUrl={item.photoUrl}
-                                                        avatarUrl={item.avatarUrl}
-                                                        nickname={item.nickname}
-                                                        createdAt={item.createdAt}
-                                                        reactions={item.reactions}
-                                                        commentCount={item.commentCount}
-                                                        currentUserId={currentUser?._id}
-                                                        onToggleReaction={(emoji) => handleToggleItemReaction(item._id, emoji)}
-                                                    />
-                                                    {item.commentCount > 0 && (
-                                                        <Pressable
-                                                            onPress={() => { setExpandedItemId(item._id); setItemCommentText(''); }}
-                                                            style={styles.itemCommentLink}
-                                                        >
-                                                            <ThemedText type="small" themeColor="textSecondary">
-                                                                View {item.commentCount} comment{item.commentCount !== 1 ? 's' : ''}
-                                                            </ThemedText>
-                                                        </Pressable>
-                                                    )}
-                                                </View>
-                                            ))
-                                        )}
-                                    </View>
+                                {isEvent && (
+                                    <ScrapbookSection
+                                        items={items.map((item: any) => ({
+                                            _id: item._id,
+                                            type: item.type,
+                                            content: item.content,
+                                            caption: item.caption ?? undefined,
+                                            photoUrl: item.photoUrl,
+                                            avatarUrl: item.avatarUrl,
+                                            nickname: item.nickname,
+                                            createdAt: item.createdAt,
+                                            reactions: item.reactions,
+                                            commentCount: item.commentCount,
+                                        }))}
+                                        currentUserId={currentUser?._id}
+                                        onToggleItemReaction={handleToggleItemReaction}
+                                        onAddItemReaction={(itemId) => setReactionTarget({ type: 'item', id: itemId })}
+                                        onAddItem={() => setShowAddItem(true)}
+                                        onViewItemComments={(itemId) => setExpandedItemId(itemId)}
+                                    />
                                 )}
 
                                 <ThemedText style={styles.commentsHeading}>
@@ -286,423 +257,185 @@ export default function MemoryDetailScreen() {
                             </View>
                         }
                         renderItem={({ item }) => (
-                            <View style={[styles.commentItem, { borderBottomColor: theme.outlineLight }]}>
-                                <ThemedText type="smallBold">{item.nickname}</ThemedText>
+                            <View style={[styles.commentCard, { backgroundColor: theme.surface, borderColor: theme.outline }]}>
+                                <View style={styles.commentHeader}>
+                                    <UserAvatar uri={item.avatarUrl} size={24} fallbackText={item.nickname} />
+                                    <ThemedText type="smallBold">@{item.nickname}</ThemedText>
+                                    <ThemedText type="caption" themeColor="textSecondary" style={{ marginLeft: 'auto' }}>
+                                        {formatRelativeTime(item.createdAt)}
+                                    </ThemedText>
+                                </View>
                                 <ThemedText style={styles.commentContent}>{item.content}</ThemedText>
-                                <ThemedText type="small" themeColor="textSecondary">
-                                    {formatRelativeTime(item.createdAt)}
-                                </ThemedText>
+                                <View style={styles.commentFooter}>
+                                    <View style={styles.heartRow}>
+                                        <Heart size={13} color={theme.accent} strokeWidth={2} />
+                                        <ThemedText type="caption" style={{ color: theme.accent, fontWeight: Weight.semibold }}>0</ThemedText>
+                                    </View>
+                                </View>
                             </View>
                         )}
-                        initialNumToRender={15}
-                        maxToRenderPerBatch={10}
-                        windowSize={10}
-                        contentContainerStyle={styles.listContent}
-                        keyboardShouldPersistTaps="handled"
-                        onEndReached={handleEndReached}
-                        onEndReachedThreshold={0.5}
-                        ListFooterComponent={loadingMore ? (
-                            <ActivityIndicator size="small" color={theme.accent} style={styles.loadingMore} />
-                        ) : null}
                     />
 
-                    <View style={[styles.inputRow, { borderColor: theme.outlineLight }]}>
+                    <View style={[styles.inputRow, { borderTopColor: theme.outlineLight, backgroundColor: theme.background }]}>
                         <TextInput
                             value={commentText}
                             onChangeText={setCommentText}
-                            placeholder={isWall ? 'Add a comment...' : 'Add a reflection...'}
-                            placeholderTextColor={theme.textSecondary}
-                            style={[styles.input, { color: theme.text }]}
+                            placeholder={isWall ? 'Add a comment…' : 'Add a reflection…'}
+                            placeholderTextColor={theme.placeholder}
+                            style={[styles.input, { color: theme.text, backgroundColor: theme.surface, borderColor: theme.outline }]}
                             returnKeyType="send"
                             onSubmitEditing={handleSendComment}
                         />
                         <Pressable
                             onPress={handleSendComment}
                             disabled={!commentText.trim() || sending}
-                            style={[styles.sendBtn, (!commentText.trim() || sending) && styles.sendDisabled]}
+                            style={[
+                                styles.sendBtn,
+                                { backgroundColor: commentText.trim() && !sending ? theme.accent : theme.backgroundElement, borderColor: theme.outline },
+                                (!commentText.trim() || sending) && styles.sendDisabled,
+                            ]}
                         >
-                            <ThemedText style={styles.sendText}>
-                                {sending ? '...' : 'Send'}
+                            <ThemedText style={[styles.sendText, { color: commentText.trim() && !sending ? theme.text : theme.textTertiary }]}>
+                                {sending ? '…' : 'Send'}
                             </ThemedText>
                         </Pressable>
                     </View>
                 </KeyboardAvoidingView>
             </SafeAreaView>
 
-            {/* Add drop modal */}
-            <Modal visible={showAddDrop} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowAddDrop(false)}>
-                <ThemedView style={styles.modal}>
-                    <SafeAreaView style={styles.modalSafe}>
-                        <View style={[styles.modalHeader, { borderBottomColor: theme.outlineLight }]}>
-                            <Pressable onPress={() => setShowAddDrop(false)}>
-                                <ThemedText type="smallBold">Cancel</ThemedText>
-                            </Pressable>
-                            <ThemedText style={styles.modalTitle}>Add Drop</ThemedText>
-                            <Pressable
-                                onPress={handleAddDrop}
-                                disabled={!dropContent.trim() || sendingDrop}
-                            >
-                                <ThemedText type="smallBold" style={(!dropContent.trim() || sendingDrop) && { opacity: 0.4 }}>
-                                    {sendingDrop ? '...' : 'Add'}
-                                </ThemedText>
-                            </Pressable>
-                        </View>
+            <AddItemModal
+                visible={showAddItem}
+                onClose={() => setShowAddItem(false)}
+                onAdd={handleAddItem}
+            />
 
-                        <View style={styles.dropTypeRow}>
-                            {(['reflection', 'photo', 'link'] as const).map((t) => (
-                                <Pressable
-                                    key={t}
-                                    onPress={() => setDropType(t)}
-                                    style={[
-                                        styles.dropTypeBtn,
-                                        {
-                                            backgroundColor: theme.surface,
-                                            borderColor: theme.outlineLight,
-                                        },
-                                        dropType === t && {
-                                            backgroundColor: theme.accent,
-                                            borderColor: theme.accent,
-                                        },
-                                    ]}
-                                >
-                                    <ThemedText style={[
-                                        styles.dropTypeText,
-                                        dropType === t && { color: '#ffffff' },
-                                    ]}>
-                                        {t === 'reflection' ? 'Reflection' : t === 'photo' ? 'Photo' : 'Link'}
-                                    </ThemedText>
-                                </Pressable>
-                            ))}
-                        </View>
-
-                        {dropType === 'photo' && (
-                            <>
-                                {dropPreviewUri ? (
-                                    <View style={styles.dropPhotoPreviewWrap}>
-                                        <Image source={{ uri: dropPreviewUri }} style={styles.dropPhotoPreview} contentFit="cover" />
-                                        <Pressable onPress={() => { setPhotoStorageId(null); resetDropPhoto(); }} style={styles.removePhotoBtn}>
-                                            <ThemedText style={styles.removePhotoText}>Remove</ThemedText>
-                                        </Pressable>
-                                    </View>
-                                ) : (
-                                    <Pressable
-                                        onPress={async () => {
-                                            const storageId = await pickDropPhoto();
-                                            if (storageId) setPhotoStorageId(storageId);
-                                        }}
-                                        style={[styles.photoPickerBtn, { backgroundColor: theme.backgroundElement, borderColor: theme.outlineLight, borderRadius: Radius.md }]}
-                                        disabled={uploadingPhoto}
-                                    >
-                                        <ThemedText themeColor="textSecondary">
-                                            {uploadingPhoto ? 'Uploading...' : '+ Pick a photo'}
-                                        </ThemedText>
-                                    </Pressable>
-                                )}
-                            </>
-                        )}
-
-                        <TextInput
-                            value={dropContent}
-                            onChangeText={setDropContent}
-                            placeholder={
-                                dropType === 'reflection' ? 'What does this moment mean to you...'
-                                : dropType === 'link' ? 'Paste a URL...'
-                                : 'Photo description...'
-                            }
-                            placeholderTextColor={theme.textSecondary}
-                            style={[styles.dropInput, { color: theme.text, borderColor: theme.outlineLight, backgroundColor: theme.surface, borderRadius: Radius.md }]}
-                            multiline
-                            autoFocus
-                        />
-
-                        {dropType === 'photo' && (
-                            <TextInput
-                                value={dropCaption}
-                                onChangeText={setDropCaption}
-                                placeholder="Caption (optional)"
-                                placeholderTextColor={theme.textSecondary}
-                                style={[styles.dropCaptionInput, { color: theme.text, borderColor: theme.outlineLight, backgroundColor: theme.surface, borderRadius: Radius.md }]}
-                                maxLength={200}
-                            />
-                        )}
-                    </SafeAreaView>
-                </ThemedView>
-            </Modal>
-
-            {/* Item comments modal */}
-            <Modal visible={expandedItemId !== null} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setExpandedItemId(null)}>
-                <ThemedView style={styles.modal}>
-                    <SafeAreaView style={styles.modalSafe}>
-                        <View style={[styles.modalHeader, { borderBottomColor: theme.outlineLight }]}>
-                            <Pressable onPress={() => setExpandedItemId(null)}>
-                                <ThemedText type="smallBold">Close</ThemedText>
-                            </Pressable>
-                            <ThemedText style={styles.modalTitle}>Comments</ThemedText>
-                            <View style={{ width: 50 }} />
-                        </View>
-
-                        <FlatList
-                            data={itemComments}
-                            keyExtractor={(c) => c._id}
-                            renderItem={({ item }) => (
-                                <View style={[styles.commentItem, { borderBottomColor: theme.outlineLight }]}>
-                                    <ThemedText type="smallBold">{item.nickname}</ThemedText>
-                                    <ThemedText style={styles.commentContent}>{item.content}</ThemedText>
-                                    <ThemedText type="small" themeColor="textSecondary">
-                                        {formatRelativeTime(item.createdAt)}
-                                    </ThemedText>
-                                </View>
-                            )}
-                            contentContainerStyle={styles.listContent}
-                            onEndReached={() => {
-                                if (itemCommentsStatus === "CanLoadMore") loadMoreItemComments(COMMENTS_PAGE_SIZE);
-                            }}
-                            onEndReachedThreshold={0.5}
-                        />
-
-                        <View style={[styles.inputRow, { borderColor: theme.outlineLight }]}>
-                            <TextInput
-                                value={itemCommentText}
-                                onChangeText={setItemCommentText}
-                                placeholder="Add a comment..."
-                                placeholderTextColor={theme.textSecondary}
-                                style={[styles.input, { color: theme.text }]}
-                                returnKeyType="send"
-                                onSubmitEditing={handleSendItemComment}
-                            />
-                            <Pressable
-                                onPress={handleSendItemComment}
-                                disabled={!itemCommentText.trim() || sendingItemComment}
-                                style={[styles.sendBtn, (!itemCommentText.trim() || sendingItemComment) && styles.sendDisabled]}
-                            >
-                                <ThemedText style={styles.sendText}>
-                                    {sendingItemComment ? '...' : 'Send'}
-                                </ThemedText>
-                            </Pressable>
-                        </View>
-                    </SafeAreaView>
-                </ThemedView>
-            </Modal>
+            <ItemCommentsModal
+                visible={expandedItemId !== null}
+                comments={itemComments}
+                status={itemCommentsStatus}
+                loadMore={loadMoreItemComments}
+                onClose={() => setExpandedItemId(null)}
+                onSend={handleSendItemComment}
+            />
 
             <ImageViewer
                 visible={coverViewerVisible}
                 uri={coverUrl ?? null}
                 onClose={() => setCoverViewerVisible(false)}
             />
+
+            <EmojiPickerModal
+                visible={reactionTarget !== null}
+                title={reactionTarget?.type === 'item' ? 'React to memory item' : 'React to memory'}
+                onClose={() => setReactionTarget(null)}
+                onSelect={(emoji) => {
+                    if (!reactionTarget) return;
+                    if (reactionTarget.type === 'memory') {
+                        toggleReaction({ memoryId: reactionTarget.id as Id<'memories'>, emoji });
+                    } else {
+                        toggleItemReaction({ itemId: reactionTarget.id as Id<'memoryItems'>, emoji });
+                    }
+                    setReactionTarget(null);
+                }}
+            />
         </ThemedView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    safeArea: {
-        flex: 1,
-    },
-    inner: {
-        flex: 1,
-    },
-    loading: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
+    container: { flex: 1 },
+    safeArea: { flex: 1 },
+    inner: { flex: 1 },
     header: {
-        paddingHorizontal: Spacing.three,
-        paddingTop: Spacing.three,
+        paddingHorizontal: Spacing.lg,
+        paddingTop: Spacing.md,
+        gap: Spacing.sm,
     },
-    wallText: {
-        fontSize: 17,
-        lineHeight: 25,
-        marginTop: Spacing.two,
-        marginBottom: Spacing.two,
+    authorRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.xs,
+        paddingVertical: Spacing.xs,
+    },
+    commentCountLink: {
+        fontWeight: Weight.semibold,
+        marginTop: Spacing.xs,
     },
     eventTitle: {
-        fontSize: 20,
-        fontWeight: '700',
-        marginTop: Spacing.one,
-        marginBottom: Spacing.two,
+        fontSize: Typography.subtitle,
+        fontWeight: Weight.extrabold,
     },
-    detailCoverImage: {
-        height: 200,
-        borderRadius: Radius.md,
-        marginBottom: Spacing.two,
-    },
-    scrapbook: {
-        marginTop: Spacing.three,
-        paddingTop: Spacing.three,
-        borderTopWidth: 1,
-    },
-    scrapbookHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: Spacing.two,
-    },
-    sectionTitle: {
-        fontSize: 14,
-        fontWeight: '700',
-    },
-    addDropBtn: {
-        paddingHorizontal: 12,
-        paddingVertical: 4,
-        borderWidth: 1,
-    },
-    addDropBtnText: {
-        fontSize: 12,
-        fontWeight: '600',
-    },
-    emptyItems: {
-        fontStyle: 'italic',
-    },
-    itemWrap: {
-        marginBottom: Spacing.two,
-    },
-    itemCommentLink: {
-        paddingLeft: Spacing.one,
-        paddingTop: Spacing.one,
+    coverImage: {
+        height: 220,
+        borderRadius: 16,
+        width: '100%',
     },
     commentsHeading: {
-        fontSize: 14,
-        fontWeight: '700',
-        marginTop: Spacing.three,
-        marginBottom: Spacing.two,
+        fontSize: Typography.body,
+        fontWeight: Weight.bold,
+        letterSpacing: 0.3,
+        marginTop: Spacing.lg,
     },
     listContent: {
-        paddingHorizontal: Spacing.three,
-        paddingBottom: Spacing.three,
+        paddingHorizontal: Spacing.lg,
+        paddingBottom: Spacing.lg,
+        gap: Spacing.sm,
     },
-    commentItem: {
-        paddingVertical: Spacing.two,
-        borderBottomWidth: 1,
+    commentCard: {
+        padding: Spacing.md,
+        borderWidth: 1.5,
+        borderRadius: 12,
+        gap: Spacing.xs,
+    },
+    commentHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.xs,
+    },
+    commentFooter: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: Spacing.xs,
+    },
+    heartRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
     },
     commentContent: {
-        fontSize: 15,
-        lineHeight: 22,
-        marginTop: 2,
-        marginBottom: 2,
-    },
-    loadingMore: {
-        paddingVertical: Spacing.three,
+        fontSize: Typography.body,
+        lineHeight: LineHeight.subtitle,
     },
     inputRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: Spacing.two,
-        paddingVertical: Spacing.one,
-        borderTopWidth: 1,
+        paddingHorizontal: Spacing.md,
+        paddingVertical: Spacing.sm,
+        borderTopWidth: 1.5,
+        gap: Spacing.sm,
     },
     input: {
         flex: 1,
-        minHeight: 40,
-        paddingHorizontal: Spacing.two,
-        fontSize: 16,
+        minHeight: 38,
+        paddingHorizontal: Spacing.md,
+        borderRadius: 9999,
+        borderWidth: 1.5,
+        fontSize: Typography.body,
     },
     sendBtn: {
-        paddingHorizontal: Spacing.three,
-        paddingVertical: Spacing.one,
+        paddingHorizontal: Spacing.md,
+        paddingVertical: Spacing.sm,
+        borderRadius: 9999,
+        borderWidth: 1.5,
+        minHeight: 38,
+        justifyContent: 'center',
     },
     sendDisabled: {
         opacity: 0.4,
     },
     sendText: {
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    // Modal styles
-    modal: {
-        flex: 1,
-    },
-    modalSafe: {
-        flex: 1,
-    },
-    modalHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: Spacing.three,
-        paddingVertical: Spacing.two,
-        borderBottomWidth: 1,
-    },
-    modalTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-    },
-    dropTypeRow: {
-        flexDirection: 'row',
-        gap: 8,
-        paddingHorizontal: Spacing.three,
-        paddingVertical: Spacing.three,
-    },
-    dropTypeBtn: {
-        paddingHorizontal: 14,
-        paddingVertical: 8,
-        borderRadius: 20,
-        borderWidth: 2,
-    },
-    dropTypeText: {
-        fontSize: 13,
-        fontWeight: '600',
-    },
-    photoPlaceholderLarge: {
-        height: 150,
-        marginHorizontal: Spacing.three,
-        borderRadius: Radius.md,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: Spacing.three,
-    },
-    photoPickerBtn: {
-        height: 120,
-        marginHorizontal: Spacing.three,
-        borderWidth: 2,
-        borderStyle: 'dashed',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: Spacing.three,
-    },
-    dropPhotoPreviewWrap: {
-        marginHorizontal: Spacing.three,
-        borderRadius: Radius.md,
-        overflow: 'hidden',
-        marginBottom: Spacing.three,
-    },
-    dropPhotoPreview: {
-        height: 200,
-        width: '100%',
-        borderRadius: Radius.md,
-    },
-    removePhotoBtn: {
-        position: 'absolute',
-        top: 8,
-        right: 8,
-        backgroundColor: 'rgba(0,0,0,0.6)',
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: Radius.lg,
-    },
-    removePhotoText: {
-        color: '#fff',
-        fontSize: 12,
-        fontWeight: '600',
-    },
-    dropInput: {
-        minHeight: 100,
-        marginHorizontal: Spacing.three,
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-        fontSize: 16,
-        lineHeight: 24,
-        borderWidth: 2,
-        textAlignVertical: 'top',
-    },
-    dropCaptionInput: {
-        marginHorizontal: Spacing.three,
-        marginTop: Spacing.two,
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-        fontSize: 15,
-        borderWidth: 2,
+        fontSize: Typography.small,
+        fontWeight: Weight.bold,
     },
 });
