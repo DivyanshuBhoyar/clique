@@ -2,32 +2,17 @@ import { useMutation } from 'convex/react';
 import { router, useGlobalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
-import { KeyboardAwareScrollView, useKeyboardHandler } from 'react-native-keyboard-controller';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
-import { Radius, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { ScreenHeader } from '@/components/ui/screen-header';
+import { LineHeight, Radius, Spacing, Typography, Weight } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
-
-const useKeyboardHeight = () => {
-    const height = useSharedValue(0);
-
-    useKeyboardHandler({
-        onMove: (event) => {
-            'worklet';
-            height.value = Math.max(event.height, 0);
-        },
-        onEnd: (event) => {
-            'worklet';
-            height.value = Math.max(event.height, 0);
-        },
-    }, []);
-
-    return { height };
-};
+import { useKeyboardHeight } from '@/hooks/use-keyboard-height';
+import { useTheme } from '@/hooks/use-theme';
 
 export default function NewNoteScreen() {
     const theme = useTheme();
@@ -60,7 +45,7 @@ export default function NewNoteScreen() {
         } catch {
             setSaving(false);
         }
-    }, [squadId, title, tag, content, saving, createNote, isShared, canCreate]);
+    }, [squadId, title, tag, content, createNote, isShared, canCreate]);
 
     const { height: keyboardHeight } = useKeyboardHeight();
 
@@ -69,15 +54,23 @@ export default function NewNoteScreen() {
     }));
 
     return (
-        <SafeAreaView style={styles.container} edges={["bottom"]}>
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={[]}>
+            <ScreenHeader
+                title={isShared ? 'New Shared Note 🤝' : 'New Note 📝'}
+                onBack={() => router.back()}
+            />
             <KeyboardAwareScrollView
                 style={styles.scroll}
                 contentContainerStyle={styles.scrollContent}
                 bottomOffset={80}
             >
-                <View style={[styles.typeBadge, { backgroundColor: theme.accent, borderRadius: Radius.sm }]}>
-                    <ThemedText type="smallBold" style={styles.typeBadgeText}>
-                        {isShared ? "Shared" : "Personal"}
+                <View style={[styles.typeBadge, {
+                    backgroundColor: isShared ? theme.accentSoft : theme.accent,
+                    borderColor: theme.outline,
+                    borderRadius: Radius.full,
+                }]}>
+                    <ThemedText type="smallBold" style={{ color: isShared ? theme.accent : theme.text, fontSize: Typography.caption }}>
+                        {isShared ? '🤝 Shared' : '🔒 Personal'}
                     </ThemedText>
                 </View>
 
@@ -114,11 +107,16 @@ export default function NewNoteScreen() {
             <View style={[styles.buttonWrap, { borderTopColor: theme.outlineLight }]}>
                 <Pressable
                     onPress={handleCreate}
-                    style={[styles.createButton, { backgroundColor: theme.accent, borderRadius: Radius.md }, !canCreate && styles.createButtonDisabled]}
+                    style={[styles.createButton, {
+                        backgroundColor: canCreate ? theme.accent : theme.backgroundElement,
+                        borderRadius: Radius.full,
+                        borderWidth: 2,
+                        borderColor: canCreate ? theme.outline : theme.outlineLight,
+                    }, !canCreate && styles.createButtonDisabled]}
                     disabled={!canCreate}
                 >
-                    <ThemedText style={styles.createButtonText}>
-                        {saving ? "Creating..." : "Create"}
+                    <ThemedText style={[styles.createButtonText, { color: canCreate ? theme.text : theme.textTertiary }]}>
+                        {saving ? 'Creating…' : 'Create Note'}
                     </ThemedText>
                 </Pressable>
             </View>
@@ -129,59 +127,50 @@ export default function NewNoteScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    scroll: {
-        flex: 1,
-    },
+    container: { flex: 1 },
+    scroll: { flex: 1 },
     scrollContent: {
-        padding: Spacing.three,
+        padding: Spacing.lg,
     },
     typeBadge: {
         alignSelf: 'flex-start',
-        paddingHorizontal: Spacing.two,
-        paddingVertical: 2,
-        marginBottom: Spacing.three,
-    },
-    typeBadgeText: {
-        color: '#fff',
-        fontSize: 11,
+        paddingHorizontal: Spacing.md,
+        paddingVertical: 4,
+        borderWidth: 1.5,
+        marginBottom: Spacing.lg,
     },
     titleInput: {
-        fontSize: 22,
-        fontWeight: '600',
-        paddingVertical: Spacing.one,
-        marginBottom: Spacing.one,
+        fontSize: Typography.subtitle,
+        fontWeight: Weight.bold,
+        paddingVertical: Spacing.xs,
+        marginBottom: Spacing.xs,
     },
     tagInput: {
-        fontSize: 14,
-        paddingVertical: Spacing.one,
-        marginBottom: Spacing.three,
+        fontSize: Typography.small,
+        paddingVertical: Spacing.xs,
+        marginBottom: Spacing.lg,
         borderBottomWidth: 1,
     },
     contentInput: {
         minHeight: 200,
-        fontSize: 16,
-        lineHeight: 24,
+        fontSize: Typography.body,
+        lineHeight: LineHeight.body,
         textAlignVertical: 'top',
     },
     buttonWrap: {
-        paddingHorizontal: Spacing.three,
-        paddingTop: Spacing.two,
-        paddingBottom: Spacing.two,
+        paddingHorizontal: Spacing.lg,
+        paddingVertical: Spacing.md,
         borderTopWidth: 1,
     },
     createButton: {
-        paddingVertical: Spacing.three,
+        paddingVertical: Spacing.lg,
         alignItems: 'center',
     },
     createButtonDisabled: {
-        opacity: 0.3,
+        opacity: 0.4,
     },
     createButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
+        fontSize: Typography.body,
+        fontWeight: Weight.bold,
     },
 });

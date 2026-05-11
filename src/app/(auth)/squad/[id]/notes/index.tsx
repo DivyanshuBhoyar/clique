@@ -1,79 +1,89 @@
 import { useMutation, usePaginatedQuery, useQuery } from 'convex/react';
 import { Link, useRouter, useGlobalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Plus, SlidersHorizontal } from 'lucide-react-native';
 
 import { JournalCard } from '@/components/notes/journal-card';
 import { NoteCard } from '@/components/notes/note-card';
-import { SegmentedControl } from '@/components/ui/segmented-control';
+import { FilterChips } from '@/components/ui/filter-chips';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Fab } from '@/components/ui/fab';
 import { SharedNoteCard } from '@/components/notes/shared-note-card';
-import { SquadHeader } from '@/components/squad-header';
+import { ScreenHeader } from '@/components/ui/screen-header';
+import { SearchBar } from '@/components/ui/search-bar';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { api } from '@/convex/_generated/api';
 import { Doc, Id } from '@/convex/_generated/dataModel';
+import { useBookmarkToggle } from '@/hooks/use-bookmark-mutation';
+import { PaginatedList } from '@/components/ui/paginated-list';
+import { LoadingState } from '@/components/ui/loading-state';
 
 const PAGE_SIZE = 20;
-const TABS = ["Mine", "Ours"] as const;
+const FEED_CHIPS = [
+    { label: 'All', key: 'all' as const },
+    { label: 'Pinned', emoji: '📌', key: 'pinned' as const },
+    { label: 'Recent', key: 'recent' as const },
+    { label: 'Mine', key: 'mine' as const },
+];
+
+type NotesFeedFilter = (typeof FEED_CHIPS)[number]['key'];
+type FeedNote = Doc<'notes'> & {
+    ownerNickname: string;
+    ownerAvatarUrl: string | null;
+    isMine: boolean;
+    isBookmarked?: boolean;
+    collaborators: {
+        userId: Id<'users'>;
+        nickname: string;
+        avatarUrl: string | null;
+    }[];
+    collaboratorCount: number;
+};
 
 export default function NotesScreen() {
     const { id } = useGlobalSearchParams<{ id: string }>();
-    const squadId = (typeof id === 'string' ? id : undefined) as Id<"squads"> | undefined;
+    const squadId = (typeof id === 'string' ? id : undefined) as Id<'squads'> | undefined;
     const router = useRouter();
     const theme = useTheme();
-    const [activeTab, setActiveTab] = useState<number>(0);
+    const [activeFilter, setActiveFilter] = useState(0);
+    const [searchText, setSearchText] = useState('');
 
-    const squad = useQuery(api.squad.getSquad, squadId ? { id: squadId } : "skip");
     const createNote = useMutation(api.notes.createNote);
+    const bookmarkToggle = useBookmarkToggle();
+    const selectedFilter: NotesFeedFilter = FEED_CHIPS[activeFilter]?.key ?? 'all';
+    const normalizedSearch = searchText.trim();
 
-    const todayJournal = useQuery(
-        api.notes.getTodayJournal,
-        squadId ? { squadId } : "skip",
-    );
+    const todayJournal = useQuery(api.notes.getTodayJournal, squadId ? { squadId } : 'skip');
     const {
-        results: personalNotes,
-        loadMore: loadMorePersonal,
-        status: personalStatus,
+        results: feedNotes,
+        loadMore,
+        status,
     } = usePaginatedQuery(
-        api.notes.getPersonalNotes,
-        squadId ? { squadId } : "skip",
-        { initialNumItems: PAGE_SIZE },
-    );
-
-    const {
-        results: sharedNotes,
-        loadMore: loadMoreShared,
-        status: sharedStatus,
-    } = usePaginatedQuery(
-        api.notes.getSharedNotes,
-        squadId ? { squadId } : "skip",
+        api.notes.getNotesFeed,
+        squadId
+            ? {
+                squadId,
+                filter: selectedFilter,
+                searchText: normalizedSearch.length > 0 ? normalizedSearch : undefined,
+            }
+            : 'skip',
         { initialNumItems: PAGE_SIZE },
     );
 
     const handleJournalPress = useCallback(async () => {
         if (!squadId) return;
-
         if (todayJournal) {
             router.push(`/squad/${squadId}/notes/${todayJournal._id}`);
             return;
         }
-
         const today = new Date();
-        const dateStr = today.toLocaleDateString('en-US', {
-            month: 'short', day: 'numeric', year: 'numeric',
-        });
-
-        const noteId = await createNote({
-            squadId,
-            title: `Journal — ${dateStr}`,
-            content: "",
-            type: "journal",
-        });
-
+        const dateStr = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        const noteId = await createNote({ squadId, title: `Journal — ${dateStr}`, content: '', type: 'journal' });
         router.push(`/squad/${squadId}/notes/${noteId}`);
     }, [squadId, todayJournal, createNote, router]);
 
@@ -82,57 +92,155 @@ export default function NotesScreen() {
         router.push(`/squad/${squadId}/notes/${noteId}`);
     }, [squadId, router]);
 
-    const mineNotes = personalNotes?.filter((n) => n.type !== "journal") ?? [];
-    const hasPastJournals = (personalNotes?.filter((n) => n.type === "journal").length ?? 0) > 0;
-    const isInitialLoading = activeTab === 0
-        ? personalNotes === undefined
-        : sharedNotes === undefined;
+    const isInitialLoading = feedNotes === undefined;
+    const showJournalHero = selectedFilter === 'mine' && normalizedSearch.length === 0;
+
+    const visibleNotes: FeedNote[] = useMemo(() => {
+        const list = (feedNotes ?? []) as FeedNote[];
+        if (!showJournalHero) return list;
+        return list.filter((note) => note.type !== 'journal');
+    }, [feedNotes, showJournalHero]);
 
     const fabHref = squadId
-        ? activeTab === 0
+        ? selectedFilter === 'mine'
             ? `/squad/${squadId}/notes/new`
             : `/squad/${squadId}/notes/new?type=shared`
         : undefined;
 
     if (isInitialLoading) {
-        return (
-            <SafeAreaView style={[styles.loading, { backgroundColor: theme.background }]}>
-                <ActivityIndicator size="large" color={theme.accent} />
-            </SafeAreaView>
-        );
+        return <LoadingState />;
     }
 
     return (
         <ThemedView style={styles.container}>
-            <SafeAreaView style={styles.safeArea}>
-                <SquadHeader name={squad?.name} disabled />
-                <SegmentedControl tabs={TABS as unknown as string[]} activeIndex={activeTab} onSelect={setActiveTab} />
+            <SafeAreaView style={styles.safeArea} edges={[]}>
+                <ScreenHeader
+                    title="Notes 📝"
+                    rightIcon={Plus}
+                    onRightPress={() => {
+                        if (!squadId) return;
+                        router.push(
+                            `/squad/${squadId}/notes/new${selectedFilter === 'mine' ? '' : '?type=shared'}` as any,
+                        );
+                    }}
+                />
 
-                {activeTab === 0 ? (
-                    <MineTab
-                        notes={mineNotes}
-                        todayJournal={todayJournal ?? null}
-                        hasPastJournals={hasPastJournals}
-                        onJournalPress={handleJournalPress}
-                        onNotePress={handleNotePress}
-                        onLoadMore={() => loadMorePersonal(PAGE_SIZE)}
-                        canLoadMore={personalStatus === "CanLoadMore"}
-                        loadingMore={personalStatus === "LoadingMore"}
-                        squadId={squadId}
-                    />
-                ) : (
-                    <OursTab
-                        notes={sharedNotes}
-                        onNotePress={handleNotePress}
-                        onLoadMore={() => loadMoreShared(PAGE_SIZE)}
-                        canLoadMore={sharedStatus === "CanLoadMore"}
-                        loadingMore={sharedStatus === "LoadingMore"}
-                    />
-                )}
+                <PaginatedList
+                    data={visibleNotes}
+                    keyExtractor={(item) => item._id}
+                    status={status}
+                    loadMore={loadMore}
+                    pageSize={PAGE_SIZE}
+                    contentContainerStyle={styles.listContent}
+                    ListHeaderComponent={
+                        <View>
+                            <View style={styles.searchRowWrap}>
+                                <SearchBar
+                                    value={searchText}
+                                    onChangeText={setSearchText}
+                                    placeholder="Search notes..."
+                                    rightAction={
+                                        <Pressable
+                                            onPress={() => setActiveFilter((prev) => (prev + 1) % FEED_CHIPS.length)}
+                                            accessibilityRole="button"
+                                            accessibilityLabel="Notes filters"
+                                            style={[
+                                                styles.searchActionBtn,
+                                                {
+                                                    backgroundColor: theme.surface,
+                                                    borderColor: theme.outline,
+                                                },
+                                            ]}
+                                        >
+                                            <SlidersHorizontal size={18} color={theme.text} strokeWidth={2.2} />
+                                        </Pressable>
+                                    }
+                                />
+                            </View>
+
+                            <FilterChips
+                                chips={FEED_CHIPS.map(({ label, emoji }) => ({ label, emoji }))}
+                                activeIndex={activeFilter}
+                                onSelect={setActiveFilter}
+                            />
+
+                            {showJournalHero && (
+                                <View style={styles.heroSection}>
+                                    <Pressable onPress={handleJournalPress} hitSlop={4}>
+                                        <JournalCard hasEntry={todayJournal != null} lastUpdated={todayJournal?.updatedAt} />
+                                    </Pressable>
+
+                                    {squadId && (
+                                        <Link href={`/squad/${squadId}/notes/journals` as any}>
+                                            <ThemedText
+                                                type="small"
+                                                style={{ color: theme.accent, fontWeight: Weight.bold }}
+                                            >
+                                                View past journals →
+                                            </ThemedText>
+                                        </Link>
+                                    )}
+                                </View>
+                            )}
+                        </View>
+                    }
+                    renderItem={({ item }) => (
+                        <Pressable onPress={() => handleNotePress(item._id)} hitSlop={4} style={styles.cardLink}>
+                            {item.type === 'shared' ? (
+                                <SharedNoteCard
+                                    noteId={item._id}
+                                    title={item.title}
+                                    content={item.content}
+                                    updatedAt={item.updatedAt}
+                                    tag={item.tag}
+                                    pinned={item.pinned}
+                                    ownerNickname={item.ownerNickname}
+                                    collaborators={item.collaborators}
+                                    collaboratorCount={item.collaboratorCount}
+                                    isBookmarked={item.isBookmarked}
+                                    onToggleBookmark={(noteId) => bookmarkToggle({ targetType: "note", noteId: noteId as any })}
+                                />
+                            ) : (
+                                <NoteCard
+                                    noteId={item._id}
+                                    title={item.title}
+                                    content={item.content}
+                                    updatedAt={item.updatedAt}
+                                    tag={item.tag}
+                                    type={item.type as 'personal' | 'journal' | 'friend'}
+                                    pinned={item.pinned}
+                                    ownerNickname={item.ownerNickname}
+                                    collaborators={item.collaborators}
+                                    collaboratorCount={item.collaboratorCount}
+                                    isBookmarked={item.isBookmarked}
+                                    onToggleBookmark={(noteId) => bookmarkToggle({ targetType: "note", noteId: noteId as any })}
+                                />
+                            )}
+                        </Pressable>
+                    )}
+                    ListEmptyComponent={
+                        <EmptyState
+                            emoji="📝"
+                            title="No notes found"
+                            subtitle={
+                                normalizedSearch.length > 0
+                                    ? 'Try a different search term.'
+                                    : selectedFilter === 'pinned'
+                                        ? 'Pin a note to keep it at the top.'
+                                        : selectedFilter === 'mine'
+                                            ? 'Write your first note!'
+                                            : 'Create a note for your squad.'
+                            }
+                            actionLabel={normalizedSearch.length > 0 ? undefined : 'Create note'}
+                            onAction={normalizedSearch.length > 0 ? undefined : () => {
+                                router.push(`/squad/${squadId}/notes/new${selectedFilter === 'mine' ? '' : '?type=shared'}` as any);
+                            }}
+                        />
+                    }
+                />
 
                 {fabHref && (
-                    // @ts-expect-error — dynamic route string not assignable to typed href
-                    <Link href={fabHref} asChild>
+                    <Link href={fabHref as any} asChild>
                         <Fab accessibilityLabel="Create note" />
                     </Link>
                 )}
@@ -141,139 +249,32 @@ export default function NotesScreen() {
     );
 }
 
-interface MineTabProps {
-    notes: (Doc<"notes"> & { lastEditedByNickname?: string | null })[];
-    todayJournal: Doc<"notes"> & { lastEditedByNickname?: string | null } | null;
-    hasPastJournals: boolean;
-    onJournalPress: () => void;
-    onNotePress: (noteId: string) => void;
-    onLoadMore: () => void;
-    canLoadMore: boolean;
-    loadingMore: boolean;
-    squadId: Id<"squads"> | undefined;
-}
-
-function MineTab({ notes, todayJournal, hasPastJournals, onJournalPress, onNotePress, onLoadMore, canLoadMore, loadingMore, squadId }: MineTabProps) {
-    const theme = useTheme();
-    return (
-        <FlatList
-            data={notes}
-            keyExtractor={(item) => item._id}
-            ListHeaderComponent={
-                <View style={styles.headerSection}>
-                    <Pressable onPress={onJournalPress} hitSlop={4}>
-                        <JournalCard
-                            hasEntry={todayJournal != null}
-                            lastUpdated={todayJournal?.updatedAt}
-                        />
-                    </Pressable>
-                    {squadId && hasPastJournals && (
-                        <Link href={`/squad/${squadId}/notes/journals` as any} style={styles.newNoteLink}>
-                            <ThemedText type="linkPrimary">View past journals →</ThemedText>
-                        </Link>
-                    )}
-                    {squadId && (
-                        <Link href={`/squad/${squadId}/notes/new` as any} style={styles.newNoteLink}>
-                            <ThemedText type="linkPrimary">+ New Note</ThemedText>
-                        </Link>
-                    )}
-                </View>
-            }
-            renderItem={({ item }) => (
-                <Pressable onPress={() => onNotePress(item._id)} hitSlop={4} style={styles.cardLink}>
-                    <NoteCard
-                        title={item.title} content={item.content} updatedAt={item.updatedAt}
-                        tag={item.tag} type={item.type as "personal" | "journal"} pinned={item.pinned}
-                    />
-                </Pressable>
-            )}
-            ListEmptyComponent={
-                <View style={styles.empty}>
-                    <ThemedText type="small" themeColor="textSecondary">
-                        No notes yet. Write your first one!
-                    </ThemedText>
-                </View>
-            }
-            initialNumToRender={10} maxToRenderPerBatch={5} windowSize={10}
-            contentContainerStyle={styles.listContent} keyboardShouldPersistTaps="handled"
-            onEndReached={canLoadMore ? onLoadMore : undefined} onEndReachedThreshold={0.5}
-            ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color={theme.accent} style={styles.loadingMore} /> : null}
-        />
-    );
-}
-
-interface OursTabProps {
-    notes: (Doc<"notes"> & { lastEditedByNickname?: string | null })[];
-    onNotePress: (noteId: string) => void;
-    onLoadMore: () => void;
-    canLoadMore: boolean;
-    loadingMore: boolean;
-}
-
-function OursTab({ notes, onNotePress, onLoadMore, canLoadMore, loadingMore }: OursTabProps) {
-    const theme = useTheme();
-    return (
-        <FlatList
-            data={notes}
-            keyExtractor={(item) => item._id}
-            renderItem={({ item }) => (
-                <Pressable onPress={() => onNotePress(item._id)} hitSlop={4} style={styles.cardLink}>
-                    <SharedNoteCard
-                        title={item.title} content={item.content} updatedAt={item.updatedAt}
-                        tag={item.tag} lastEditedByNickname={item.lastEditedByNickname}
-                    />
-                </Pressable>
-            )}
-            ListEmptyComponent={
-                <View style={styles.empty}>
-                    <ThemedText type="small" themeColor="textSecondary">
-                        No shared notes yet. Create one for the squad!
-                    </ThemedText>
-                </View>
-            }
-            initialNumToRender={10} maxToRenderPerBatch={5} windowSize={10}
-            contentContainerStyle={styles.listContent} keyboardShouldPersistTaps="handled"
-            onEndReached={canLoadMore ? onLoadMore : undefined} onEndReachedThreshold={0.5}
-            ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color={theme.accent} style={styles.loadingMore} /> : null}
-        />
-    );
-}
-
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
+    container: { flex: 1 },
+    safeArea: { flex: 1 },
+    searchRowWrap: {
+        paddingHorizontal: Spacing.lg,
+        paddingTop: Spacing.md,
     },
-    safeArea: {
-        flex: 1,
-    },
-    loading: {
-        flex: 1,
-        justifyContent: 'center',
+    searchActionBtn: {
+        width: 44,
+        height: 44,
+        borderWidth: 2,
+        borderRadius: Radius.md,
         alignItems: 'center',
+        justifyContent: 'center',
     },
-    headerSection: {
+    heroSection: {
         paddingHorizontal: Spacing.lg,
         paddingTop: Spacing.sm,
-        gap: Spacing.lg,
-    },
-    newNoteLink: {
-        paddingVertical: Spacing.xs,
+        gap: Spacing.md,
     },
     listContent: {
-        paddingBottom: 80,
+        paddingBottom: 100,
     },
     cardLink: {
         width: '100%',
         paddingHorizontal: Spacing.lg,
         paddingVertical: Spacing.xs,
-    },
-    empty: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingVertical: Spacing.six,
-    },
-    loadingMore: {
-        paddingVertical: Spacing.lg,
     },
 });

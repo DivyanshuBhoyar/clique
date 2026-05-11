@@ -1,14 +1,16 @@
 import { usePaginatedQuery } from 'convex/react';
 import { useGlobalSearchParams, useRouter } from 'expo-router';
 import { useCallback } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { NoteCard } from '@/components/notes/note-card';
-import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { EmptyState } from '@/components/ui/empty-state';
+import { LoadingState } from '@/components/ui/loading-state';
+import { PaginatedList } from '@/components/ui/paginated-list';
+import { ScreenHeader } from '@/components/ui/screen-header';
 import { Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 
@@ -16,17 +18,12 @@ const PAGE_SIZE = 20;
 
 export default function JournalsScreen() {
     const { id } = useGlobalSearchParams<{ id: string }>();
-    const squadId = (typeof id === 'string' ? id : undefined) as Id<"squads"> | undefined;
+    const squadId = (typeof id === 'string' ? id : undefined) as Id<'squads'> | undefined;
     const router = useRouter();
-    const theme = useTheme();
 
-    const {
-        results: journals,
-        loadMore,
-        status,
-    } = usePaginatedQuery(
+    const { results: journals, loadMore, status } = usePaginatedQuery(
         api.notes.getJournals,
-        squadId ? { squadId } : "skip",
+        squadId ? { squadId } : 'skip',
         { initialNumItems: PAGE_SIZE },
     );
 
@@ -36,19 +33,23 @@ export default function JournalsScreen() {
     }, [squadId, router]);
 
     if (journals === undefined) {
-        return (
-            <SafeAreaView style={[styles.loading, { backgroundColor: theme.background }]}>
-                <ActivityIndicator size="large" color={theme.accent} />
-            </SafeAreaView>
-        );
+        return <LoadingState />;
     }
 
     return (
         <ThemedView style={styles.container}>
-            <SafeAreaView style={styles.safeArea} edges={['bottom']}>
-                <FlatList
+            <SafeAreaView style={styles.safeArea} edges={[]}>
+                <ScreenHeader
+                    title="Past Journals 📓"
+                    onBack={() => router.back()}
+                />
+                <PaginatedList
                     data={journals}
                     keyExtractor={(item) => item._id}
+                    status={status}
+                    loadMore={loadMore}
+                    pageSize={PAGE_SIZE}
+                    contentContainerStyle={styles.listContent}
                     renderItem={({ item }) => (
                         <Pressable onPress={() => handlePress(item._id)} hitSlop={4} style={styles.cardLink}>
                             <NoteCard
@@ -62,23 +63,13 @@ export default function JournalsScreen() {
                         </Pressable>
                     )}
                     ListEmptyComponent={
-                        <View style={styles.empty}>
-                            <ThemedText type="small" themeColor="textSecondary">
-                                No journal entries yet.
-                            </ThemedText>
-                        </View>
-                    }
-                    initialNumToRender={10}
-                    maxToRenderPerBatch={5}
-                    windowSize={10}
-                    contentContainerStyle={styles.listContent}
-                    keyboardShouldPersistTaps="handled"
-                    onEndReached={status === "CanLoadMore" ? () => loadMore(PAGE_SIZE) : undefined}
-                    onEndReachedThreshold={0.5}
-                    ListFooterComponent={
-                        status === "LoadingMore"
-                            ? <ActivityIndicator size="small" color={theme.accent} style={styles.loadingMore} />
-                            : null
+                        <EmptyState
+                            emoji="📓"
+                            title="No journal entries yet"
+                            subtitle="Go write today's entry!"
+                            actionLabel="Write journal"
+                            onAction={() => router.push(`/squad/${squadId}/notes/new?type=journal` as any)}
+                        />
                     }
                 />
             </SafeAreaView>
@@ -89,18 +80,10 @@ export default function JournalsScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1 },
     safeArea: { flex: 1 },
-    loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    listContent: { paddingBottom: 80, paddingTop: Spacing.sm },
+    listContent: { paddingTop: Spacing.sm, paddingBottom: 80 },
     cardLink: {
         width: '100%',
         paddingHorizontal: Spacing.lg,
         paddingVertical: Spacing.xs,
     },
-    empty: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingVertical: Spacing.six,
-    },
-    loadingMore: { paddingVertical: Spacing.lg },
 });

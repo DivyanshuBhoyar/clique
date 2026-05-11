@@ -1,8 +1,117 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { Id } from "./_generated/dataModel";
+import { MutationCtx, QueryCtx, mutation, query } from "./_generated/server";
 import { enrichUser, requireMembership } from "./users";
+import { assertLength } from "./validators";
+
+const notesFeedFilterValidator = v.union(
+    v.literal("all"),
+    v.literal("pinned"),
+    v.literal("recent"),
+    v.literal("mine"),
+);
+
+function canViewNote(note: { type: string; ownerId: Id<"users">; targetUserId?: Id<"users"> }, userId: Id<"users">) {
+    if (note.type === "shared") return true;
+    if (note.type === "personal" || note.type === "journal") {
+        return note.ownerId === userId;
+    }
+    if (note.type === "friend") {
+        return note.ownerId === userId || note.targetUserId === userId;
+    }
+    return false;
+}
+
+function matchesSearch(note: { title: string; content: string }, searchText?: string | null) {
+    const q = searchText?.trim().toLowerCase();
+    if (!q) return true;
+    return note.title.toLowerCase().includes(q) || note.content.toLowerCase().includes(q);
+}
+
+function sortFeedNotes<T extends { pinned?: boolean; updatedAt: number }>(
+    notes: T[],
+    filter: "all" | "pinned" | "recent" | "mine",
+) {
+    const ranked = [...notes];
+    if (filter === "all" || filter === "mine" || filter === "pinned") {
+        ranked.sort(
+            (a, b) =>
+                Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) ||
+                b.updatedAt - a.updatedAt,
+        );
+        return ranked;
+    }
+
+    ranked.sort((a, b) => b.updatedAt - a.updatedAt);
+    return ranked;
+}
+
+async function touchNoteCollaborator(
+    ctx: MutationCtx,
+    noteId: Id<"notes">,
+    squadId: Id<"squads">,
+    userId: Id<"users">,
+    editedAt: number,
+) {
+    const existing = await ctx.db
+        .query("noteCollaborators")
+        .withIndex("by_user_and_note", (q) => q.eq("userId", userId).eq("noteId", noteId))
+        .unique();
+
+    if (existing) {
+        await ctx.db.patch(existing._id, { lastEditedAt: editedAt, squadId });
+        return;
+    }
+
+    await ctx.db.insert("noteCollaborators", {
+        noteId,
+        userId,
+        squadId,
+        lastEditedAt: editedAt,
+    });
+}
+
+async function buildCollaboratorPreview(
+    ctx: QueryCtx,
+    note: { _id: Id<"notes">; ownerId: Id<"users">; squadId: Id<"squads"> },
+) {
+    const collaboratorRows = await ctx.db
+        .query("noteCollaborators")
+        .withIndex("by_note_and_lastEditedAt", (q) => q.eq("noteId", note._id))
+        .order("desc")
+        .take(8);
+
+    const orderedUserIds: Id<"users">[] = [
+        note.ownerId,
+        ...collaboratorRows.map((row) => row.userId),
+    ];
+
+    const uniqueUserIds: Id<"users">[] = [];
+    for (const id of orderedUserIds) {
+        if (!uniqueUserIds.includes(id)) {
+            uniqueUserIds.push(id);
+        }
+    }
+
+    const previewUserIds = uniqueUserIds.slice(0, 3);
+    const collaborators = await Promise.all(
+        previewUserIds.map(async (userId) => {
+            const { nickname, avatarUrl } = await enrichUser(ctx, userId, note.squadId);
+            return {
+                userId,
+                nickname,
+                avatarUrl,
+            };
+        }),
+    );
+
+    return {
+        collaborators,
+        collaboratorCount: uniqueUserIds.length,
+    };
+}
 
 export const createNote = mutation({
     args: {
@@ -23,12 +132,17 @@ export const createNote = mutation({
 
     handler: async (ctx, args) => {
         const { userId } = await requireMembership(ctx, args.squadId);
+        const now = Date.now();
+
+        assertLength("Title", args.title, 200);
+        assertLength("Content", args.content, 10000);
+        if (args.tag) assertLength("Tag", args.tag, 50);
 
         if (args.type === "friend" && !args.targetUserId) {
             throw new Error("targetUserId required for friend note");
         }
 
-        return await ctx.db.insert("notes", {
+        const noteId = await ctx.db.insert("notes", {
             squadId: args.squadId,
             title: args.title,
             content: args.content,
@@ -38,9 +152,13 @@ export const createNote = mutation({
             channelId: args.channelId,
             tag: args.tag,
             pinned: args.pinned,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
+            createdAt: now,
+            updatedAt: now,
         });
+
+        await touchNoteCollaborator(ctx, noteId, args.squadId, userId, now);
+
+        return noteId;
     },
 });
 
@@ -57,15 +175,23 @@ export const updateNote = mutation({
         const userId = await getAuthUserId(ctx);
         if (!userId) throw new Error("Unauthenticated");
 
+        if (args.title) assertLength("Title", args.title, 200);
+        if (args.content) assertLength("Content", args.content, 10000);
+        if (args.tag) assertLength("Tag", args.tag, 50);
+
         const note = await ctx.db.get(args.noteId);
         if (!note) throw new Error("Note not found");
 
         if (note.type !== "shared" && note.ownerId !== userId) {
             throw new Error("Unauthorized");
         }
+        if (note.type === "shared") {
+            await requireMembership(ctx, note.squadId);
+        }
 
+        const now = Date.now();
         const updates: Record<string, unknown> = {
-            updatedAt: Date.now(),
+            updatedAt: now,
             lastEditedBy: userId,
         };
         if (args.title !== undefined) updates.title = args.title;
@@ -74,8 +200,118 @@ export const updateNote = mutation({
         if (args.pinned !== undefined) updates.pinned = args.pinned;
 
         await ctx.db.patch(args.noteId, updates);
+        await touchNoteCollaborator(ctx, args.noteId, note.squadId, userId, now);
 
         return { success: true };
+    },
+});
+
+export const toggleNotePin = mutation({
+    args: { noteId: v.id("notes") },
+    handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) throw new Error("Unauthenticated");
+        const note = await ctx.db.get(args.noteId);
+        if (!note) throw new Error("Note not found");
+        if (note.ownerId !== userId) throw new Error("Unauthorized");
+        const now = Date.now();
+        const pinned = !note.pinned;
+        await ctx.db.patch(args.noteId, {
+            pinned,
+            updatedAt: now,
+            lastEditedBy: userId,
+        });
+        await touchNoteCollaborator(ctx, args.noteId, note.squadId, userId, now);
+        return { pinned };
+    },
+});
+
+export const getNotesFeed = query({
+    args: {
+        squadId: v.id("squads"),
+        filter: notesFeedFilterValidator,
+        searchText: v.optional(v.string()),
+        paginationOpts: paginationOptsValidator,
+    },
+    handler: async (ctx, args) => {
+        const { userId } = await requireMembership(ctx, args.squadId);
+        const normalizedFilter = args.filter;
+
+        let sourcePage: any[] = [];
+        let isDone = true;
+        let continueCursor: string | null = args.paginationOpts.cursor;
+
+        if (normalizedFilter === "mine") {
+            const mineResult = await ctx.db
+                .query("notes")
+                .withIndex("by_owner_squad", (q) =>
+                    q.eq("ownerId", userId).eq("squadId", args.squadId),
+                )
+                .order("desc")
+                .paginate(args.paginationOpts);
+            sourcePage = mineResult.page;
+            isDone = mineResult.isDone;
+            continueCursor = mineResult.continueCursor;
+        } else {
+            const overfetchCount = Math.max(args.paginationOpts.numItems * 4, 40);
+            const broadResult = await ctx.db
+                .query("notes")
+                .withIndex("by_squad_and_updatedAt", (q) => q.eq("squadId", args.squadId))
+                .order("desc")
+                .paginate({
+                    numItems: overfetchCount,
+                    cursor: args.paginationOpts.cursor,
+                });
+            sourcePage = broadResult.page;
+            isDone = broadResult.isDone;
+            continueCursor = broadResult.continueCursor;
+        }
+
+        const visible = sourcePage.filter((note) => canViewNote(note, userId));
+
+        const filteredByChip = visible.filter((note) => {
+            if (normalizedFilter === "pinned") {
+                return Boolean(note.pinned);
+            }
+            return true;
+        });
+
+        const filteredBySearch = filteredByChip.filter((note) =>
+            matchesSearch(note, args.searchText),
+        );
+
+        const ranked = sortFeedNotes(filteredBySearch, normalizedFilter);
+        const clipped = ranked.slice(0, args.paginationOpts.numItems);
+
+        const enrichedPage = await Promise.all(
+            clipped.map(async (note) => {
+                const [{ nickname: ownerNickname, avatarUrl: ownerAvatarUrl }, collaboratorPreview, bookmark] =
+                    await Promise.all([
+                        enrichUser(ctx, note.ownerId, note.squadId),
+                        buildCollaboratorPreview(ctx, note),
+                        ctx.db
+                            .query("bookmarks")
+                            .withIndex("by_user_note", (q) => q.eq("userId", userId).eq("noteId", note._id))
+                            .first(),
+                    ]);
+
+                return {
+                    ...note,
+                    ownerNickname,
+                    ownerAvatarUrl,
+                    isMine: note.ownerId === userId,
+                    collaborators: collaboratorPreview.collaborators,
+                    collaboratorCount: collaboratorPreview.collaboratorCount,
+                    isBookmarked: !!bookmark,
+                };
+            }),
+        );
+
+        return {
+            page: enrichedPage,
+            isDone,
+            continueCursor,
+        };
     },
 });
 
@@ -99,6 +335,20 @@ export const deleteNote = mutation({
             }
         }
 
+        const collaborators = await ctx.db
+            .query("noteCollaborators")
+            .withIndex("by_note_and_lastEditedAt", (q) => q.eq("noteId", args.noteId))
+            .take(100);
+        for (const collaborator of collaborators) {
+            await ctx.db.delete(collaborator._id);
+        }
+
+        const bookmarks = await ctx.db
+            .query("bookmarks")
+            .withIndex("by_note", (q) => q.eq("noteId", args.noteId))
+            .collect();
+        for (const b of bookmarks) await ctx.db.delete(b._id);
+
         await ctx.db.delete(args.noteId);
 
         return { success: true };
@@ -113,22 +363,15 @@ export const getPersonalNotes = query({
     handler: async (ctx, args) => {
         const { userId } = await requireMembership(ctx, args.squadId);
 
-        const result = await ctx.db
+        // Use compound index so pagination returns correctly-sized pages
+        // (no post-filter needed — only the user's own notes for this squad)
+        return await ctx.db
             .query("notes")
-            .withIndex("by_squad", (q) => q.eq("squadId", args.squadId))
+            .withIndex("by_owner_squad", (q) =>
+                q.eq("ownerId", userId).eq("squadId", args.squadId)
+            )
             .order("desc")
             .paginate(args.paginationOpts);
-
-        const filtered = result.page.filter(
-            (n) =>
-                n.ownerId === userId &&
-                (n.type === "personal" || n.type === "journal"),
-        );
-
-        return {
-            ...result,
-            page: filtered,
-        };
     },
 });
 
@@ -202,18 +445,13 @@ export const getJournals = query({
 
         const result = await ctx.db
             .query("notes")
-            .withIndex("by_owner", (q) => q.eq("ownerId", userId))
+            .withIndex("by_owner_squad_type", (q) =>
+                q.eq("ownerId", userId).eq("squadId", args.squadId).eq("type", "journal")
+            )
             .order("desc")
             .paginate(args.paginationOpts);
 
-        const journals = result.page.filter(
-            (n) => n.type === "journal" && n.squadId === args.squadId,
-        );
-
-        return {
-            ...result,
-            page: journals,
-        };
+        return result;
     },
 });
 
@@ -227,15 +465,15 @@ export const getSharedNotes = query({
 
         const result = await ctx.db
             .query("notes")
-            .withIndex("by_squad", (q) => q.eq("squadId", args.squadId))
+            .withIndex("by_squad_type", (q) =>
+                q.eq("squadId", args.squadId).eq("type", "shared")
+            )
             .order("desc")
             .paginate(args.paginationOpts);
 
-        const shared = result.page.filter((n) => n.type === "shared");
-
         // Enrich with last editor nickname
         const enriched = await Promise.all(
-            shared.map(async (note) => {
+            result.page.map(async (note) => {
                 let lastEditedByNickname: string | null = null;
                 if (note.lastEditedBy) {
                     const { nickname } = await enrichUser(ctx, note.lastEditedBy, note.squadId);
@@ -248,6 +486,8 @@ export const getSharedNotes = query({
         return {
             ...result,
             page: enriched,
+            isDone: result.isDone,
+            continueCursor: result.continueCursor,
         };
     },
 });
