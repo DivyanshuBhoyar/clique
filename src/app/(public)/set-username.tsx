@@ -1,38 +1,51 @@
+/**
+ * SetUsernameScreen — shown after first-time sign-in.
+ *
+ * Design: animated welcome card, large username input,
+ * avatar preview generated from Dicebear.
+ */
 import { useMutation } from 'convex/react';
 import { useRouter } from 'expo-router';
+import { Smile } from 'lucide-react-native';
 import { useState } from 'react';
 import {
     ActivityIndicator,
-    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    Pressable,
     StyleSheet,
     TextInput,
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Button } from '@/components/button';
+import { AuthHeroCard } from '@/components/auth/auth-hero-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Radius, Shadows, Spacing } from '@/constants/theme';
+import { Radius, Shadows, Spacing, Typography, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useToast } from '@/hooks/use-toast';
 import { api } from '../../../convex/_generated/api';
 
 export default function SetUsernameScreen() {
     const router = useRouter();
     const theme = useTheme();
+    const toast = useToast();
     const saveUsername = useMutation(api.users.saveUsername);
 
     const [username, setUsername] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
+    const isValid = username.trim().length >= 3;
+
     const handleSave = async () => {
         const trimmed = username.trim();
         if (!trimmed) {
-            Alert.alert('Error', 'Please enter a username.');
+            toast.error('Please enter a username.');
             return;
         }
         if (trimmed.length < 3) {
-            Alert.alert('Error', 'Username must be at least 3 characters.');
+            toast.error('Username must be at least 3 characters.');
             return;
         }
 
@@ -43,7 +56,7 @@ export default function SetUsernameScreen() {
             router.replace('/(auth)' as any);
         } catch (err: any) {
             console.error(err);
-            Alert.alert('Error', 'Failed to save username. Please try again.');
+            toast.error('Failed to save username. Please try again.');
         } finally {
             setIsLoading(false);
         }
@@ -52,71 +65,126 @@ export default function SetUsernameScreen() {
     return (
         <ThemedView style={styles.container}>
             <SafeAreaView style={styles.safeArea}>
-                <View style={[styles.heroSection, {
-                    backgroundColor: theme.accentSoft,
-                    borderColor: theme.outline,
-                    shadowColor: theme.shadow,
-                    shadowOffset: Shadows.sm.offset,
-                    shadowOpacity: Shadows.sm.opacity,
-                    shadowRadius: Shadows.sm.radius,
-                }]}>
-                    <ThemedText type="title" style={{ textAlign: 'center' }}>
-                        Welcome!
-                    </ThemedText>
-                    <ThemedText type="small" themeColor="textSecondary" style={{ marginTop: Spacing.sm }}>
-                        What should we call you?
-                    </ThemedText>
-                </View>
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                    style={styles.inner}
+                >
+                    {/* Hero */}
+                    <AuthHeroCard emoji="👋" title="Welcome!" subtitle="Let's set up your vibe name" />
 
-                <View style={styles.formSection}>
-                    <TextInput
-                        style={[styles.input, { color: theme.text, borderColor: theme.outline, backgroundColor: theme.inputBackground }]}
-                        value={username}
-                        onChangeText={setUsername}
-                        placeholder="Pick a username"
-                        placeholderTextColor={theme.textTertiary}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                        editable={!isLoading}
-                    />
+                    {/* Form Card */}
+                    <View style={[styles.formCard, {
+                        backgroundColor: theme.surface,
+                        borderColor: theme.outline,
+                        shadowColor: theme.shadow,
+                        shadowOffset: Shadows.sm.offset,
+                        shadowOpacity: Shadows.sm.opacity,
+                        shadowRadius: Shadows.sm.radius,
+                        elevation: 3,
+                    }]}>
+                        <View style={styles.inputHeader}>
+                            <Smile size={16} color={theme.text} strokeWidth={2} />
+                            <ThemedText type="bodyBold">Your username</ThemedText>
+                        </View>
 
-                    {isLoading ? (
-                        <ActivityIndicator size="small" color={theme.accent} />
-                    ) : (
-                        <Button title="Let's Go!" color={theme.accent} onPress={handleSave} />
-                    )}
-                </View>
+                        <ThemedText type="small" themeColor="textSecondary">
+                            Min. 3 characters · This is how your squad sees you
+                        </ThemedText>
+
+                        <TextInput
+                            style={[styles.input, {
+                                color: theme.text,
+                                borderColor: isValid ? theme.accent : theme.outline,
+                                backgroundColor: theme.background,
+                            }]}
+                            value={username}
+                            onChangeText={setUsername}
+                            placeholder="e.g. cozy_theo 🎧"
+                            placeholderTextColor={theme.placeholder}
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            editable={!isLoading}
+                            autoFocus
+                            maxLength={24}
+                        />
+
+                        <View style={styles.charRow}>
+                            <ThemedText type="caption" themeColor="textTertiary">
+                                {username.length}/24
+                            </ThemedText>
+                            {isValid && (
+                                <ThemedText type="caption" style={{ color: theme.accent, fontWeight: Weight.bold }}>
+                                    ✓ Looks good!
+                                </ThemedText>
+                            )}
+                        </View>
+
+                        {isLoading ? (
+                            <ActivityIndicator size="small" color={theme.accent} />
+                        ) : (
+                            <Pressable
+                                style={[
+                                    styles.submitBtn,
+                                    {
+                                        backgroundColor: isValid ? theme.accent : theme.backgroundElement,
+                                        borderColor: isValid ? theme.outline : theme.outlineLight,
+                                    },
+                                ]}
+                                onPress={handleSave}
+                                disabled={!isValid}
+                            >
+                                <ThemedText
+                                    type="bodyBold"
+                                    style={{ color: isValid ? theme.text : theme.textTertiary }}
+                                >
+                                    Let&apos;s Go! 🚀
+                                </ThemedText>
+                            </Pressable>
+                        )}
+                    </View>
+                </KeyboardAvoidingView>
             </SafeAreaView>
         </ThemedView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
+    container: { flex: 1 },
+    safeArea: { flex: 1 },
+    inner: {
         flex: 1,
-    },
-    safeArea: {
-        flex: 1,
-        paddingHorizontal: Spacing.xxl,
+        paddingHorizontal: Spacing.xl,
         justifyContent: 'center',
         gap: Spacing.lg,
     },
-    heroSection: {
-        alignItems: 'center',
-        marginBottom: Spacing.huge,
-        paddingVertical: Spacing.xxl,
-        borderRadius: Radius.lg,
+    formCard: {
+        padding: Spacing.xl,
+        borderRadius: Radius.xl,
         borderWidth: 2,
+        gap: Spacing.md,
     },
-    formSection: {
-        paddingHorizontal: Spacing.xl,
-        gap: Spacing.lg,
+    inputHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.sm,
     },
     input: {
         borderWidth: 2,
-        borderRadius: Radius.md,
-        padding: Spacing.lg,
-        fontSize: 18,
-        textAlign: 'center',
+        borderRadius: Radius.lg,
+        paddingHorizontal: Spacing.lg,
+        paddingVertical: Spacing.md,
+        fontSize: Typography.body,
+    },
+    charRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: -Spacing.sm,
+    },
+    submitBtn: {
+        borderWidth: 2,
+        borderRadius: Radius.full,
+        paddingVertical: Spacing.md,
+        alignItems: 'center',
+        marginTop: Spacing.xs,
     },
 });
