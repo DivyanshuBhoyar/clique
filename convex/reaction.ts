@@ -2,6 +2,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation } from "./_generated/server";
 import { requireMembership } from "./users";
+import { assertLength } from "./validators";
 
 export const toggleReaction = mutation({
     args: {
@@ -13,6 +14,8 @@ export const toggleReaction = mutation({
         const userId = await getAuthUserId(ctx);
         if (!userId) throw new Error("Unauthenticated");
 
+        assertLength("Emoji", args.emoji, 10);
+
         const message = await ctx.db.get(args.messageId);
         if (!message) throw new Error("Message not found");
 
@@ -20,10 +23,9 @@ export const toggleReaction = mutation({
 
         const existing = await ctx.db
             .query("reactions")
-            .withIndex("by_user_message", (q) =>
-                q.eq("userId", userId).eq("messageId", args.messageId)
+            .withIndex("by_user_message_emoji", (q) =>
+                q.eq("userId", userId).eq("messageId", args.messageId).eq("emoji", args.emoji)
             )
-            .filter((q) => q.eq(q.field("emoji"), args.emoji))
             .first();
 
         if (existing) {

@@ -1,8 +1,10 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
+import { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import { enrichUser, requireMembership } from "./users";
+import { assertLength } from "./validators";
 
 export const sendMessage = mutation({
     args: {
@@ -14,6 +16,8 @@ export const sendMessage = mutation({
 
     handler: async (ctx, args) => {
         const { userId, membership } = await requireMembership(ctx, args.squadId);
+
+        assertLength("Message", args.content, 2000);
 
         const channel = await ctx.db.get(args.channelId);
         if (!channel || channel.squadId !== args.squadId) {
@@ -45,6 +49,41 @@ export const sendMessage = mutation({
     },
 });
 
+export const sendImageMessage = mutation({
+    args: {
+        squadId: v.id("squads"),
+        channelId: v.id("channels"),
+        storageId: v.id("_storage"),
+        content: v.optional(v.string()),
+    },
+
+    handler: async (ctx, args) => {
+        const { userId, membership } = await requireMembership(ctx, args.squadId);
+
+        if (args.content) assertLength("Caption", args.content, 500);
+
+        const channel = await ctx.db.get(args.channelId);
+        if (!channel || channel.squadId !== args.squadId) {
+            throw new Error("Invalid channel");
+        }
+
+        if (channel.type === "ephemeral" && channel.expiresAt && Date.now() > channel.expiresAt) {
+            throw new Error("This room has expired");
+        }
+
+        return await ctx.db.insert("messages", {
+            squadId: args.squadId,
+            channelId: args.channelId,
+            userId,
+            content: args.content ?? "",
+            type: "image",
+            storageId: args.storageId,
+            nickname: membership.nickname,
+            createdAt: Date.now(),
+        });
+    },
+});
+
 
 
 export const getMessages = query({
@@ -54,6 +93,8 @@ export const getMessages = query({
     },
 
     handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+
         const page = await ctx.db
             .query("messages")
             .withIndex("by_channel", (q) =>
@@ -65,43 +106,38 @@ export const getMessages = query({
         // Enrich the current page with reactions and parent messages
         const ids = page.page.map((m) => m._id);
 
-        const reactions =
-            ids.length === 0
-                ? []
-                : await ctx.db
-                    .query("reactions")
-                    .filter((q) =>
-                        q.or(...ids.map((id) =>
-                            q.eq(q.field("messageId"), id)
-                        ))
-                    )
-                    .collect();
+        const reactionSets = ids.length === 0
+            ? []
+            : await Promise.all(
+                ids.map((id) =>
+                    ctx.db
+                        .query("reactions")
+                        .withIndex("by_message", (q) => q.eq("messageId", id))
+                        .collect()
+                ),
+            );
 
         const reactionsMap = new Map();
-        reactions.forEach((r) => {
-            if (!reactionsMap.has(r.messageId)) {
-                reactionsMap.set(r.messageId, []);
+        for (const set of reactionSets) {
+            for (const r of set) {
+                if (!reactionsMap.has(r.messageId)) {
+                    reactionsMap.set(r.messageId, []);
+                }
+                reactionsMap.get(r.messageId).push(r);
             }
-            reactionsMap.get(r.messageId).push(r);
-        });
+        }
 
         const parentIds = [
             ...new Set(
-                page.page.map((m) => m.parentMessageId).filter(Boolean)
+                page.page.map((m) => m.parentMessageId).filter((id): id is Id<"messages"> => id !== undefined)
             ),
         ];
 
-        const parents =
-            parentIds.length === 0
-                ? []
-                : await ctx.db
-                    .query("messages")
-                    .filter((q) =>
-                        q.or(...parentIds.map((id) =>
-                            q.eq(q.field("_id"), id)
-                        ))
-                    )
-                    .collect();
+        const parentDocs = parentIds.length === 0
+            ? []
+            : await Promise.all(parentIds.map((id) => ctx.db.get(id)));
+
+        const parents = parentDocs.filter((p): p is NonNullable<typeof p> => p !== null);
 
         const parentMap = new Map();
         parents.forEach((p) => parentMap.set(p._id, p));
@@ -118,11 +154,22 @@ export const getMessages = query({
             }
         }
 
-        const enrichedPage = page.page.map((m) => {
+        const enrichedPage = await Promise.all(page.page.map(async (m) => {
             const isDeleted = m.deleted === true;
 
             const parent = m.parentMessageId
                 ? parentMap.get(m.parentMessageId)
+                : null;
+
+            const imageUrl = m.type === "image" && m.storageId && !isDeleted
+                ? await ctx.storage.getUrl(m.storageId)
+                : null;
+
+            const bookmark = userId
+                ? await ctx.db
+                    .query("bookmarks")
+                    .withIndex("by_user_message", (q) => q.eq("userId", userId).eq("messageId", m._id))
+                    .first()
                 : null;
 
             return {
@@ -130,6 +177,8 @@ export const getMessages = query({
                 content: isDeleted ? "This message was deleted" : m.content,
                 deleted: isDeleted,
                 avatarUrl: avatarMap.get(m.userId) ?? null,
+                imageUrl,
+                isBookmarked: !!bookmark,
 
                 reactions: reactionsMap.get(m._id) || [],
 
@@ -141,7 +190,7 @@ export const getMessages = query({
                     }
                     : null,
             };
-        });
+        }));
 
         return {
             ...page,
@@ -175,6 +224,15 @@ export const deleteMessage = mutation({
             return { success: true };
         }
 
+        // Cascade: delete bookmarks pointing to this message
+        const bookmarks = await ctx.db
+            .query("bookmarks")
+            .withIndex("by_message", (q) => q.eq("messageId", args.messageId))
+            .collect();
+        for (const b of bookmarks) {
+            await ctx.db.delete(b._id);
+        }
+
         await ctx.db.patch(args.messageId, {
             deleted: true,
             content: "",
@@ -193,6 +251,8 @@ export const editMessage = mutation({
     handler: async (ctx, args) => {
         const userId = await getAuthUserId(ctx);
         if (!userId) throw new Error("Unauthenticated");
+
+        assertLength("Message", args.content, 2000);
 
         const message = await ctx.db.get(args.messageId);
 

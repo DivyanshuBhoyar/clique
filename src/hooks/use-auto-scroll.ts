@@ -9,5 +9,5 @@ export function useAutoScroll(flatListRef: React.RefObject<FlatList | null>, ite
             flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
         }
         prevCount.current = itemCount;
-    }, [itemCount]);
+    }, [itemCount, flatListRef]);
 }

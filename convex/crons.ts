@@ -10,7 +10,7 @@ export const cleanupExpiredChannels = internalMutation({
 
         const channels = await ctx.db
             .query("channels")
-            .filter((q) => q.eq(q.field("type"), "ephemeral"))
+            .withIndex("by_type", (q) => q.eq("type", "ephemeral"))
             .collect();
 
         const expired = channels.filter((c) => {
@@ -47,7 +47,7 @@ export const cleanupExpiredChannels = internalMutation({
 
             const readStatuses = await ctx.db
                 .query("channelReadStatus")
-                .filter((q) => q.eq(q.field("channelId"), channel._id))
+                .withIndex("by_channel", (q) => q.eq("channelId", channel._id))
                 .collect();
             for (const rs of readStatuses) {
                 await ctx.db.delete(rs._id);
@@ -66,16 +66,14 @@ export const cleanupEmptyJournals = internalMutation({
 
         const journals = await ctx.db
             .query("notes")
-            .filter((q) =>
-                q.and(
-                    q.eq(q.field("type"), "journal"),
-                    q.lt(q.field("createdAt"), cutoff),
-                    q.eq(q.field("content"), ""),
-                )
+            .withIndex("by_type_createdAt", (q) =>
+                q.eq("type", "journal").lt("createdAt", cutoff)
             )
-            .take(100);
+            .collect();
 
-        for (const journal of journals) {
+        const empty = journals.filter((j) => j.content === "");
+
+        for (const journal of empty) {
             await ctx.db.delete(journal._id);
         }
     },

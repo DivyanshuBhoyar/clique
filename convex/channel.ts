@@ -2,6 +2,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireMembership } from "./users";
+import { assertLength } from "./validators";
 
 export const getChannels = query({
     args: { squadId: v.id("squads") },
@@ -92,6 +93,8 @@ export const createChannel = mutation({
 
     handler: async (ctx, args) => {
         const { userId } = await requireMembership(ctx, args.squadId);
+
+        assertLength("Channel name", args.name, 50);
 
         // Auto-calculate grace period for ephemeral channels (10% of duration, min 5 min)
         let gracePeriodMs;
