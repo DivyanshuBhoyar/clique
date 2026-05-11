@@ -1,14 +1,14 @@
-import { ThemedText } from "@/components/themed-text";
-import { UserAvatar } from "@/components/user-avatar";
-import { Radius, Spacing } from "@/constants/theme";
-import { useTheme } from "@/hooks/use-theme";
-import { useState } from "react";
+import { ThemedText } from '@/components/themed-text';
+import { UserAvatar } from '@/components/user-avatar';
+import { Radius, Spacing, Typography } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { useState } from 'react';
 import {
+    Pressable,
     StyleSheet,
     TextInput,
-    TouchableOpacity,
     View,
-} from "react-native";
+} from 'react-native';
 
 interface WeeklyQuestionCardProps {
     question: {
@@ -16,13 +16,13 @@ interface WeeklyQuestionCardProps {
         question: string;
         createdAt: number;
     } | null;
-    answers: Array<{
+    answers: {
         _id: string;
         content: string;
         nickname: string;
         avatarUrl?: string | null;
         userId: string;
-    }>;
+    }[];
     myAnswer: { _id: string; content: string; userId: string } | null;
     answerCount: number;
     squadMemberCount: number;
@@ -86,24 +86,28 @@ export function WeeklyQuestionCard({
                             autoFocus
                         />
                         <View style={styles.createActions}>
-                            <TouchableOpacity onPress={() => setShowNewQuestion(false)}>
+                            <Pressable onPress={() => setShowNewQuestion(false)} hitSlop={8}>
                                 <ThemedText type="small" themeColor="textSecondary">Cancel</ThemedText>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.submitBtn, { backgroundColor: theme.accent, opacity: newQuestionText.trim() ? 1 : 0.4 }]}
-                                onPress={handleCreateQuestion}
-                                disabled={!newQuestionText.trim()}
-                            >
-                                <ThemedText type="smallBold" style={{ color: "#fff" }}>Post</ThemedText>
-                            </TouchableOpacity>
-                        </View>
+                            </Pressable>
+                    <Pressable
+                        style={[styles.submitBtn, {
+                            backgroundColor: newQuestionText.trim() ? theme.accent : theme.backgroundElement,
+                            borderColor: newQuestionText.trim() ? theme.outline : theme.outlineLight,
+                            opacity: newQuestionText.trim() ? 1 : 0.5,
+                        }]}
+                        onPress={handleCreateQuestion}
+                        disabled={!newQuestionText.trim()}
+                    >
+                        <ThemedText type="smallBold" style={{ color: newQuestionText.trim() ? theme.text : theme.textTertiary }}>Post</ThemedText>
+                    </Pressable>
                     </View>
-                ) : (
-                    <TouchableOpacity onPress={() => setShowNewQuestion(true)} style={styles.emptyState}>
+                </View>
+            ) : (
+                    <Pressable onPress={() => setShowNewQuestion(true)} style={styles.emptyState}>
                         <ThemedText type="small" themeColor="textSecondary">
                             No question this week — post one!
                         </ThemedText>
-                    </TouchableOpacity>
+                    </Pressable>
                 )}
             </View>
         );
@@ -127,12 +131,12 @@ export function WeeklyQuestionCard({
             <ThemedText type="heading">{question.question}</ThemedText>
 
             {myAnswer && !isEditing ? (
-                <TouchableOpacity onPress={() => { setIsEditing(true); setAnswerText(myAnswer.content); }}>
+                <Pressable onPress={() => { setIsEditing(true); setAnswerText(myAnswer.content); }}>
                     <View style={[styles.myAnswerBox, { backgroundColor: theme.accentSoft, borderColor: theme.accent }]}>
                         <ThemedText type="caption" themeColor="textSecondary">Your answer:</ThemedText>
                         <ThemedText type="small">{myAnswer.content}</ThemedText>
                     </View>
-                </TouchableOpacity>
+                </Pressable>
             ) : (
                 <View style={styles.answerInputRow}>
                     <TextInput
@@ -144,15 +148,19 @@ export function WeeklyQuestionCard({
                         maxLength={500}
                         autoFocus={isEditing}
                     />
-                    <TouchableOpacity
-                        style={[styles.submitBtn, { backgroundColor: theme.accent, opacity: answerText.trim() ? 1 : 0.4 }]}
+                    <Pressable
+                        style={[styles.submitBtn, {
+                            backgroundColor: answerText.trim() ? theme.accent : theme.backgroundElement,
+                            borderColor: answerText.trim() ? theme.outline : theme.outlineLight,
+                            opacity: answerText.trim() ? 1 : 0.5,
+                        }]}
                         onPress={handleSubmitAnswer}
                         disabled={!answerText.trim()}
                     >
-                        <ThemedText type="smallBold" style={{ color: "#fff" }}>
-                            {myAnswer ? "Update" : "Send"}
+                        <ThemedText type="smallBold" style={{ color: answerText.trim() ? theme.text : theme.textTertiary }}>
+                            {myAnswer ? 'Update' : 'Send'}
                         </ThemedText>
-                    </TouchableOpacity>
+                    </Pressable>
                 </View>
             )}
 
@@ -211,17 +219,19 @@ const styles = StyleSheet.create({
     input: {
         flex: 1,
         borderWidth: 2,
-        borderRadius: Radius.md,
+        borderRadius: Radius.lg,
         padding: Spacing.sm,
-        fontSize: 14,
+        paddingHorizontal: Spacing.md,
+        fontSize: Typography.small,
     },
     submitBtn: {
         paddingHorizontal: Spacing.lg,
         paddingVertical: Spacing.sm,
-        borderRadius: Radius.md,
+        borderRadius: Radius.full,
+        borderWidth: 1.5,
         minHeight: 44,
-        alignItems: "center",
-        justifyContent: "center",
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     answersList: {
         gap: Spacing.xs,

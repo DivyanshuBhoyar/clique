@@ -1,7 +1,7 @@
-import { ThemedText } from "@/components/themed-text";
-import { Radius, Spacing } from "@/constants/theme";
-import { useTheme } from "@/hooks/use-theme";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { ThemedText } from '@/components/themed-text';
+import { Radius, Spacing, Typography, Weight } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 interface PollOption {
     _id: string;
@@ -31,11 +31,14 @@ export function PollCard({ poll, onVote, compact }: PollCardProps) {
 
     return (
         <View style={[styles.container, compact && styles.compact, { borderColor: theme.outline, backgroundColor: theme.surface }]}>
-            <ThemedText type="bodyBold" numberOfLines={compact ? 2 : undefined}>
-                {poll.question}
-            </ThemedText>
+            <View style={styles.questionRow}>
+                <ThemedText style={styles.pollEmoji}>📊</ThemedText>
+                <ThemedText type="bodyBold" numberOfLines={compact ? 2 : undefined} style={{ flex: 1 }}>
+                    {poll.question}
+                </ThemedText>
+            </View>
             <ThemedText type="caption" themeColor="textSecondary">
-                {poll.totalVotes} vote{poll.totalVotes !== 1 ? "s" : ""}
+                {poll.totalVotes} vote{poll.totalVotes !== 1 ? 's' : ''}
             </ThemedText>
 
             <View style={styles.options}>
@@ -46,17 +49,17 @@ export function PollCard({ poll, onVote, compact }: PollCardProps) {
                         : 0;
 
                     return (
-                        <TouchableOpacity
+                        <Pressable
                             key={option._id}
                             style={[
                                 styles.optionRow,
                                 {
                                     borderColor: isMyVote ? theme.accent : theme.outlineLight,
                                     borderWidth: isMyVote ? 2 : 1.5,
+                                    backgroundColor: theme.surface,
                                 },
                             ]}
                             onPress={() => onVote(poll._id, option._id)}
-                            activeOpacity={0.7}
                             accessibilityRole="button"
                             accessibilityLabel={`Vote for ${option.text}`}
                         >
@@ -64,7 +67,10 @@ export function PollCard({ poll, onVote, compact }: PollCardProps) {
                                 <View
                                     style={[
                                         styles.optionFill,
-                                        { width: `${percentage}%`, backgroundColor: theme.accentSoft },
+                                        {
+                                            width: `${percentage}%` as any,
+                                            backgroundColor: isMyVote ? theme.accentSoft : theme.backgroundElement,
+                                        },
                                     ]}
                                 />
                             )}
@@ -73,7 +79,7 @@ export function PollCard({ poll, onVote, compact }: PollCardProps) {
                                 <ThemedText
                                     type="small"
                                     numberOfLines={1}
-                                    style={[isMyVote && { fontWeight: "600" }]}
+                                    style={isMyVote ? { fontWeight: Weight.bold } : undefined}
                                 >
                                     {option.text}
                                 </ThemedText>
@@ -83,7 +89,7 @@ export function PollCard({ poll, onVote, compact }: PollCardProps) {
                                     </ThemedText>
                                 )}
                             </View>
-                        </TouchableOpacity>
+                        </Pressable>
                     );
                 })}
             </View>
@@ -101,26 +107,34 @@ const styles = StyleSheet.create({
     compact: {
         width: 280,
     },
+    questionRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: Spacing.xs,
+    },
+    pollEmoji: {
+        fontSize: Typography.body,
+        marginTop: 1,
+    },
     options: {
         gap: Spacing.sm,
     },
     optionRow: {
-        borderRadius: Radius.md,
-        overflow: "hidden",
+        borderRadius: Radius.lg,
+        overflow: 'hidden',
         minHeight: 44,
-        justifyContent: "center",
+        justifyContent: 'center',
     },
     optionFill: {
-        position: "absolute",
+        position: 'absolute',
         top: 0,
         left: 0,
         bottom: 0,
-        borderRadius: Radius.sm,
     },
     optionContent: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         paddingHorizontal: Spacing.sm,
         paddingVertical: Spacing.sm,
     },

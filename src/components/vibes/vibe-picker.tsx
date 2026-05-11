@@ -2,7 +2,7 @@ import { useMutation } from "convex/react";
 import { ThemedText } from "@/components/themed-text";
 import { UserAvatar } from "@/components/user-avatar";
 import { VIBE_PRESETS } from "@/constants/vibes";
-import { Radius, Spacing } from "@/constants/theme";
+import { Radius, Spacing, Typography, Weight } from "@/constants/theme";
 import { useImageUpload } from "@/hooks/use-image-upload";
 import { useTheme } from "@/hooks/use-theme";
 import { api } from "@/convex/_generated/api";
@@ -193,8 +193,8 @@ const styles = StyleSheet.create({
     },
     avatarBadgeText: {
         color: "#fff",
-        fontSize: 11,
-        fontWeight: "700",
+        fontSize: Typography.caption,
+        fontWeight: Weight.bold,
     },
     avatarLabel: {
         gap: 2,
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
         borderWidth: 2,
     },
     emojiChar: {
-        fontSize: 28,
+        fontSize: Typography.heading,
         marginBottom: 2,
     },
     labelSection: {
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
         borderWidth: 2,
         borderRadius: Radius.md,
         padding: Spacing.sm,
-        fontSize: 14,
+        fontSize: Typography.small,
     },
     actions: {
         flexDirection: "row",

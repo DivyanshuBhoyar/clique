@@ -1,7 +1,7 @@
-import { ThemedText } from "@/components/themed-text";
-import { Radius, Spacing } from "@/constants/theme";
-import { useTheme } from "@/hooks/use-theme";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { ThemedText } from '@/components/themed-text';
+import { LineHeight, Radius, Spacing, Typography, Weight } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 interface ConfessionReaction {
     emoji: string;
@@ -63,7 +63,7 @@ export function ConfessionFeed({ confessions, onToggleReaction, onLoadMore, hasM
 
                     <View style={styles.reactionsRow}>
                         {confession.reactions.map((r) => (
-                            <TouchableOpacity
+                            <Pressable
                                 key={r.emoji}
                                 style={[
                                     styles.reactionChip,
@@ -75,8 +75,8 @@ export function ConfessionFeed({ confessions, onToggleReaction, onLoadMore, hasM
                                 onPress={() => onToggleReaction(confession._id, r.emoji)}
                             >
                                 <ThemedText style={styles.reactionEmoji}>{r.emoji}</ThemedText>
-                                <ThemedText type="caption">{r.count}</ThemedText>
-                            </TouchableOpacity>
+                                <ThemedText type="caption" style={{ fontWeight: r.hasReacted ? Weight.bold : Weight.regular }}>{r.count}</ThemedText>
+                            </Pressable>
                         ))}
 
                         <View style={styles.quickReactions}>
@@ -87,13 +87,13 @@ export function ConfessionFeed({ confessions, onToggleReaction, onLoadMore, hasM
                                 if (alreadyReacted) return null;
 
                                 return (
-                                    <TouchableOpacity
+                                    <Pressable
                                         key={emoji}
-                                        style={styles.quickBtn}
+                                        style={[styles.quickBtn, { borderColor: theme.outlineLight }]}
                                         onPress={() => onToggleReaction(confession._id, emoji)}
                                     >
                                         <ThemedText style={styles.quickEmoji}>{emoji}</ThemedText>
-                                    </TouchableOpacity>
+                                    </Pressable>
                                 );
                             })}
                         </View>
@@ -102,11 +102,9 @@ export function ConfessionFeed({ confessions, onToggleReaction, onLoadMore, hasM
             ))}
 
             {hasMore && (
-                <TouchableOpacity onPress={onLoadMore} style={styles.loadMore}>
-                    <ThemedText type="small" themeColor="textSecondary">
-                        Load more
-                    </ThemedText>
-                </TouchableOpacity>
+                <Pressable onPress={onLoadMore} style={[styles.loadMore, { borderColor: theme.outlineLight }]}>
+                    <ThemedText type="small" themeColor="textSecondary">Load more →</ThemedText>
+                </Pressable>
             )}
         </View>
     );
@@ -122,12 +120,12 @@ const styles = StyleSheet.create({
     },
     card: {
         borderWidth: 2,
-        borderRadius: Radius.md,
+        borderRadius: Radius.lg,
         padding: Spacing.lg,
         gap: Spacing.sm,
     },
     content: {
-        lineHeight: 20,
+        lineHeight: LineHeight.subtitle,
     },
     metaRow: {
         flexDirection: "row",
@@ -140,16 +138,16 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     reactionChip: {
-        flexDirection: "row",
-        alignItems: "center",
-        borderRadius: Radius.sm,
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderRadius: Radius.full,
         paddingHorizontal: Spacing.sm,
         paddingVertical: Spacing.xs,
         gap: 3,
         borderWidth: 1.5,
     },
     reactionEmoji: {
-        fontSize: 13,
+        fontSize: Typography.small,
     },
     quickReactions: {
         flexDirection: "row",
@@ -158,13 +156,17 @@ const styles = StyleSheet.create({
     quickBtn: {
         paddingHorizontal: 6,
         paddingVertical: 2,
+        borderRadius: Radius.full,
+        borderWidth: 1,
     },
     quickEmoji: {
-        fontSize: 14,
+        fontSize: Typography.small,
         opacity: 0.5,
     },
     loadMore: {
         paddingVertical: Spacing.sm,
-        alignItems: "center",
+        alignItems: 'center',
+        borderWidth: 1.5,
+        borderRadius: Radius.full,
     },
 });

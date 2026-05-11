@@ -1,7 +1,38 @@
 import { v } from "convex/values";
-import { Doc, Id } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
+import type { QueryCtx } from "./_generated/server";
 import { requireMembership } from "./users";
+import { assertLength } from "./validators";
+
+async function enrichPoll(ctx: QueryCtx, poll: Doc<"polls">, userId: Id<"users">) {
+    const options = await ctx.db
+        .query("pollOptions")
+        .withIndex("by_poll", (q) => q.eq("pollId", poll._id))
+        .take(20);
+
+    const votes = await ctx.db
+        .query("pollVotes")
+        .withIndex("by_poll", (q) => q.eq("pollId", poll._id))
+        .take(200);
+
+    const voteCount = new Map<Id<"pollOptions">, number>();
+    for (const vote of votes) {
+        voteCount.set(vote.optionId, (voteCount.get(vote.optionId) || 0) + 1);
+    }
+
+    const myVote = votes.find((vote) => vote.userId === userId);
+
+    return {
+        ...poll,
+        options: options.map((option) => ({
+            ...option,
+            votes: voteCount.get(option._id) || 0,
+        })),
+        totalVotes: votes.length,
+        myVoteOptionId: myVote?.optionId ?? null,
+    };
+}
 
 export const createPoll = mutation({
     args: {
@@ -12,6 +43,11 @@ export const createPoll = mutation({
     },
     handler: async (ctx, args) => {
         const { userId } = await requireMembership(ctx, args.squadId);
+
+        assertLength("Question", args.question, 300);
+        for (const opt of args.options) {
+            assertLength("Option", opt, 100);
+        }
 
         if (args.options.length < 2) {
             throw new Error("At least 2 options required");
@@ -91,32 +127,35 @@ export const getPolls = query({
 
         const enriched = [];
         for (const poll of polls) {
-            const options = await ctx.db
-                .query("pollOptions")
-                .withIndex("by_poll", (q) => q.eq("pollId", poll._id))
-                .collect();
+            enriched.push(await enrichPoll(ctx, poll, userId));
+        }
 
-            const votes = await ctx.db
-                .query("pollVotes")
-                .withIndex("by_poll", (q) => q.eq("pollId", poll._id))
-                .collect();
+        return enriched;
+    },
+});
 
-            const voteCount = new Map<Id<"pollOptions">, number>();
-            for (const v of votes) {
-                voteCount.set(v.optionId, (voteCount.get(v.optionId) || 0) + 1);
-            }
+export const getPastPolls = query({
+    args: {
+        squadId: v.id("squads"),
+        recentCount: v.optional(v.number()),
+        limit: v.optional(v.number()),
+    },
+    handler: async (ctx, args) => {
+        const { userId } = await requireMembership(ctx, args.squadId);
+        const recentCount = Math.min(Math.max(args.recentCount ?? 5, 0), 20);
+        const limit = Math.min(Math.max(args.limit ?? 50, 1), 100);
 
-            const myVote = votes.find((v) => v.userId === userId);
+        const polls = await ctx.db
+            .query("polls")
+            .withIndex("by_squad", (q) => q.eq("squadId", args.squadId))
+            .order("desc")
+            .take(recentCount + limit);
 
-            enriched.push({
-                ...poll,
-                options: options.map((o) => ({
-                    ...o,
-                    votes: voteCount.get(o._id) || 0,
-                })),
-                totalVotes: votes.length,
-                myVoteOptionId: myVote?.optionId ?? null,
-            });
+        const pastPolls = polls.slice(recentCount);
+        const enriched = [];
+
+        for (const poll of pastPolls) {
+            enriched.push(await enrichPoll(ctx, poll, userId));
         }
 
         return enriched;

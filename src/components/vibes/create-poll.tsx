@@ -1,8 +1,8 @@
-import { ThemedText } from "@/components/themed-text";
-import { Radius, Spacing } from "@/constants/theme";
-import { useTheme } from "@/hooks/use-theme";
-import { useState } from "react";
-import { StyleSheet, TextInput, TouchableOpacity, View } from "react-native";
+import { ThemedText } from '@/components/themed-text';
+import { Radius, Spacing, Typography } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { useState } from 'react';
+import { StyleSheet, TextInput, Pressable, View } from 'react-native';
 
 interface CreatePollProps {
     onSubmit: (question: string, options: string[]) => void;
@@ -64,31 +64,35 @@ export function CreatePoll({ onSubmit, onCancel }: CreatePollProps) {
                             maxLength={100}
                         />
                         {options.length > 2 && (
-                            <TouchableOpacity onPress={() => removeOption(i)} style={styles.removeBtn}>
+                            <Pressable onPress={() => removeOption(i)} style={styles.removeBtn}>
                                 <ThemedText themeColor="textTertiary">✕</ThemedText>
-                            </TouchableOpacity>
+                            </Pressable>
                         )}
                     </View>
                 ))}
             </View>
 
             {options.length < 6 && (
-                <TouchableOpacity onPress={addOption}>
+                <Pressable onPress={addOption}>
                     <ThemedText type="small" themeColor="accent">+ Add option</ThemedText>
-                </TouchableOpacity>
+                </Pressable>
             )}
 
             <View style={styles.actions}>
-                <TouchableOpacity onPress={onCancel}>
+                <Pressable onPress={onCancel} hitSlop={8}>
                     <ThemedText type="small" themeColor="textSecondary">Cancel</ThemedText>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.submitBtn, { backgroundColor: theme.accent, opacity: canSubmit ? 1 : 0.4 }]}
+                </Pressable>
+                <Pressable
+                    style={[styles.submitBtn, {
+                        backgroundColor: canSubmit ? theme.accent : theme.backgroundElement,
+                        borderColor: canSubmit ? theme.outline : theme.outlineLight,
+                        opacity: canSubmit ? 1 : 0.5,
+                    }]}
                     onPress={handleSubmit}
                     disabled={!canSubmit}
                 >
-                    <ThemedText type="smallBold" style={{ color: "#fff" }}>Create</ThemedText>
-                </TouchableOpacity>
+                    <ThemedText type="smallBold" style={{ color: canSubmit ? theme.text : theme.textTertiary }}>Create</ThemedText>
+                </Pressable>
             </View>
         </View>
     );
@@ -103,42 +107,45 @@ const styles = StyleSheet.create({
     },
     input: {
         borderWidth: 2,
-        borderRadius: Radius.md,
+        borderRadius: Radius.lg,
         padding: Spacing.sm,
-        fontSize: 14,
+        paddingHorizontal: Spacing.md,
+        fontSize: Typography.small,
     },
     optionsList: {
         gap: Spacing.sm,
     },
     optionRow: {
-        flexDirection: "row",
-        alignItems: "center",
+        flexDirection: 'row',
+        alignItems: 'center',
         gap: Spacing.sm,
     },
     optionInput: {
         flex: 1,
         borderWidth: 2,
-        borderRadius: Radius.md,
+        borderRadius: Radius.lg,
         padding: Spacing.sm,
-        fontSize: 14,
+        paddingHorizontal: Spacing.md,
+        fontSize: Typography.small,
     },
     removeBtn: {
         padding: Spacing.sm,
         minHeight: 44,
-        justifyContent: "center",
+        justifyContent: 'center',
     },
     actions: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         marginTop: Spacing.xs,
     },
     submitBtn: {
         paddingHorizontal: Spacing.lg,
         paddingVertical: Spacing.sm,
-        borderRadius: Radius.md,
+        borderRadius: Radius.full,
+        borderWidth: 1.5,
         minHeight: 44,
-        alignItems: "center",
-        justifyContent: "center",
+        alignItems: 'center',
+        justifyContent: 'center',
     },
 });

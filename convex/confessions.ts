@@ -3,6 +3,7 @@ import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireMembership } from "./users";
+import { assertLength } from "./validators";
 
 export const createConfession = mutation({
     args: {
@@ -11,6 +12,8 @@ export const createConfession = mutation({
     },
     handler: async (ctx, args) => {
         await requireMembership(ctx, args.squadId);
+
+        assertLength("Confession", args.content, 1000);
 
         return await ctx.db.insert("confessions", {
             squadId: args.squadId,
@@ -81,6 +84,8 @@ export const toggleConfessionReaction = mutation({
     handler: async (ctx, args) => {
         const userId = await getAuthUserId(ctx);
         if (!userId) throw new Error("Unauthenticated");
+
+        assertLength("Emoji", args.emoji, 10);
 
         const confession = await ctx.db.get(args.confessionId);
         if (!confession) throw new Error("Confession not found");

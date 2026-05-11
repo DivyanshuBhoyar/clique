@@ -1,8 +1,8 @@
-import { Radius, Spacing } from "@/constants/theme";
-import { useTheme } from "@/hooks/use-theme";
-import { useState } from "react";
-import { StyleSheet, TextInput, TouchableOpacity, View } from "react-native";
-import { ThemedText } from "@/components/themed-text";
+import { Radius, Spacing, Typography } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { useState } from 'react';
+import { StyleSheet, TextInput, Pressable, View } from 'react-native';
+import { ThemedText } from '@/components/themed-text';
 
 interface ConfessionInputProps {
     onSubmit: (content: string) => void;
@@ -21,48 +21,54 @@ export function ConfessionInput({ onSubmit }: ConfessionInputProps) {
     return (
         <View style={styles.container}>
             <TextInput
-                style={[styles.input, { color: theme.text, borderColor: theme.outline, backgroundColor: theme.inputBackground }]}
+                style={[styles.input, { color: theme.text, borderColor: theme.outline, backgroundColor: theme.surface }]}
                 value={text}
                 onChangeText={setText}
-                placeholder="Spill something anonymously..."
-                placeholderTextColor={theme.textTertiary}
+                placeholder="Spill something anonymously… 🤫"
+                placeholderTextColor={theme.placeholder}
                 maxLength={500}
                 multiline
             />
-            <TouchableOpacity
-                style={[styles.sendBtn, { backgroundColor: theme.accent, opacity: text.trim() ? 1 : 0.4 }]}
+            <Pressable
+                style={[styles.sendBtn, {
+                    backgroundColor: text.trim() ? theme.accent : theme.backgroundElement,
+                    borderColor: text.trim() ? theme.outline : theme.outlineLight,
+                    opacity: text.trim() ? 1 : 0.5,
+                }]}
                 onPress={handleSubmit}
                 disabled={!text.trim()}
                 accessibilityRole="button"
                 accessibilityLabel="Send confession"
             >
-                <ThemedText type="smallBold" style={{ color: "#fff" }}>Send</ThemedText>
-            </TouchableOpacity>
+                <ThemedText type="smallBold" style={{ color: text.trim() ? theme.text : theme.textTertiary }}>Send</ThemedText>
+            </Pressable>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
-        flexDirection: "row",
+        flexDirection: 'row',
         gap: Spacing.sm,
-        alignItems: "flex-end",
+        alignItems: 'flex-end',
     },
     input: {
         flex: 1,
         borderWidth: 2,
-        borderRadius: Radius.md,
+        borderRadius: Radius.lg,
         padding: Spacing.sm,
-        fontSize: 14,
+        paddingHorizontal: Spacing.md,
+        fontSize: Typography.small,
         minHeight: 44,
         maxHeight: 100,
     },
     sendBtn: {
         paddingHorizontal: Spacing.lg,
         paddingVertical: Spacing.sm,
-        borderRadius: Radius.md,
+        borderRadius: Radius.full,
+        borderWidth: 1.5,
         minHeight: 44,
-        alignItems: "center",
-        justifyContent: "center",
+        alignItems: 'center',
+        justifyContent: 'center',
     },
 });

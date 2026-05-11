@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { enrichUser, requireMembership } from "./users";
+import { assertLength } from "./validators";
 
 export const setVibe = mutation({
     args: {
@@ -10,6 +11,9 @@ export const setVibe = mutation({
     },
     handler: async (ctx, args) => {
         const { userId, membership } = await requireMembership(ctx, args.squadId);
+
+        assertLength("Emoji", args.emoji, 10);
+        if (args.label) assertLength("Label", args.label, 30);
 
         await ctx.db.patch(membership._id, {
             vibe: args.emoji,

@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { enrichUser, requireMembership } from "./users";
+import { assertLength } from "./validators";
 
 export const createWeeklyQuestion = mutation({
     args: {
@@ -11,6 +12,8 @@ export const createWeeklyQuestion = mutation({
 
     handler: async (ctx, args) => {
         await requireMembership(ctx, args.squadId);
+
+        assertLength("Question", args.question, 300);
 
         return await ctx.db.insert("weeklyQuestions", {
             squadId: args.squadId,
@@ -35,6 +38,8 @@ export const answerWeeklyQuestion = mutation({
             ctx,
             question.squadId
         );
+
+        assertLength("Answer", args.content, 2000);
 
         const existing = await ctx.db
             .query("weeklyAnswers")
@@ -70,32 +75,23 @@ export const getWeeklyQuestions = query({
 
         const questions = await ctx.db
             .query("weeklyQuestions")
-            .withIndex("by_squad", (q) =>
-                q.eq("squadId", args.squadId)
-            )
+            .withIndex("by_squad", (q) => q.eq("squadId", args.squadId))
             .order("desc")
             .collect();
 
-        const answers = await ctx.db
-            .query("weeklyAnswers")
-            .collect();
-
-        const answerMap = new Map();
-
-        for (const a of answers) {
-            if (!answerMap.has(a.questionId)) {
-                answerMap.set(a.questionId, []);
-            }
-            answerMap.get(a.questionId).push(a);
-        }
-
-        return questions.map((q) => ({
-            ...q,
-            answers: answerMap.get(q._id) || [],
-            myAnswer: (answerMap.get(q._id) || []).find(
-                (a: any) => a.userId === userId
-            ),
-        }));
+        return await Promise.all(
+            questions.map(async (q) => {
+                const answers = await ctx.db
+                    .query("weeklyAnswers")
+                    .withIndex("by_question", (qa) => qa.eq("questionId", q._id))
+                    .collect();
+                return {
+                    ...q,
+                    answers,
+                    myAnswer: answers.find((a) => a.userId === userId) ?? null,
+                };
+            })
+        );
     },
 });
 
@@ -150,5 +146,57 @@ export const getCurrentQuestion = query({
             answerCount: answers.length,
             squadMemberCount: memberCount,
         };
+    },
+});
+
+export const getPastWeeklyQuestions = query({
+    args: {
+        squadId: v.id("squads"),
+        limit: v.optional(v.number()),
+    },
+    handler: async (ctx, args) => {
+        const { userId } = await requireMembership(ctx, args.squadId);
+        const limit = Math.min(Math.max(args.limit ?? 25, 1), 50);
+
+        const questions = await ctx.db
+            .query("weeklyQuestions")
+            .withIndex("by_squad", (q) => q.eq("squadId", args.squadId))
+            .order("desc")
+            .take(limit + 1);
+
+        const memberCount = (await ctx.db
+            .query("memberships")
+            .withIndex("by_squad", (q) => q.eq("squadId", args.squadId))
+            .take(200)).length;
+
+        const pastQuestions = questions.slice(1);
+        const entries = [];
+
+        for (const question of pastQuestions) {
+            const answers = await ctx.db
+                .query("weeklyAnswers")
+                .withIndex("by_question", (q) => q.eq("questionId", question._id))
+                .take(200);
+
+            const enrichedAnswers = [];
+            for (const answer of answers) {
+                const { nickname, avatarUrl } = await enrichUser(ctx, answer.userId, args.squadId);
+                enrichedAnswers.push({
+                    ...answer,
+                    nickname,
+                    avatarUrl,
+                });
+            }
+
+            entries.push({
+                question,
+                answers: enrichedAnswers,
+                myAnswer: answers.find((answer) => answer.userId === userId) ?? null,
+                answerCount: answers.length,
+                squadMemberCount: memberCount,
+            });
+        }
+
+        return entries;
     },
 });

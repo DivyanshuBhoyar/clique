@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { Doc, Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import { requireMembership } from "./users";
+import { assertLength } from "./validators";
 
 export const createQuote = mutation({
     args: {
@@ -12,6 +13,8 @@ export const createQuote = mutation({
 
     handler: async (ctx, args) => {
         const { userId } = await requireMembership(ctx, args.squadId);
+
+        assertLength("Quote", args.content, 500);
 
         if (args.messageId) {
             const message = await ctx.db.get(args.messageId);
@@ -44,17 +47,12 @@ export const getQuotes = query({
 
         let q = ctx.db
             .query("quotes")
-            .withIndex("by_squad", (q) =>
-                q.eq("squadId", args.squadId)
+            .withIndex("by_squad_created", (q) =>
+                args.cursor !== undefined
+                    ? q.eq("squadId", args.squadId).lt("createdAt", args.cursor)
+                    : q.eq("squadId", args.squadId)
             )
             .order("desc");
-
-        if (args.cursor !== undefined) {
-            const { cursor } = args;
-            q = q.filter((q) =>
-                q.lt(q.field("createdAt"), cursor)
-            );
-        }
 
         const quotes: Doc<"quotes">[] = await q.take(limit);
 

@@ -1,36 +1,41 @@
-import { SquadHeader } from "@/components/squad-header";
-import { ThemedText } from "@/components/themed-text";
-import { ConfessionFeed } from "@/components/vibes/confession-feed";
-import { ConfessionInput } from "@/components/vibes/confession-input";
-import { CreatePoll } from "@/components/vibes/create-poll";
-import { DailyVibesRow } from "@/components/vibes/daily-vibes-row";
-import { PollCard } from "@/components/vibes/poll-card";
-import { VibePicker } from "@/components/vibes/vibe-picker";
-import { WeeklyQuestionCard } from "@/components/vibes/weekly-question-card";
-import { Spacing } from "@/constants/theme";
-import { useTheme } from "@/hooks/use-theme";
-import { useGlobalSearchParams } from "expo-router";
-import { useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useMutation, usePaginatedQuery, useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { Id } from "@/convex/_generated/dataModel";
+import { ThemedText } from '@/components/themed-text';
+import { EmptySectionCard } from '@/components/ui/empty-section-card';
+import { ScreenHeader } from '@/components/ui/screen-header';
+import { SectionHeader } from '@/components/ui/section-header';
+import { ConfessionFeed } from '@/components/vibes/confession-feed';
+import { ConfessionInput } from '@/components/vibes/confession-input';
+import { CreatePoll } from '@/components/vibes/create-poll';
+import { PollCard } from '@/components/vibes/poll-card';
+import { SquadVibeCard } from '@/components/vibes/squad-vibe-card';
+import { VibePicker } from '@/components/vibes/vibe-picker';
+import { WeeklyQuestionCard } from '@/components/vibes/weekly-question-card';
+import { YourVibeCard } from '@/components/vibes/your-vibe-card';
+import { Radius, Spacing, Weight } from '@/constants/theme';
+import { api } from '@/convex/_generated/api';
+import { Id } from '@/convex/_generated/dataModel';
+import { useTheme } from '@/hooks/use-theme';
+import { useMutation, usePaginatedQuery, useQuery } from 'convex/react';
+import { useGlobalSearchParams, useRouter } from 'expo-router';
+import { History, Plus } from 'lucide-react-native';
+import { useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const PAGE_SIZE = 20;
+const RECENT_POLLS_COUNT = 5;
 
 export default function VibesScreen() {
     const theme = useTheme();
+    const router = useRouter();
     const { id } = useGlobalSearchParams<{ id: string }>();
-    const squadId = (typeof id === "string" ? id : undefined) as Id<"squads"> | undefined;
+    const squadId = (typeof id === 'string' ? id : undefined) as Id<'squads'> | undefined;
 
     const [vibePickerVisible, setVibePickerVisible] = useState(false);
     const [showCreatePoll, setShowCreatePoll] = useState(false);
 
-    const squad = useQuery(api.squad.getSquad, squadId ? { id: squadId } : "skip");
-    const vibes = useQuery(api.vibes.getSquadVibes, squadId ? { squadId } : "skip");
-    const currentQuestion = useQuery(api.questions.getCurrentQuestion, squadId ? { squadId } : "skip");
-    const polls = useQuery(api.polls.getPolls, squadId ? { squadId } : "skip");
+    const vibes = useQuery(api.vibes.getSquadVibes, squadId ? { squadId } : 'skip');
+    const currentQuestion = useQuery(api.questions.getCurrentQuestion, squadId ? { squadId } : 'skip');
+    const polls = useQuery(api.polls.getPolls, squadId ? { squadId } : 'skip');
     const currentUser = useQuery(api.users.current);
     const currentAvatarUrl = useQuery(api.users.currentAvatarUrl);
 
@@ -40,7 +45,7 @@ export default function VibesScreen() {
         status: confessionsStatus,
     } = usePaginatedQuery(
         api.confessions.getConfessions,
-        squadId ? { squadId } : "skip",
+        squadId ? { squadId } : 'skip',
         { initialNumItems: PAGE_SIZE },
     );
 
@@ -55,33 +60,66 @@ export default function VibesScreen() {
 
     if (!squadId) {
         return (
-            <View style={[styles.container, styles.loading, { backgroundColor: theme.background }]}>
+            <View style={[styles.container, styles.centered, { backgroundColor: theme.background }]}>
                 <ActivityIndicator size="large" color={theme.accent} />
             </View>
         );
     }
 
+    const myVibe = vibes?.find((v) => v.isCurrentUser);
+    const squadVibes = vibes?.filter((v) => !v.isCurrentUser) ?? [];
+    const recentPolls = polls?.slice(0, RECENT_POLLS_COUNT) ?? [];
+
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
-            <SquadHeader name={squad?.name} disabled />
-            <ScrollView contentContainerStyle={styles.scrollContent}>
-                {/* Daily Vibes */}
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={[]}>
+            <ScreenHeader title="Vibes ✨" />
+
+            <ScrollView
+                contentInsetAdjustmentBehavior="automatic"
+                contentContainerStyle={styles.scroll}
+                showsVerticalScrollIndicator={false}
+            >
+                <YourVibeCard
+                    userName={currentUser?.name}
+                    avatarUrl={currentAvatarUrl}
+                    vibe={myVibe?.vibe}
+                    vibeLabel={myVibe?.vibeLabel ?? undefined}
+                    onEdit={() => setVibePickerVisible(true)}
+                />
                 <View style={styles.section}>
-                    {vibes ? (
-                        <DailyVibesRow
-                            vibes={vibes}
-                            currentUserId={currentUser?._id}
-                            onCurrentUserPress={() => setVibePickerVisible(true)}
+                    <View style={styles.sectionHeader}>
+                        <View style={styles.sectionTitleRow}>
+                            <ThemedText type="subtitle" style={{ fontWeight: Weight.bold }}>
+                                Squad Vibes
+                            </ThemedText>
+                            <View style={[styles.activeDot, { backgroundColor: theme.success }]} />
+                        </View>
+                        {squadVibes.length > 0 && (
+                            <ThemedText type="small" themeColor="textSecondary">
+                                {squadVibes.length} active
+                            </ThemedText>
+                        )}
+                    </View>
+
+                    {vibes === undefined ? (
+                        <ActivityIndicator size="small" color={theme.accent} />
+                    ) : squadVibes.length === 0 ? (
+                        <EmptySectionCard
+                            emoji="✨"
+                            title="No squad vibes yet"
+                            subtitle="Be the first to set a vibe!"
                         />
                     ) : (
-                        <ThemedText type="small" themeColor="textSecondary">
-                            Loading vibes...
-                        </ThemedText>
+                        <View style={styles.cardList}>
+                            {squadVibes.map((member) => (
+                                <SquadVibeCard key={member.userId} member={member} />
+                            ))}
+                        </View>
                     )}
                 </View>
 
-                {/* Weekly Question */}
                 <View style={styles.section}>
+                    <SectionHeader emoji="❓" label="THIS WEEK'S Q" />
                     {currentQuestion !== undefined ? (
                         <WeeklyQuestionCard
                             question={currentQuestion.question}
@@ -90,26 +128,32 @@ export default function VibesScreen() {
                             answerCount={currentQuestion.answerCount}
                             squadMemberCount={currentQuestion.squadMemberCount}
                             currentUserId={currentUser?._id}
-                            onAnswer={(questionId, content) => answerQuestion({ questionId: questionId as Id<"weeklyQuestions">, content })}
-                            onCreateQuestion={(sId, question) => createQuestion({ squadId: sId as Id<"squads">, question })}
+                            onAnswer={(questionId, content) =>
+                                answerQuestion({ questionId: questionId as Id<'weeklyQuestions'>, content })
+                            }
+                            onCreateQuestion={(sId, question) =>
+                                createQuestion({ squadId: sId as Id<'squads'>, question })
+                            }
                             squadId={squadId}
                         />
                     ) : (
-                        <ThemedText type="small" themeColor="textSecondary">
-                            Loading question...
-                        </ThemedText>
+                        <ThemedText type="small" themeColor="textSecondary">Loading…</ThemedText>
                     )}
                 </View>
 
-                {/* Polls */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
-                        <ThemedText type="caption" style={{ letterSpacing: 1, color: theme.textSecondary }}>
-                            POLLS
-                        </ThemedText>
+                        <SectionHeader emoji="📊" label="POLLS" />
                         {!showCreatePoll && (
-                            <TouchableOpacity onPress={() => setShowCreatePoll(true)}>
-                                <ThemedText type="small" themeColor="accent">+ New</ThemedText>
+                            <TouchableOpacity
+                                onPress={() => setShowCreatePoll(true)}
+                                style={[styles.newPill, { backgroundColor: theme.accent, borderColor: theme.outline }]}
+                                hitSlop={8}
+                            >
+                                <Plus size={12} color={theme.text} strokeWidth={2.5} />
+                                <ThemedText type="caption" style={{ color: theme.text, fontWeight: Weight.bold }}>
+                                    New
+                                </ThemedText>
                             </TouchableOpacity>
                         )}
                     </View>
@@ -125,53 +169,71 @@ export default function VibesScreen() {
                     )}
 
                     {polls !== undefined ? (
-                        polls.length > 0 ? (
+                        recentPolls.length > 0 ? (
                             <ScrollView
                                 horizontal
                                 showsHorizontalScrollIndicator={false}
                                 contentContainerStyle={styles.pollsScroll}
                             >
-                                {polls.map((poll) => (
+                                {recentPolls.map((poll) => (
                                     <PollCard
                                         key={poll._id}
                                         poll={poll}
                                         compact
                                         onVote={(pollId, optionId) =>
-                                            votePoll({ pollId: pollId as Id<"polls">, optionId: optionId as Id<"pollOptions"> })
+                                            votePoll({
+                                                pollId: pollId as Id<'polls'>,
+                                                optionId: optionId as Id<'pollOptions'>,
+                                            })
                                         }
                                     />
                                 ))}
                             </ScrollView>
                         ) : !showCreatePoll ? (
-                            <TouchableOpacity
+                            <EmptySectionCard
+                                emoji="📊"
+                                title="No polls yet"
+                                subtitle="Create the first poll!"
                                 onPress={() => setShowCreatePoll(true)}
-                                style={[styles.emptyCard, { borderColor: theme.outline }]}
-                            >
-                                <ThemedText type="small" themeColor="textSecondary">
-                                    No polls yet — create one!
-                                </ThemedText>
-                            </TouchableOpacity>
+                            />
                         ) : null
                     ) : (
-                        <ThemedText type="small" themeColor="textSecondary">
-                            Loading polls...
-                        </ThemedText>
+                        <ThemedText type="small" themeColor="textSecondary">Loading…</ThemedText>
                     )}
                 </View>
 
-                {/* Confessions */}
+                <TouchableOpacity
+                    onPress={() => router.push(`/squad/${squadId}/vibes/past` as any)}
+                    style={[styles.historyCard, { backgroundColor: theme.surfaceAccent, borderColor: theme.outline }]}
+                    activeOpacity={0.85}
+                    accessibilityRole="button"
+                    accessibilityLabel="Open past vibe entries"
+                >
+                    <View style={[styles.historyIcon, { backgroundColor: theme.surface, borderColor: theme.outline }]}>
+                        <History size={20} color={theme.text} strokeWidth={2.5} />
+                    </View>
+                    <View style={styles.historyText}>
+                        <ThemedText type="smallBold">Past entries</ThemedText>
+                        <ThemedText type="caption" themeColor="textSecondary">
+                            Revisit older questions and polls
+                        </ThemedText>
+                    </View>
+                </TouchableOpacity>
+
+
                 <View style={styles.section}>
-                    <ThemedText type="caption" style={{ letterSpacing: 1, color: theme.textSecondary }}>
-                        CONFESSIONS
-                    </ThemedText>
+                    <SectionHeader emoji="🤫" label="CONFESSIONS" />
                     <ConfessionInput onSubmit={(content) => createConfession({ squadId, content })} />
                     <ConfessionFeed
                         confessions={confessions}
                         onToggleReaction={(confessionId, emoji) =>
-                            toggleConfessionReaction({ confessionId: confessionId as Id<"confessions">, emoji })
+                            toggleConfessionReaction({
+                                confessionId: confessionId as Id<'confessions'>,
+                                emoji,
+                            })
                         }
                         onLoadMore={() => loadMoreConfessions(PAGE_SIZE)}
-                        hasMore={confessionsStatus === "CanLoadMore"}
+                        hasMore={confessionsStatus === 'CanLoadMore'}
                     />
                 </View>
             </ScrollView>
@@ -188,34 +250,63 @@ export default function VibesScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    loading: {
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    scrollContent: {
-        padding: Spacing.lg,
+    container: { flex: 1 },
+    centered: { justifyContent: 'center', alignItems: 'center' },
+    scroll: {
+        paddingHorizontal: Spacing.lg,
+        paddingTop: Spacing.md,
+        paddingBottom: 100,
         gap: Spacing.xxl,
-        paddingBottom: Spacing.six,
     },
-    section: {
+    section: { gap: Spacing.md },
+    sectionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    sectionTitleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
         gap: Spacing.sm,
     },
-    sectionHeader: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
+    activeDot: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+    },
+    cardList: { gap: Spacing.md },
+    historyCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.md,
+        minHeight: 64,
+        borderWidth: 2,
+        borderRadius: Radius.lg,
+        padding: Spacing.md,
+    },
+    historyIcon: {
+        width: 44,
+        height: 44,
+        borderWidth: 2,
+        borderRadius: Radius.md,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    historyText: {
+        flex: 1,
+        gap: 2,
+    },
+    newPill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        paddingHorizontal: Spacing.sm,
+        paddingVertical: 4,
+        borderRadius: Radius.full,
+        borderWidth: 1.5,
     },
     pollsScroll: {
         gap: Spacing.lg,
         paddingVertical: Spacing.xs,
-    },
-    emptyCard: {
-        borderWidth: 2,
-        borderRadius: 12,
-        padding: Spacing.lg,
-        alignItems: "center",
     },
 });
