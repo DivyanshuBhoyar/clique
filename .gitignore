@@ -38,6 +38,10 @@ yarn-error.*
 
 app-example
 
+# local AI tool workspaces
+.kilo/
+.kilocode/
+
 # generated native folders
 /ios
 /android
