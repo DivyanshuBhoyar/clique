@@ -1,49 +1,73 @@
-import { GestureResponderEvent, Pressable, StyleSheet, Text, View } from 'react-native';
+/**
+ * VoteButtons — upvote / downvote controls with score display.
+ *
+ * Design: ▲ score ▼ in a row, active state uses golden yellow (up) or red (down).
+ * Lucide ThumbsUp/ThumbsDown icons for a cleaner look than text arrows.
+ */
+import { GestureResponderEvent, Pressable, StyleSheet, View } from 'react-native';
+import { ThumbsUp, ThumbsDown } from 'lucide-react-native';
+import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
-import { Spacing } from '@/constants/theme';
+import { Spacing, Typography, Weight } from '@/constants/theme';
 
 interface VoteButtonsProps {
     upvotes: number;
     downvotes: number;
-    userVote: "up" | "down" | null;
-    onVote: (value: "up" | "down") => void;
+    userVote: 'up' | 'down' | null;
+    onVote: (value: 'up' | 'down') => void;
 }
 
 export function VoteButtons({ upvotes, downvotes, userVote, onVote }: VoteButtonsProps) {
     const theme = useTheme();
     const score = upvotes - downvotes;
-
     const stop = (e: GestureResponderEvent) => e.stopPropagation();
 
     return (
         <View style={styles.row}>
             <Pressable
-                onPress={(e) => { stop(e); onVote("up"); }}
-                hitSlop={4}
-                style={[styles.button, { minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center' }]}
+                onPress={(e) => { stop(e); onVote('up'); }}
+                hitSlop={8}
+                style={styles.btn}
                 accessibilityRole="button"
                 accessibilityLabel="Upvote"
             >
-                <Text style={[styles.arrow, { color: theme.textTertiary }, userVote === "up" && { color: theme.accent }]}>▲</Text>
+                <ThumbsUp
+                    size={16}
+                    color={userVote === 'up' ? theme.accent : theme.textTertiary}
+                    fill={userVote === 'up' ? theme.accent : 'transparent'}
+                    strokeWidth={2}
+                />
             </Pressable>
 
-            <Text style={[
-                styles.score,
-                { color: theme.textTertiary },
-                userVote === "up" && { color: theme.accent },
-                userVote === "down" && { color: theme.error },
-            ]}>
+            <ThemedText
+                style={[
+                    styles.score,
+                    {
+                        color: userVote === 'up'
+                            ? theme.accent
+                            : userVote === 'down'
+                                ? theme.error
+                                : theme.textSecondary,
+                    },
+                ]}
+                numberOfLines={1}
+            >
                 {score}
-            </Text>
+            </ThemedText>
 
             <Pressable
-                onPress={(e) => { stop(e); onVote("down"); }}
-                hitSlop={4}
-                style={[styles.button, { minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center' }]}
+                onPress={(e) => { stop(e); onVote('down'); }}
+                hitSlop={8}
+                style={styles.btn}
                 accessibilityRole="button"
                 accessibilityLabel="Downvote"
             >
-                <Text style={[styles.arrow, { color: theme.textTertiary }, userVote === "down" && { color: theme.error }]}>▼</Text>
+                <ThumbsDown
+                    size={16}
+                    color={userVote === 'down' ? theme.error : theme.textTertiary}
+                    fill={userVote === 'down' ? theme.error : 'transparent'}
+                    strokeWidth={2}
+                />
             </Pressable>
         </View>
     );
@@ -55,16 +79,17 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: Spacing.xs,
     },
-    button: {
-        padding: 2,
-    },
-    arrow: {
-        fontSize: 16,
+    btn: {
+        minHeight: 34,
+        minWidth: 30,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     score: {
-        fontSize: 14,
-        fontWeight: '600',
-        minWidth: 20,
+        fontSize: Typography.small,
+        fontWeight: Weight.bold,
+        minWidth: 16,
         textAlign: 'center',
+        fontVariant: ['tabular-nums'],
     },
 });

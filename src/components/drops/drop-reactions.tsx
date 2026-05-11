@@ -1,5 +1,5 @@
 import { useTheme } from '@/hooks/use-theme';
-import { Radius, Spacing } from '@/constants/theme';
+import { Radius, Spacing, Typography, Weight } from '@/constants/theme';
 import { GestureResponderEvent, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useState, useCallback } from 'react';
 
@@ -111,15 +111,15 @@ const styles = StyleSheet.create({
         minHeight: 32,
     },
     emoji: {
-        fontSize: 14,
+        fontSize: Typography.small,
     },
     count: {
-        fontSize: 12,
+        fontSize: Typography.caption,
         marginLeft: 2,
     },
     addIcon: {
-        fontSize: 14,
-        fontWeight: '600',
+        fontSize: Typography.small,
+        fontWeight: Weight.semibold,
     },
     pickerRow: {
         flexDirection: 'row',
@@ -133,6 +133,6 @@ const styles = StyleSheet.create({
         padding: Spacing.xs,
     },
     pickerEmojiText: {
-        fontSize: 20,
+        fontSize: Typography.subtitle,
     },
 });

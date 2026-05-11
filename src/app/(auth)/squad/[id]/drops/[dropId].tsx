@@ -1,198 +1,251 @@
 import { useMutation, usePaginatedQuery, useQuery } from 'convex/react';
-import { useGlobalSearchParams } from 'expo-router';
+import { useGlobalSearchParams, useRouter } from 'expo-router';
+import { MoreHorizontal } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import {
+    ActionSheetIOS,
+    Alert,
+    FlatList,
+    KeyboardAvoidingView,
+    Platform,
+    StyleSheet,
+    View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DropCard } from '@/components/drops/drop-card';
-import { VoteButtons } from '@/components/drops/vote-buttons';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { CommentCard } from '@/components/ui/comment-card';
+import { CommentInputBar } from '@/components/ui/comment-input-bar';
+import { EmojiPickerModal } from '@/components/ui/emoji-picker-modal';
+import { LoadingState } from '@/components/ui/loading-state';
+import { NotFoundState } from '@/components/ui/not-found-state';
+import { PaginatedList } from '@/components/ui/paginated-list';
+import { ScreenHeader } from '@/components/ui/screen-header';
 import { Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
+import { useBookmarkToggle } from '@/hooks/use-bookmark-mutation';
+import { useReactionPicker } from '@/hooks/use-reaction-picker';
 import { useTheme } from '@/hooks/use-theme';
-import { Colors } from '@/constants/theme';
-import { useDropVote, useCommentVote } from '@/hooks/use-vote-mutation';
-import { formatRelativeTime } from '@/utils/time';
+import { useCommentVote, useDropVote } from '@/hooks/use-vote-mutation';
 
 const COMMENTS_PAGE_SIZE = 20;
 
 export default function DropDetailScreen() {
-    const { id, dropId } = useGlobalSearchParams<{ id: string; dropId: string }>();
-    const squadId = (typeof id === 'string' ? id : undefined) as Id<"squads"> | undefined;
+    const { dropId } = useGlobalSearchParams<{ dropId: string }>();
+    const router = useRouter();
     const theme = useTheme();
+    const [commentText, setCommentText] = useState('');
+    const [isSendingComment, setIsSendingComment] = useState(false);
 
     const currentUser = useQuery(api.users.current);
     const toggleReaction = useMutation(api.drops.toggleDropReaction);
-    const addComment = useMutation(api.drops.addDropComment);
+    const addDropComment = useMutation(api.drops.addDropComment);
+    const deleteDrop = useMutation(api.drops.deleteDrop);
+    const deleteDropComment = useMutation(api.drops.deleteDropComment);
     const dropVote = useDropVote();
     const commentVote = useCommentVote();
+    const bookmarkToggle = useBookmarkToggle();
 
     const drop = useQuery(
         api.drops.getDrop,
-        dropId ? { dropId: dropId as Id<"drops"> } : "skip",
+        dropId ? { dropId: dropId as Id<'drops'> } : 'skip',
     );
 
-    const {
-        results: comments,
-        loadMore,
-        status,
-    } = usePaginatedQuery(
+    const { results: comments, loadMore, status } = usePaginatedQuery(
         api.drops.getDropComments,
-        dropId ? { dropId: dropId as Id<"drops"> } : "skip",
+        dropId ? { dropId: dropId as Id<'drops'> } : 'skip',
         { initialNumItems: COMMENTS_PAGE_SIZE },
     );
 
-    const [commentText, setCommentText] = useState('');
-    const [sending, setSending] = useState(false);
-
-    const canLoadMore = status === "CanLoadMore";
-    const loadingMore = status === "LoadingMore";
-
     const handleToggleReaction = useCallback(
         async (dId: string, emoji: string) => {
-            await toggleReaction({
-                dropId: dId as Id<"drops">,
-                emoji,
-            });
+            await toggleReaction({ dropId: dId as Id<'drops'>, emoji });
         },
         [toggleReaction],
     );
 
+    const reactionPicker = useReactionPicker(handleToggleReaction, 'React to drop');
+
     const handleDropVote = useCallback(
-        (dId: string, value: "up" | "down") => {
-            dropVote({ dropId: dId as Id<"drops">, value });
+        (dId: string, value: 'up' | 'down') => {
+            dropVote({ dropId: dId as Id<'drops'>, value });
         },
         [dropVote],
     );
 
     const handleCommentVote = useCallback(
-        (commentId: string, value: "up" | "down") => {
-            commentVote({ commentId: commentId as Id<"dropComments">, value });
+        (commentId: string, value: 'up' | 'down') => {
+            commentVote({ commentId: commentId as Id<'dropComments'>, value });
         },
         [commentVote],
     );
 
-    const handleSendComment = async () => {
-        const trimmed = commentText.trim();
-        if (!trimmed || sending || !dropId) return;
+    const handleSubmitComment = useCallback(async () => {
+        const content = commentText.trim();
+        if (!dropId || !content || isSendingComment) return;
 
-        setSending(true);
+        setIsSendingComment(true);
         try {
-            await addComment({
-                dropId: dropId as Id<"drops">,
-                content: trimmed,
-            });
+            await addDropComment({ dropId: dropId as Id<'drops'>, content });
             setCommentText('');
+        } catch (error) {
+            Alert.alert('Could not add comment', error instanceof Error ? error.message : 'Please try again.');
         } finally {
-            setSending(false);
+            setIsSendingComment(false);
         }
-    };
+    }, [addDropComment, commentText, dropId, isSendingComment]);
 
-    const handleEndReached = useCallback(() => {
-        if (canLoadMore) {
-            loadMore(COMMENTS_PAGE_SIZE);
+    const isMyDrop = drop !== undefined && drop !== null && drop.userId === (currentUser as any)?._id;
+
+    const handleMorePress = useCallback(() => {
+        if (!drop || drop === null || !isMyDrop) return;
+
+        const options = ['🗑 Delete drop', 'Cancel'];
+        const cancel = options.length - 1;
+
+        if (Platform.OS === 'ios') {
+            ActionSheetIOS.showActionSheetWithOptions(
+                { options, cancelButtonIndex: cancel, destructiveButtonIndex: 0 },
+                async (idx) => {
+                    if (idx === 0) {
+                        await deleteDrop({ dropId: dropId as Id<'drops'> });
+                        router.back();
+                    }
+                },
+            );
+        } else {
+            Alert.alert('Drop actions', undefined, [
+                {
+                    text: '🗑 Delete drop',
+                    style: 'destructive',
+                    onPress: async () => {
+                        await deleteDrop({ dropId: dropId as Id<'drops'> });
+                        router.back();
+                    },
+                },
+                { text: 'Cancel', style: 'cancel' },
+            ]);
         }
-    }, [canLoadMore, loadMore]);
+    }, [drop, isMyDrop, dropId, deleteDrop, router]);
+
+    const handleCommentDelete = useCallback((commentId: string, isOwn: boolean) => {
+        if (!isOwn) return;
+        if (Platform.OS === 'ios') {
+            ActionSheetIOS.showActionSheetWithOptions(
+                { options: ['🗑 Delete comment', 'Cancel'], cancelButtonIndex: 1, destructiveButtonIndex: 0 },
+                async (idx) => {
+                    if (idx === 0) await deleteDropComment({ commentId: commentId as Id<'dropComments'> });
+                },
+            );
+        } else {
+            Alert.alert('Comment actions', undefined, [
+                {
+                    text: '🗑 Delete comment',
+                    style: 'destructive',
+                    onPress: () => deleteDropComment({ commentId: commentId as Id<'dropComments'> }),
+                },
+                { text: 'Cancel', style: 'cancel' },
+            ]);
+        }
+    }, [deleteDropComment]);
 
     if (drop === undefined) {
-        return (
-            <SafeAreaView style={[styles.loading, { backgroundColor: theme.background }]}>
-                <ActivityIndicator size="large" color={theme.accent} />
-            </SafeAreaView>
-        );
+        return <LoadingState />;
     }
 
     if (drop === null) {
-        return (
-            <SafeAreaView style={[styles.loading, { backgroundColor: theme.background }]}>
-                <ThemedText>Drop not found.</ThemedText>
-            </SafeAreaView>
-        );
+        return <NotFoundState message="Drop not found." />;
     }
 
     return (
         <ThemedView style={styles.container}>
-            <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+            <SafeAreaView style={styles.safeArea} edges={[]}>
+                <ScreenHeader
+                    title="Drop 🎁"
+                    onBack={() => router.back()}
+                    rightIcon={isMyDrop ? MoreHorizontal : undefined}
+                    onRightPress={isMyDrop ? handleMorePress : undefined}
+                />
                 <KeyboardAvoidingView
                     behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                    style={styles.inner}
+                    style={styles.flex}
                 >
-                    <FlatList
+                    <PaginatedList
                         data={comments}
                         keyExtractor={(item) => item._id}
+                        status={status}
+                        loadMore={loadMore}
+                        pageSize={COMMENTS_PAGE_SIZE}
+                        contentContainerStyle={styles.listContent}
                         ListHeaderComponent={
-                            <View style={styles.dropCardWrap}>
+                            <View style={styles.header}>
                                 <DropCard
                                     dropId={drop._id}
                                     category={drop.category}
                                     nickname={drop.nickname}
+                                    avatarUrl={drop.avatarUrl}
                                     content={drop.content}
                                     createdAt={drop.createdAt}
-                                    commentCount={-1}
+                                    commentCount={drop.commentCount}
                                     reactions={drop.reactions}
                                     currentUserId={currentUser?._id}
                                     onToggleReaction={handleToggleReaction}
+                                    onAddReaction={() => reactionPicker.openPicker(drop._id)}
                                     upvotes={drop.upvotes}
                                     downvotes={drop.downvotes}
                                     userVote={drop.userVote}
                                     onVote={handleDropVote}
+                                    isBookmarked={drop.isBookmarked}
+                                    onToggleBookmark={(targetDropId) => bookmarkToggle({ targetType: 'drop', dropId: targetDropId as Id<'drops'> })}
                                 />
-                                <ThemedText style={styles.commentsHeading}>
-                                    Comments
+
+                                <View style={styles.commentsTitleRow}>
+                                    <ThemedText type="bodyBold" selectable>
+                                        Comments
+                                    </ThemedText>
+                                    <ThemedText type="caption" themeColor="textSecondary" selectable>
+                                        {drop.commentCount === 1 ? '1 comment' : `${drop.commentCount} comments`}
+                                    </ThemedText>
+                                </View>
+                            </View>
+                        }
+                        ListEmptyComponent={
+                            <View style={styles.emptyComments}>
+                                <ThemedText type="small" themeColor="textSecondary" selectable>
+                                    No comments yet. Start the conversation.
                                 </ThemedText>
                             </View>
                         }
                         renderItem={({ item }) => (
-                            <View style={[styles.commentItem, { borderBottomColor: theme.outlineLight }]}>
-                                <ThemedText type="smallBold">{item.nickname}</ThemedText>
-                                <ThemedText style={styles.commentContent}>{item.content}</ThemedText>
-                                <View style={styles.commentFooter}>
-                                    <ThemedText type="small" themeColor="textSecondary">
-                                        {formatRelativeTime(item.createdAt)}
-                                    </ThemedText>
-                                    <VoteButtons
-                                        upvotes={item.upvotes}
-                                        downvotes={item.downvotes}
-                                        userVote={item.userVote}
-                                        onVote={(value) => handleCommentVote(item._id, value)}
-                                    />
-                                </View>
-                            </View>
+                            <CommentCard
+                                avatarUrl={item.avatarUrl}
+                                nickname={item.nickname}
+                                content={item.content}
+                                createdAt={item.createdAt}
+                                upvotes={item.upvotes}
+                                downvotes={item.downvotes}
+                                userVote={item.userVote}
+                                isOwn={item.userId === (currentUser as any)?._id}
+                                onVote={(value) => handleCommentVote(item._id, value)}
+                                onDelete={() => handleCommentDelete(item._id, true)}
+                                onLongPress={() => handleCommentDelete(item._id, item.userId === (currentUser as any)?._id)}
+                            />
                         )}
-                        initialNumToRender={15}
-                        maxToRenderPerBatch={10}
-                        windowSize={10}
-                        contentContainerStyle={styles.listContent}
-                        keyboardShouldPersistTaps="handled"
-                        onEndReached={handleEndReached}
-                        onEndReachedThreshold={0.5}
-                        ListFooterComponent={loadingMore ? (
-                            <ActivityIndicator size="small" style={styles.loadingMore} />
-                        ) : null}
                     />
 
-                    <View style={[styles.inputRow, { borderColor: theme.textSecondary }]}>
-                        <TextInput
-                            value={commentText}
-                            onChangeText={setCommentText}
-                            placeholder="Add a comment..."
-                            placeholderTextColor={theme.textSecondary}
-                            style={[styles.input, { color: theme.text }]}
-                            returnKeyType="send"
-                            onSubmitEditing={handleSendComment}
-                        />
-                        <Pressable
-                            onPress={handleSendComment}
-                            disabled={!commentText.trim() || sending}
-                            style={[styles.sendBtn, (!commentText.trim() || sending) && styles.sendDisabled]}
-                        >
-                            <ThemedText style={styles.sendText}>
-                                {sending ? '...' : 'Send'}
-                            </ThemedText>
-                        </Pressable>
-                    </View>
+                    <CommentInputBar
+                        value={commentText}
+                        onChangeText={setCommentText}
+                        onSubmit={handleSubmitComment}
+                        sending={isSendingComment}
+                        avatarUrl={(currentUser as any)?.avatarUrl}
+                        fallbackText={(currentUser as any)?.nickname ?? 'Me'}
+                    />
+
+                    <EmojiPickerModal {...reactionPicker.pickerProps} />
                 </KeyboardAvoidingView>
             </SafeAreaView>
         </ThemedView>
@@ -200,76 +253,27 @@ export default function DropDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
+    container: { flex: 1 },
+    safeArea: { flex: 1 },
+    flex: { flex: 1 },
+    header: {
+        paddingHorizontal: Spacing.lg,
+        paddingTop: Spacing.md,
+        gap: Spacing.md,
     },
-    safeArea: {
-        flex: 1,
-    },
-    inner: {
-        flex: 1,
-    },
-    loading: {
-        flex: 1,
-        justifyContent: 'center',
+    commentsTitleRow: {
+        flexDirection: 'row',
         alignItems: 'center',
-    },
-    dropCardWrap: {
-        paddingHorizontal: Spacing.three,
-        paddingTop: Spacing.three,
-    },
-    commentsHeading: {
-        fontSize: 14,
-        fontWeight: '700',
-        letterSpacing: 0.5,
-        marginTop: Spacing.two,
-        marginBottom: Spacing.three,
+        justifyContent: 'space-between',
+        gap: Spacing.md,
+        paddingTop: Spacing.xs,
+        paddingBottom: Spacing.xs,
     },
     listContent: {
-        paddingHorizontal: Spacing.three,
-        paddingBottom: Spacing.three,
+        paddingBottom: Spacing.xxxl,
     },
-    commentItem: {
-        paddingVertical: Spacing.two,
-        borderBottomWidth: 1,
-    },
-    commentContent: {
-        fontSize: 15,
-        lineHeight: 22,
-        marginTop: 2,
-        marginBottom: 2,
-    },
-    commentFooter: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
+    emptyComments: {
+        padding: Spacing.xxl,
         alignItems: 'center',
-        marginTop: 2,
-    },
-    loadingMore: {
-        paddingVertical: Spacing.three,
-    },
-    inputRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: Spacing.two,
-        paddingVertical: Spacing.one,
-        borderTopWidth: 1,
-    },
-    input: {
-        flex: 1,
-        minHeight: 40,
-        paddingHorizontal: Spacing.two,
-        fontSize: 16,
-    },
-    sendBtn: {
-        paddingHorizontal: Spacing.three,
-        paddingVertical: Spacing.one,
-    },
-    sendDisabled: {
-        opacity: 0.4,
-    },
-    sendText: {
-        fontSize: 16,
-        fontWeight: '600',
     },
 });
