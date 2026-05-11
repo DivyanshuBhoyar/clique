@@ -1,98 +1,152 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery } from 'convex/react';
-import { Image } from 'expo-image';
 import { Tabs, useLocalSearchParams } from 'expo-router';
 import { useEffect } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MessageCircle, Zap, Heart, BookOpen, Sparkles } from 'lucide-react-native';
 import { api } from '../../../../../convex/_generated/api';
 import { Id } from '../../../../../convex/_generated/dataModel';
-import { Colors } from '@/constants/theme';
+import { Colors, Typography, Weight } from '@/constants/theme';
 
-const icons = {
-    chat: require('../../../../../assets/images/tabIcons/chat.png'),
-    memories: require('../../../../../assets/images/tabIcons/memories.png'),
-    notes: require('../../../../../assets/images/tabIcons/notes.png'),
-    vibes: require('../../../../../assets/images/tabIcons/vibes.png'),
-    drops: require('../../../../../assets/images/tabIcons/drops.png'),
-};
-
-function TabIcon({ source, color }: { source: any; color: string }) {
-    return (
-        <Image
-            source={source}
-            style={{ width: 22, height: 22, tintColor: color }}
-            contentFit="contain"
-        />
-    );
-}
-
+/**
+ * Squad tab bar layout.
+ *
+ * Tab order (matches designs): Chat → Drops → Memories → Notes → Vibes
+ * Icons: Lucide outline icons, coloured by active/inactive tint.
+ *
+ * Why Lucide? No PNG assets needed — icons are vector, scale perfectly,
+ * and the `color` prop lets React Navigation control active/inactive states
+ * automatically.
+ */
 export default function SquadTabsLayout() {
     const { id } = useLocalSearchParams();
+    const insets = useSafeAreaInsets();
     const squadId = typeof id === 'string' ? id as Id<"squads"> : undefined;
 
+    // Persist last visited squad for auto-redirect on next app open
     useEffect(() => {
         if (squadId) {
             AsyncStorage.setItem('lastSquadId', squadId);
         }
     }, [squadId]);
 
-    const squad = useQuery(api.squad.getSquad, squadId ? { id: squadId } : "skip");
+    // Preload squad data (used by child screens via their own useQuery)
+    useQuery(api.squad.getSquad, squadId ? { id: squadId } : "skip");
 
     return (
         <Tabs
             screenOptions={{
                 headerShown: false,
                 tabBarHideOnKeyboard: true,
-                tabBarActiveTintColor: Colors.light.tabBarActive,
-                tabBarInactiveTintColor: Colors.light.tabBarInactive,
-                tabBarLabelStyle: { fontSize: 11, fontWeight: '500', marginBottom: 2 },
+                tabBarActiveTintColor: Colors.light.tabBarActive,     // black
+                tabBarInactiveTintColor: Colors.light.tabBarInactive,  // warm grey
+                tabBarLabelStyle: {
+                    fontSize: Typography.caption,
+                    fontWeight: Weight.semibold,
+                    marginTop: 2,
+                    marginBottom: 0,
+                },
                 tabBarStyle: {
                     borderTopWidth: 1.5,
-                    borderColor: Colors.light.tabBarBorder,
-                    backgroundColor: Colors.light.tabBarBackground,
-                    height: 52,
-                    paddingTop: 4,
-                    paddingBottom: 4,
+                    borderTopColor: Colors.light.tabBarBorder,
+                    backgroundColor: Colors.light.tabBarBackground,   // cream
+                    height: 60 + insets.bottom,
+                    paddingTop: 6,
+                    paddingBottom: Math.max(insets.bottom, 6),
                 },
             }}
         >
+            {/* 1. Chat — MessageCircle icon */}
             <Tabs.Screen
                 name="chat"
                 options={{
-                    title: "Chat",
-                    tabBarLabel: "Chat",
-                    tabBarIcon: ({ color }) => <TabIcon source={icons.chat} color={color} />,
+                    title: 'Chat',
+                    tabBarLabel: 'Chat',
+                    tabBarIcon: ({ color, focused }) => (
+                        <MessageCircle
+                            size={22}
+                            color={color}
+                            strokeWidth={focused ? 2.5 : 1.75}
+                            fill={focused ? color : 'transparent'}
+                        />
+                    ),
                 }}
             />
-            <Tabs.Screen
-                name="memories"
-                options={{
-                    title: "Memories",
-                    tabBarLabel: "Memories",
-                    tabBarIcon: ({ color }) => <TabIcon source={icons.memories} color={color} />,
-                }}
-            />
-            <Tabs.Screen
-                name="notes"
-                options={{
-                    title: "Notes",
-                    tabBarLabel: "Notes",
-                    tabBarIcon: ({ color }) => <TabIcon source={icons.notes} color={color} />,
-                }}
-            />
-            <Tabs.Screen
-                name="vibes"
-                options={{
-                    title: "Vibes",
-                    tabBarLabel: "Vibes",
-                    tabBarIcon: ({ color }) => <TabIcon source={icons.vibes} color={color} />,
-                }}
-            />
+
+            {/* 2. Drops — Zap icon */}
             <Tabs.Screen
                 name="drops"
                 options={{
-                    title: "Drops",
-                    tabBarLabel: "Drops",
-                    tabBarIcon: ({ color }) => <TabIcon source={icons.drops} color={color} />,
+                    title: 'Drops',
+                    tabBarLabel: 'Drops',
+                    tabBarIcon: ({ color, focused }) => (
+                        <Zap
+                            size={22}
+                            color={color}
+                            strokeWidth={focused ? 2.5 : 1.75}
+                            fill={focused ? color : 'transparent'}
+                        />
+                    ),
+                }}
+            />
+
+            {/* 3. Memories — Heart icon */}
+            <Tabs.Screen
+                name="memories"
+                options={{
+                    title: 'Memories',
+                    tabBarLabel: 'Memories',
+                    tabBarIcon: ({ color, focused }) => (
+                        <Heart
+                            size={22}
+                            color={color}
+                            strokeWidth={focused ? 2.5 : 1.75}
+                            fill={focused ? color : 'transparent'}
+                        />
+                    ),
+                }}
+            />
+
+            {/* 4. Notes — BookOpen icon */}
+            <Tabs.Screen
+                name="notes"
+                options={{
+                    title: 'Notes',
+                    tabBarLabel: 'Notes',
+                    tabBarIcon: ({ color, focused }) => (
+                        <BookOpen
+                            size={22}
+                            color={color}
+                            strokeWidth={focused ? 2.5 : 1.75}
+                            fill={focused ? color : 'transparent'}
+                        />
+                    ),
+                }}
+            />
+
+            {/* 5. Vibes — Sparkles icon */}
+            <Tabs.Screen
+                name="vibes"
+                options={{
+                    title: 'Vibes',
+                    tabBarLabel: 'Vibes',
+                    tabBarIcon: ({ color, focused }) => (
+                        <Sparkles
+                            size={22}
+                            color={color}
+                            strokeWidth={focused ? 2.5 : 1.75}
+                            fill={focused ? color : 'transparent'}
+                        />
+                    ),
+                }}
+            />
+
+            {/* Bookmarks — stack screen, hidden from tab bar */}
+            <Tabs.Screen
+                name="bookmarks"
+                options={{
+                    href: null,
+                    tabBarStyle: { display: 'none' },
                 }}
             />
         </Tabs>
