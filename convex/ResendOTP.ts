@@ -20,9 +20,9 @@ export const ResendOTP = Email({
     async sendVerificationRequest({ identifier: email, provider, token }) {
         const resend = new ResendAPI(provider.apiKey);
         const { error } = await resend.emails.send({
-            from: "Clique Cove <onboarding@resend.dev>",
+            from: "Homie Squad <onboarding@resend.dev>",
             to: [email],
-            subject: `Welcome to Clique Cove`,
+            subject: `Welcome to Homie Squad`,
             text: "Your code is " + token,
         });
 

@@ -10,6 +10,7 @@
 
 import type * as ResendOTP from "../ResendOTP.js";
 import type * as auth from "../auth.js";
+import type * as bookmarks from "../bookmarks.js";
 import type * as channel from "../channel.js";
 import type * as confessions from "../confessions.js";
 import type * as crons from "../crons.js";
@@ -26,6 +27,7 @@ import type * as reaction from "../reaction.js";
 import type * as squad from "../squad.js";
 import type * as typing from "../typing.js";
 import type * as users from "../users.js";
+import type * as validators from "../validators.js";
 import type * as vibes from "../vibes.js";
 
 import type {
@@ -37,6 +39,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   ResendOTP: typeof ResendOTP;
   auth: typeof auth;
+  bookmarks: typeof bookmarks;
   channel: typeof channel;
   confessions: typeof confessions;
   crons: typeof crons;
@@ -53,6 +56,7 @@ declare const fullApi: ApiFromModules<{
   squad: typeof squad;
   typing: typeof typing;
   users: typeof users;
+  validators: typeof validators;
   vibes: typeof vibes;
 }>;
 

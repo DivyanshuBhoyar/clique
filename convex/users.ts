@@ -2,6 +2,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { MutationCtx, QueryCtx, mutation, query } from "./_generated/server";
+import { assertLength, assertNonEmpty } from "./validators";
 
 
 export const current = query({
@@ -70,6 +71,10 @@ export const saveUsername = mutation({
     },
     handler: async (ctx, args) => {
         const user = await getCurrentUser(ctx);
+
+        assertNonEmpty("Username", args.username);
+        assertLength("Username", args.username, 30);
+
         await ctx.db.patch(user._id, {
             name: args.username,
             ...(args.image ? { image: args.image } : {})

@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { getCurrentUser } from "./users";
+import { requireMembership } from "./users";
+import { assertLength, assertNonEmpty } from "./validators";
 
 import { getAuthUserId } from "@convex-dev/auth/server";
 
@@ -34,6 +35,14 @@ export const createSquad = mutation({
     handler: async (ctx, args) => {
         const userId = await getAuthUserId(ctx);
         if (!userId) throw new Error("Unauthenticated");
+
+        assertNonEmpty("Name", args.name);
+        assertLength("Name", args.name, 50);
+        assertNonEmpty("Password", args.password);
+        assertLength("Password", args.password, 100);
+        assertNonEmpty("Nickname", args.nickname);
+        assertLength("Nickname", args.nickname, 30);
+
         const now = Date.now();
 
         const passwordHash = await hashPassword(args.password);
@@ -76,6 +85,13 @@ export const joinSquad = mutation({
     handler: async (ctx, args) => {
         const userId = await getAuthUserId(ctx);
         if (!userId) throw new Error("Unauthenticated");
+
+        assertNonEmpty("Squad name", args.squadName);
+        assertNonEmpty("Password", args.password);
+        assertNonEmpty("Nickname", args.nickname);
+        assertLength("Nickname", args.nickname, 30);
+        if (args.vibe) assertLength("Vibe", args.vibe, 30);
+        if (args.statusText) assertLength("Status", args.statusText, 100);
 
         const squad = await ctx.db
             .query("squads")
@@ -153,34 +169,26 @@ export const getCurrentUserSquads = query({
     args: {},
 
     handler: async (ctx) => {
-        const identity = await ctx.auth.getUserIdentity();
-
-        if (!identity) {
-            throw new Error("Unauthorized");
-        }
-
-        const user = await getCurrentUser(ctx)
+        const userId = await getAuthUserId(ctx);
+        if (!userId) return [];
 
         const memberships = await ctx.db
             .query("memberships")
             .withIndex("by_user", (q) =>
-                q.eq("userId", user._id)
+                q.eq("userId", userId)
             )
             .collect();
 
-        const squadIds = memberships.map((m) => m.squadId);
+        if (memberships.length === 0) return [];
 
-        const squads = await ctx.db
-            .query("squads")
-            .filter((q) =>
-                q.or(...squadIds.map((id) =>
-                    q.eq(q.field("_id"), id)
-                ))
-            )
-            .collect();
+        const squads = await Promise.all(
+            memberships.map((m) => ctx.db.get(m.squadId))
+        );
 
         const squadMap = new Map();
-        squads.forEach((s) => squadMap.set(s._id, s));
+        for (const s of squads) {
+            if (s) squadMap.set(s._id, s);
+        }
 
         return memberships.map((m) => ({
             squad: squadMap.get(m.squadId) || null,
@@ -192,8 +200,18 @@ export const getCurrentUserSquads = query({
 export const getSquad = query({
     args: { id: v.id("squads") },
     handler: async (ctx, args) => {
-        const squad = await ctx.db.get(args.id);
-        return squad;
+        const userId = await getAuthUserId(ctx);
+        if (!userId) throw new Error("Unauthenticated");
+
+        const membership = await ctx.db
+            .query("memberships")
+            .withIndex("by_user_squad", (q) =>
+                q.eq("userId", userId).eq("squadId", args.id)
+            )
+            .first();
+        if (!membership) throw new Error("Not a member of this squad");
+
+        return await ctx.db.get(args.id);
     },
 });
 
@@ -211,5 +229,53 @@ export const leaveSquad = mutation({
             .first();
 
         if (membership) await ctx.db.delete(membership._id);
+    },
+});
+
+export const getSquadMembers = query({
+    args: { squadId: v.id("squads") },
+    handler: async (ctx, args) => {
+        const { userId } = await requireMembership(ctx, args.squadId);
+
+        const memberships = await ctx.db
+            .query("memberships")
+            .withIndex("by_squad", (q) => q.eq("squadId", args.squadId))
+            .collect();
+
+        const enriched = await Promise.all(
+            memberships.map(async (m) => {
+                // Get avatar: check userAvatars table first, then user.image
+                const [avatar, user] = await Promise.all([
+                    ctx.db
+                        .query("userAvatars")
+                        .withIndex("by_user", (q) => q.eq("userId", m.userId))
+                        .first(),
+                    ctx.db.get(m.userId),
+                ]);
+                let avatarUrl: string | null = null;
+                if (avatar) {
+                    avatarUrl = await ctx.storage.getUrl(avatar.storageId);
+                } else if (user?.image) {
+                    avatarUrl = user.image;
+                }
+                return {
+                    userId: m.userId,
+                    nickname: m.nickname,
+                    vibe: m.vibe ?? null,
+                    vibeLabel: m.vibeLabel ?? null,
+                    statusText: m.statusText ?? null,
+                    joinedAt: m.joinedAt,
+                    avatarUrl,
+                    isMe: m.userId === userId,
+                };
+            })
+        );
+
+        // Sort: current user first, then by joinedAt ascending
+        return enriched.sort((a, b) => {
+            if (a.isMe) return -1;
+            if (b.isMe) return 1;
+            return a.joinedAt - b.joinedAt;
+        });
     },
 });

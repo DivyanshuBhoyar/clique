@@ -50,7 +50,8 @@ export default defineSchema({
         createdAt: v.number(),
     })
         .index("by_squad", ["squadId"])
-        .index("by_parent", ["parentChannelId"]),
+        .index("by_parent", ["parentChannelId"])
+        .index("by_type", ["type"]),
 
     messages: defineTable({
         channelId: v.id("channels"),
@@ -62,6 +63,8 @@ export default defineSchema({
         type: v.union(v.literal("text"), v.literal("image"), v.literal("system")),
 
         parentMessageId: v.optional(v.id("messages")),
+
+        storageId: v.optional(v.id("_storage")),
 
         nickname: v.optional(v.string()),
         avatarUrl: v.optional(v.string()),
@@ -92,7 +95,8 @@ export default defineSchema({
         createdAt: v.number(),
     })
         .index("by_message", ["messageId"])
-        .index("by_user_message", ["userId", "messageId"]),
+        .index("by_user_message", ["userId", "messageId"])
+        .index("by_user_message_emoji", ["userId", "messageId", "emoji"]),
 
     channelReadStatus: defineTable({
         userId: v.id("users"),
@@ -100,7 +104,8 @@ export default defineSchema({
         lastReadAt: v.number(),
     })
         .index("by_user_channel", ["userId", "channelId"])
-        .index("by_user", ["userId"]),
+        .index("by_user", ["userId"])
+        .index("by_channel", ["channelId"]),
 
     notes: defineTable({
         squadId: v.id("squads"),
@@ -123,8 +128,23 @@ export default defineSchema({
     })
         .index("by_owner", ["ownerId"])
         .index("by_squad", ["squadId"])
+        .index("by_squad_and_updatedAt", ["squadId", "updatedAt"])
+        .index("by_owner_squad", ["ownerId", "squadId"])
         .index("by_channel", ["channelId"])
-        .index("by_target_user", ["targetUserId"]),
+        .index("by_target_user", ["targetUserId"])
+        .index("by_squad_type", ["squadId", "type"])
+        .index("by_owner_squad_type", ["ownerId", "squadId", "type"])
+        .index("by_type_createdAt", ["type", "createdAt"]),
+
+    noteCollaborators: defineTable({
+        noteId: v.id("notes"),
+        userId: v.id("users"),
+        squadId: v.id("squads"),
+        lastEditedAt: v.number(),
+    })
+        .index("by_note_and_lastEditedAt", ["noteId", "lastEditedAt"])
+        .index("by_user_and_note", ["userId", "noteId"])
+        .index("by_squad", ["squadId"]),
 
     quotes: defineTable({
         squadId: v.id("squads"),
@@ -134,7 +154,8 @@ export default defineSchema({
         messageId: v.optional(v.id("messages")),
     })
         .index("by_squad", ["squadId"])
-        .index("by_created", ["createdAt"]),
+        .index("by_created", ["createdAt"])
+        .index("by_squad_created", ["squadId", "createdAt"]),
 
     memories: defineTable({
         squadId: v.id("squads"),
@@ -148,7 +169,8 @@ export default defineSchema({
         createdBy: v.id("users"),
         createdAt: v.number(),
     })
-        .index("by_squad", ["squadId"]),
+        .index("by_squad", ["squadId"])
+        .index("by_squad_type", ["squadId", "type"]),
 
     memoryItems: defineTable({
         memoryId: v.id("memories"),
@@ -242,7 +264,8 @@ export default defineSchema({
         createdAt: v.number(),
     })
         .index("by_drop", ["dropId"])
-        .index("by_user_drop", ["userId", "dropId"]),
+        .index("by_user_drop", ["userId", "dropId"])
+        .index("by_user_drop_and_emoji", ["userId", "dropId", "emoji"]),
 
     dropComments: defineTable({
         dropId: v.id("drops"),
@@ -302,4 +325,29 @@ export default defineSchema({
         createdAt: v.number(),
     })
         .index("by_item", ["itemId", "createdAt"]),
+
+    bookmarks: defineTable({
+        userId: v.id("users"),
+        squadId: v.id("squads"),
+        targetType: v.union(
+            v.literal("message"),
+            v.literal("drop"),
+            v.literal("note"),
+            v.literal("memory"),
+        ),
+        messageId: v.optional(v.id("messages")),
+        dropId: v.optional(v.id("drops")),
+        noteId: v.optional(v.id("notes")),
+        memoryId: v.optional(v.id("memories")),
+        createdAt: v.number(),
+    })
+        .index("by_user_squad", ["userId", "squadId"])
+        .index("by_user_message", ["userId", "messageId"])
+        .index("by_user_drop", ["userId", "dropId"])
+        .index("by_user_note", ["userId", "noteId"])
+        .index("by_user_memory", ["userId", "memoryId"])
+        .index("by_message", ["messageId"])
+        .index("by_drop", ["dropId"])
+        .index("by_note", ["noteId"])
+        .index("by_memory", ["memoryId"]),
 });
