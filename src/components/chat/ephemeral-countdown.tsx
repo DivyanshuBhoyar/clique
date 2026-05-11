@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { useTheme } from '@/hooks/use-theme';
-import { Spacing } from '@/constants/theme';
+import { Spacing, Typography, Weight } from '@/constants/theme';
 import { formatCountdown } from '@/utils/time';
 
 interface EphemeralCountdownProps {
@@ -47,7 +47,7 @@ const styles = StyleSheet.create({
         borderTopWidth: 2,
     },
     countdownText: {
-        fontSize: 13,
-        fontWeight: '600',
+        fontSize: Typography.small,
+        fontWeight: Weight.semibold,
     },
 });

@@ -1,103 +1,222 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Plus, Send, X } from 'lucide-react-native';
 
-import { ThemedText } from '@/components/themed-text';
-import { Radius, Spacing } from '@/constants/theme';
+import { LineHeight, Radius, Spacing, Typography } from '@/constants/theme';
+import { useImageUpload } from '@/hooks/use-image-upload';
 import { useTheme } from '@/hooks/use-theme';
+import { Id } from '@/convex/_generated/dataModel';
 
 interface MessageInputProps {
-    onSend: (content: string) => Promise<void>;
-    onTyping?: () => void;
+  onSend: (content: string) => Promise<void>;
+  onSendImage: (storageId: Id<"_storage">, caption?: string) => Promise<void>;
+  onTyping?: () => void;
 }
 
-export function MessageInput({ onSend, onTyping }: MessageInputProps) {
-    const [text, setText] = useState('');
-    const [sending, setSending] = useState(false);
-    const theme = useTheme();
+export function MessageInput({ onSend, onSendImage, onTyping }: MessageInputProps) {
+  const [text, setText] = useState('');
+  const [sending, setSending] = useState(false);
+  const theme = useTheme();
+  const { previewUri, storageId, uploading, pickAndUpload, reset } = useImageUpload();
 
-    const canSend = text.trim().length > 0 && !sending;
+  const canSend = (text.trim().length > 0 || (previewUri && storageId)) && !sending && !uploading;
 
-    const handleSend = async () => {
-        if (!canSend) return;
+  const handleSend = async () => {
+    if (!canSend) return;
 
+    setSending(true);
+    try {
+      if (previewUri && storageId) {
+        await onSendImage(storageId, text.trim() || undefined);
+        reset();
+      } else {
         const content = text.trim();
-        setText('');
-        setSending(true);
+        await onSend(content);
+      }
+      setText('');
+    } catch {
+      // keep text on failure
+    } finally {
+      setSending(false);
+    }
+  };
 
-        try {
-            await onSend(content);
-        } catch {
-            setText(content);
-        } finally {
-            setSending(false);
-        }
-    };
-
-    const handleChangeText = (value: string) => {
-        setText(value);
-        onTyping?.();
-    };
-
-    return (
-        <View style={[styles.container, { borderColor: theme.outlineLight, backgroundColor: theme.surface }]}>
-            <TextInput
-                value={text}
-                onChangeText={handleChangeText}
-                placeholder="Type a message..."
-                placeholderTextColor={theme.textTertiary}
-                style={[styles.input, { color: theme.text }]}
-                returnKeyType="send"
-                onSubmitEditing={handleSend}
-            />
-            <Pressable
-                onPress={handleSend}
-                disabled={!canSend}
-                style={[
-                    styles.sendButton,
-                    {
-                        backgroundColor: canSend ? theme.accent : theme.backgroundElement,
-                        borderColor: canSend ? theme.accent : theme.outlineLight,
-                    },
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel="Send message"
-            >
-                <ThemedText style={[styles.sendText, { color: canSend ? '#fff' : theme.textTertiary }]}>
-                    {sending ? '...' : 'Send'}
-                </ThemedText>
+  return (
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: theme.background,
+          borderTopColor: theme.outlineLight,
+        },
+      ]}
+    >
+      {/* Image preview */}
+      {previewUri && (
+        <View style={styles.previewRow}>
+          <View style={styles.previewWrap}>
+            <Image source={{ uri: previewUri }} style={styles.previewImage} resizeMode="cover" />
+            <Pressable onPress={reset} style={styles.previewClose}>
+              <X size={14} color="#fff" />
             </Pressable>
+            {uploading && (
+              <View style={styles.uploadingOverlay}>
+                <ActivityIndicator size="small" color={theme.accent} />
+              </View>
+            )}
+          </View>
         </View>
-    );
+      )}
+
+      <View style={styles.inputRow}>
+        {/* Attachment button */}
+        <Pressable
+          accessibilityLabel="Add attachment"
+          accessibilityRole="button"
+          style={styles.sideBtn}
+          onPress={pickAndUpload}
+          disabled={uploading}
+        >
+          {uploading ? (
+            <ActivityIndicator size="small" color={theme.textSecondary} />
+          ) : (
+            <Plus size={20} color={theme.textSecondary} strokeWidth={2} />
+          )}
+        </Pressable>
+
+        {/* Text input */}
+        <View
+          style={[
+            styles.inputWrap,
+            {
+              backgroundColor: theme.surface,
+              borderColor: theme.outline,
+            },
+          ]}
+        >
+          <TextInput
+            value={text}
+            onChangeText={(v) => { setText(v); onTyping?.(); }}
+            placeholder={previewUri ? "Add a caption..." : "Say something cozy..."}
+            placeholderTextColor={theme.placeholder}
+            style={[
+              styles.input,
+              Platform.OS === 'web' && styles.webInput,
+              { color: theme.text },
+            ]}
+            cursorColor={theme.text}
+            selectionColor={theme.accent}
+            returnKeyType="send"
+            onSubmitEditing={handleSend}
+            multiline
+          />
+        </View>
+
+        {/* Send button */}
+        <Pressable
+          onPress={handleSend}
+          disabled={!canSend}
+          accessibilityRole="button"
+          accessibilityLabel="Send message"
+          style={({ pressed }) => [
+            styles.sendBtn,
+            {
+              backgroundColor: canSend ? theme.accent : theme.backgroundElement,
+              borderColor: canSend ? theme.outline : theme.outlineLight,
+            },
+            pressed && canSend && styles.sendBtnPressed,
+          ]}
+        >
+          <Send
+            size={16}
+            color={canSend ? theme.text : theme.textSecondary}
+            strokeWidth={2.5}
+          />
+        </Pressable>
+      </View>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: Spacing.sm,
-        paddingVertical: Spacing.xs,
-        borderTopWidth: 2,
-    },
-    input: {
-        flex: 1,
-        minHeight: 44,
-        paddingHorizontal: Spacing.sm,
-        fontSize: 16,
-    },
-    sendButton: {
-        paddingHorizontal: Spacing.lg,
-        paddingVertical: Spacing.sm,
-        borderRadius: Radius.sm,
-        borderWidth: 2,
-        minHeight: 44,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    sendDisabled: {
-        opacity: 0.4,
-    },
-    sendText: {
-        fontSize: 16,
-        fontWeight: '600',
-    },
+  container: {
+    borderTopWidth: 1.5,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 6,
+    gap: Spacing.xs,
+  },
+  previewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.sm,
+  },
+  previewWrap: {
+    position: 'relative',
+  },
+  previewImage: {
+    width: 80,
+    height: 80,
+    borderRadius: Radius.md,
+    borderWidth: 1.5,
+  },
+  previewClose: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  uploadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: Radius.md,
+    backgroundColor: 'rgba(255,255,255,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sideBtn: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inputWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    borderRadius: Radius.lg,
+    borderWidth: 1.5,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 7,
+    minHeight: 40,
+    maxHeight: 104,
+  },
+  input: {
+    fontSize: Typography.body,
+    lineHeight: LineHeight.body,
+    paddingTop: 0,
+    paddingBottom: 0,
+    textAlignVertical: 'center',
+  },
+  webInput: {
+    outlineWidth: 0,
+  },
+  sendBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sendBtnPressed: {
+    transform: [{ scale: 0.92 }],
+  },
 });

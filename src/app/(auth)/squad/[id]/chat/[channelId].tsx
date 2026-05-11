@@ -1,38 +1,44 @@
 import { useMutation, usePaginatedQuery, useQuery } from 'convex/react';
-import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { FlatList, Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { MessageActions } from '@/components/chat/message-actions';
+import { ChatHeader } from '@/components/chat/chat-header';
 import { ChannelSwitcher } from '@/components/chat/channel-switcher';
 import { EphemeralCountdown } from '@/components/chat/ephemeral-countdown';
+import { MessageActions } from '@/components/chat/message-actions';
 import { MessageInput } from '@/components/chat/message-input';
 import { MessageItem } from '@/components/chat/message-item';
 import { TypingIndicator } from '@/components/chat/typing-indicator';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
-import { useAutoScroll } from '@/hooks/use-auto-scroll';
-import { useTypingThrottle } from '@/hooks/use-typing-throttle';
-import { formatDeleteIn } from '@/utils/time';
+import { EmojiPickerModal } from '@/components/ui/emoji-picker-modal';
+import { EmptyState } from '@/components/ui/empty-state';
+import { LoadingState } from '@/components/ui/loading-state';
+import { Spacing, Weight } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
+import { useAutoScroll } from '@/hooks/use-auto-scroll';
+import { useTheme } from '@/hooks/use-theme';
+import { useTypingThrottle } from '@/hooks/use-typing-throttle';
+import { formatDeleteIn } from '@/utils/time';
 
 const PAGE_SIZE = 50;
 
 export default function ChannelChatScreen() {
     const { id: squadId, channelId } = useLocalSearchParams<{ id: string; channelId: string }>();
-    const navigation = useNavigation();
     const router = useRouter();
     const flatListRef = useRef<FlatList>(null);
     const theme = useTheme();
 
     const sendMessage = useMutation(api.message.sendMessage);
+    const sendImageMessage = useMutation(api.message.sendImageMessage);
     const deleteMessage = useMutation(api.message.deleteMessage);
     const toggleReaction = useMutation(api.reaction.toggleReaction);
+    const toggleBookmark = useMutation(api.bookmarks.toggleBookmark);
     const markChannelRead = useMutation(api.channel.markChannelRead);
+    const updatePresence = useMutation(api.presence.updatePresence);
 
     const currentUser = useQuery(api.users.current);
     const channels = useQuery(
@@ -58,11 +64,18 @@ export default function ChannelChatScreen() {
         api.channel.getChannelExpiry,
         channelId ? { channelId: channelId as Id<"channels"> } : "skip"
     );
+    const presence = useQuery(
+        api.presence.getPresence,
+        squadId ? { squadId: squadId as Id<"squads"> } : "skip"
+    );
     const isEphemeral = channelExpiry !== null;
     const isExpired = channelExpiry?.isExpired ?? false;
+    const currentChannel = channels?.find(c => c._id === channelId);
+    const onlineCount = presence?.filter((p) => p.isOnline).length ?? 0;
 
     const [selectedMessage, setSelectedMessage] = useState<{ id: string; isOwn: boolean } | null>(null);
     const [showSwitcher, setShowSwitcher] = useState(false);
+    const [pickerMessageId, setPickerMessageId] = useState<string | null>(null);
 
     const handleTyping = useTypingThrottle(
         squadId as Id<"squads"> | undefined,
@@ -71,27 +84,19 @@ export default function ChannelChatScreen() {
     useAutoScroll(flatListRef, messages?.length ?? 0);
 
     useEffect(() => {
-        if (channels && channelId) {
-            const channel = channels.find(c => c._id === channelId);
-            if (channel) {
-                navigation.setOptions({
-                    headerTitle: () => (
-                        <Pressable onPress={() => setShowSwitcher(true)}>
-                            <ThemedText style={{ fontSize: 17, fontWeight: '600', color: theme.text }}>
-                                {channel.name} ▾
-                            </ThemedText>
-                        </Pressable>
-                    ),
-                });
-            }
-        }
-    }, [channels, channelId, navigation, theme]);
-
-    useEffect(() => {
         if (channelId) {
             markChannelRead({ channelId: channelId as Id<"channels"> });
         }
-    }, [channelId]);
+    }, [channelId, markChannelRead]);
+
+    useEffect(() => {
+        if (!squadId) return;
+        updatePresence({ squadId: squadId as Id<"squads"> });
+        const interval = setInterval(() => {
+            updatePresence({ squadId: squadId as Id<"squads"> });
+        }, 20000);
+        return () => clearInterval(interval);
+    }, [squadId, updatePresence]);
 
     const handleEndReached = useCallback(() => {
         if (canLoadMore) loadMore(PAGE_SIZE);
@@ -113,25 +118,37 @@ export default function ChannelChatScreen() {
         await toggleReaction({ messageId: messageId as Id<"messages">, emoji });
     }, [toggleReaction]);
 
+    const handleBookmark = useCallback(async () => {
+        if (!selectedMessage) return;
+        await toggleBookmark({
+            targetType: "message",
+            messageId: selectedMessage.id as Id<"messages">,
+        } as any);
+    }, [selectedMessage, toggleBookmark]);
+
     if (messages === undefined) {
-        return (
-            <SafeAreaView style={[styles.loading, { backgroundColor: theme.background }]}>
-                <ActivityIndicator size="large" color={theme.accent} />
-            </SafeAreaView>
-        );
+        return <LoadingState />;
     }
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={[]}>
+            <ChatHeader
+                channelName={currentChannel?.name ?? 'Chat'}
+                onlineCount={onlineCount}
+                onTitlePress={() => setShowSwitcher(true)}
+            />
+
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 style={styles.inner}
             >
                 <ThemedView style={styles.inner}>
                     {messages.length === 0 ? (
-                        <View style={styles.empty}>
-                            <ThemedText type="small" themeColor="textSecondary">No messages yet. Say hi!</ThemedText>
-                        </View>
+                        <EmptyState
+                            emoji="👋"
+                            title="No messages yet"
+                            subtitle="Be the first to say something!"
+                        />
                     ) : (
                         <Pressable style={styles.inner} onPress={Keyboard.dismiss}>
                             <FlatList
@@ -145,10 +162,12 @@ export default function ChannelChatScreen() {
                                         avatarUrl={item.avatarUrl}
                                         content={item.content}
                                         createdAt={item.createdAt}
+                                        editedAt={item.editedAt}
                                         deleted={item.deleted}
                                         isOwnMessage={item.userId === currentUser?._id}
                                         reactions={item.reactions}
                                         currentUserId={currentUser?._id}
+                                        imageUrl={item.imageUrl}
                                         onToggleReaction={handleToggleReaction}
                                         onLongPress={() => setSelectedMessage({
                                             id: item._id,
@@ -165,7 +184,7 @@ export default function ChannelChatScreen() {
                                 onEndReached={handleEndReached}
                                 onEndReachedThreshold={0.5}
                                 ListFooterComponent={loadingMore ? (
-                                    <ActivityIndicator size="small" color={theme.accent} style={styles.loadingMore} />
+                                    <ThemedText />
                                 ) : null}
                             />
                         </Pressable>
@@ -175,7 +194,7 @@ export default function ChannelChatScreen() {
 
                     {isEphemeral && isExpired ? (
                         <View style={[styles.expiredBanner, { borderTopColor: theme.outlineLight }]}>
-                            <ThemedText type="small" style={{ color: theme.error, fontWeight: '600' }}>
+                            <ThemedText type="small" style={{ color: theme.error, fontWeight: Weight.semibold }}>
                                 This room has expired
                             </ThemedText>
                             {channelExpiry?.deleteAt && (
@@ -194,6 +213,14 @@ export default function ChannelChatScreen() {
                                     content,
                                 });
                             }}
+                            onSendImage={async (storageId, caption) => {
+                                await sendImageMessage({
+                                    squadId: squadId as Id<"squads">,
+                                    channelId: channelId as Id<"channels">,
+                                    storageId,
+                                    content: caption,
+                                });
+                            }}
                         />
                     )}
 
@@ -204,9 +231,25 @@ export default function ChannelChatScreen() {
                     <MessageActions
                         visible={selectedMessage !== null}
                         isOwnMessage={selectedMessage?.isOwn ?? false}
+                        isBookmarked={selectedMessage ? (messages?.find((m: any) => m._id === selectedMessage.id) as any)?.isBookmarked : false}
                         onClose={() => setSelectedMessage(null)}
                         onDelete={handleDelete}
                         onReact={handleReact}
+                        onBookmark={handleBookmark}
+                        onMoreReactions={() => {
+                            setPickerMessageId(selectedMessage?.id ?? null);
+                        }}
+                    />
+
+                    <EmojiPickerModal
+                        visible={pickerMessageId !== null}
+                        title="React to message"
+                        onClose={() => setPickerMessageId(null)}
+                        onSelect={async (emoji) => {
+                            if (!pickerMessageId) return;
+                            await toggleReaction({ messageId: pickerMessageId as Id<'messages'>, emoji });
+                            setPickerMessageId(null);
+                        }}
                     />
 
                     <ChannelSwitcher
@@ -226,11 +269,8 @@ export default function ChannelChatScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1 },
-    loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     inner: { flex: 1 },
-    empty: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     listContent: { paddingVertical: Spacing.sm },
-    loadingMore: { paddingVertical: Spacing.lg },
     expiredBanner: {
         paddingVertical: Spacing.lg,
         paddingHorizontal: Spacing.lg,

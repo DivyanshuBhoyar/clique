@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Radius, Spacing } from '@/constants/theme';
+import { Radius, Spacing, Typography, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 type ChannelType = 'topic' | 'mood' | 'ephemeral';
@@ -71,14 +71,14 @@ export function CreateChannelModal({ visible, defaultType, onClose, onCreate }: 
                                 style={[
                                     styles.typeButton,
                                     {
-                                        borderColor: type === t ? theme.accent : theme.outlineLight,
-                                        backgroundColor: type === t ? theme.accentSoft : theme.backgroundElement,
+                                        borderColor: type === t ? theme.text : theme.outlineLight,
+                                        backgroundColor: type === t ? theme.accent : theme.backgroundElement,
                                     },
                                 ]}
                                 accessibilityRole="button"
                                 accessibilityLabel={`${t} channel type`}
                             >
-                                <ThemedText type="small" style={{ color: type === t ? theme.accent : theme.textSecondary, fontWeight: '600' }}>
+                                <ThemedText type="small" style={{ color: type === t ? theme.text : theme.textSecondary, fontWeight: Weight.semibold }}>
                                     {t.charAt(0).toUpperCase() + t.slice(1)}
                                 </ThemedText>
                             </Pressable>
@@ -131,9 +131,19 @@ export function CreateChannelModal({ visible, defaultType, onClose, onCreate }: 
                         <Pressable
                             onPress={handleCreate}
                             disabled={!canCreate || creating}
-                            style={[styles.actionBtn, { opacity: canCreate && !creating ? 1 : 0.4 }]}
+                            style={[
+                                styles.actionBtn,
+                                styles.createBtn,
+                                {
+                                    backgroundColor: canCreate && !creating ? theme.accent : theme.backgroundElement,
+                                    borderColor: theme.outline,
+                                    opacity: canCreate && !creating ? 1 : 0.5,
+                                },
+                            ]}
                         >
-                            <ThemedText style={{ fontWeight: '600', color: theme.accent }}>Create</ThemedText>
+                            <ThemedText style={{ fontWeight: Weight.bold, color: theme.text }}>
+                                {creating ? 'Creating…' : 'Create'}
+                            </ThemedText>
                         </Pressable>
                     </View>
                 </Pressable>
@@ -194,7 +204,7 @@ const styles = StyleSheet.create({
         borderRadius: Radius.md,
         paddingHorizontal: Spacing.lg,
         paddingVertical: Spacing.sm,
-        fontSize: 16,
+        fontSize: Typography.body,
         marginBottom: Spacing.lg,
         minHeight: 48,
     },
@@ -202,11 +212,16 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'flex-end',
         gap: Spacing.lg,
+        alignItems: 'center',
     },
     actionBtn: {
         paddingHorizontal: Spacing.lg,
         paddingVertical: Spacing.sm,
         minHeight: 44,
         justifyContent: 'center',
+    },
+    createBtn: {
+        borderRadius: Radius.md,
+        borderWidth: 2,
     },
 });

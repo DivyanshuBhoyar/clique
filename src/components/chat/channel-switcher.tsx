@@ -2,7 +2,7 @@ import { useQuery } from 'convex/react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Radius, Spacing } from '@/constants/theme';
+import { Radius, Spacing, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
@@ -47,12 +47,12 @@ export function ChannelSwitcher({ visible, squadId, currentChannelId, onClose, o
                                     accessibilityLabel={`Switch to ${channel.name}`}
                                 >
                                     <View style={styles.itemContent}>
-                                        <ThemedText style={isActive && { fontWeight: '700' }}>
+                                        <ThemedText style={isActive && { fontWeight: Weight.bold }}>
                                             {channel.name}
                                         </ThemedText>
                                         {channel.unreadCount > 0 && !isActive && (
                                             <View style={[styles.badge, { backgroundColor: theme.accent }]}>
-                                                <ThemedText type="caption" style={{ color: '#fff', fontWeight: '700' }}>
+                                                <ThemedText type="caption" style={{ color: '#fff', fontWeight: Weight.bold }}>
                                                     {channel.unreadCount}
                                                 </ThemedText>
                                             </View>

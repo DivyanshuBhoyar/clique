@@ -1,18 +1,31 @@
-import { Radius, Spacing } from '@/constants/theme';
+import { LineHeight, Radius, Spacing, Typography, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { Bookmark } from 'lucide-react-native';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 interface MessageActionsProps {
     visible: boolean;
     isOwnMessage: boolean;
+    isBookmarked?: boolean;
     onClose: () => void;
     onDelete: () => void;
     onReact: (emoji: string) => void;
+    onBookmark?: () => void;
+    onMoreReactions?: () => void;
 }
 
 const REACTIONS = ['👍', '❤️', '😂', '🔥', '👀'];
 
-export function MessageActions({ visible, isOwnMessage, onClose, onDelete, onReact }: MessageActionsProps) {
+export function MessageActions({
+    visible,
+    isOwnMessage,
+    isBookmarked,
+    onClose,
+    onDelete,
+    onReact,
+    onBookmark,
+    onMoreReactions,
+}: MessageActionsProps) {
     const theme = useTheme();
 
     if (!visible) return null;
@@ -33,7 +46,36 @@ export function MessageActions({ visible, isOwnMessage, onClose, onDelete, onRea
                                 <Text style={styles.emoji}>{emoji}</Text>
                             </Pressable>
                         ))}
+                        {onMoreReactions && (
+                            <Pressable
+                                onPress={() => { onMoreReactions(); onClose(); }}
+                                style={styles.reactionButton}
+                                accessibilityRole="button"
+                                accessibilityLabel="Open full emoji picker"
+                            >
+                                <Text style={[styles.emoji, { color: theme.textSecondary }]}>+</Text>
+                            </Pressable>
+                        )}
                     </View>
+
+                    {onBookmark && (
+                        <Pressable
+                            onPress={() => { onBookmark(); onClose(); }}
+                            style={[styles.actionRow, { borderBottomColor: theme.outlineLight }]}
+                            accessibilityRole="button"
+                            accessibilityLabel={isBookmarked ? 'Remove bookmark' : 'Bookmark'}
+                        >
+                            <Bookmark
+                                size={18}
+                                color={isBookmarked ? theme.accent : theme.text}
+                                fill={isBookmarked ? theme.accent : 'none'}
+                                strokeWidth={2}
+                            />
+                            <Text style={{ color: theme.text, fontSize: Typography.body, fontWeight: Weight.medium }}>
+                                {isBookmarked ? 'Remove bookmark' : 'Bookmark'}
+                            </Text>
+                        </Pressable>
+                    )}
 
                     {isOwnMessage && (
                         <Pressable
@@ -80,7 +122,15 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     emoji: {
-        fontSize: 28,
+        fontSize: Typography.heading,
+    },
+    actionRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: Spacing.sm,
+        paddingVertical: Spacing.lg,
+        borderBottomWidth: 1,
     },
     actionButton: {
         paddingVertical: Spacing.lg,
@@ -90,7 +140,7 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
     },
     deleteText: {
-        fontSize: 16,
-        fontWeight: '600',
+        fontSize: Typography.body,
+        fontWeight: Weight.semibold,
     },
 });
