@@ -1,5 +1,6 @@
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Typography } from '@/constants/theme';
 import { useLocalSearchParams } from 'expo-router';
 import { StyleSheet } from 'react-native';
 
@@ -15,5 +16,5 @@ export default function ExploreItemScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
-    text: { fontSize: 18, color: '#666' }
+    text: { fontSize: Typography.body, color: '#666' }
 });

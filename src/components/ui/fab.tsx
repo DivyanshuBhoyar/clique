@@ -2,7 +2,7 @@ import { Pressable, type ViewStyle } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
-import { BottomTabInset, Radius, Shadows, Spacing } from '@/constants/theme';
+import { BottomTabInset, Radius, Shadows, Spacing, Weight, LineHeight, Typography } from '@/constants/theme';
 
 interface FabProps {
   onPress?: () => void;
@@ -42,7 +42,7 @@ export function Fab({ onPress, icon = '+', style, accessibilityLabel }: FabProps
         style,
       ]}
     >
-      <ThemedText style={{ fontSize: 28, fontWeight: '600', color: theme.fabText, lineHeight: 32 }}>
+      <ThemedText style={{ fontSize: Typography.heading, fontWeight: Weight.semibold, color: theme.fabText, lineHeight: LineHeight.heading }}>
         {icon}
       </ThemedText>
     </Pressable>

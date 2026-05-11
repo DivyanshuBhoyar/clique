@@ -1,8 +1,8 @@
-import { Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
+import { Pressable, View, type ViewStyle } from 'react-native';
 
-import { useTheme } from '@/hooks/use-theme';
-import { Radius, Shadows } from '@/constants/theme';
 import type { ThemeColor } from '@/constants/theme';
+import { Radius, Shadows } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 
 type CardVariant = 'default' | 'warm' | 'accent' | 'outline';
 
@@ -44,7 +44,7 @@ export function Card({
     backgroundColor: bg,
     borderWidth: 2,
     borderColor: theme.outline,
-    borderRadius: Radius.md,
+    borderRadius: Radius.lg,
     ...contentStyle,
   };
 

@@ -1,5 +1,5 @@
 /**
- * Design tokens for the Clique Cove app.
+ * Design tokens for the Homie Squad app.
  * Cozy & Playful with neo-brutalist structure: warm surfaces, clear outlines,
  * chunky hit areas, honest hard-edged shadows, flat fills.
  */
@@ -12,85 +12,79 @@ import { Platform } from 'react-native';
 // Colours
 // ---------------------------------------------------------------------------
 
-// Light-only palette — warm pastels with confident accents
+// Light-only palette — warm cream with golden yellow accent
 const palette = {
-  // Existing tokens (DO NOT RENAME — components depend on these)
-  text: '#2d2d3a',
-  background: '#faf9f7',
-  backgroundElement: '#f0eff4',
-  backgroundSelected: '#e4e2ec',
-  textSecondary: '#6b6b80',
+  // Core text
+  text: '#2D2D2D',
+  background: '#F5F0E8',          // warm cream (was cool grey #faf9f7)
+  backgroundElement: '#EDE8DF',   // slightly deeper cream for input bg etc.
+  backgroundSelected: '#E5DDD0',  // selected/hover state
+  textSecondary: '#6B6050',       // warm grey-brown
 
   // Surfaces
-  outline: '#2d2d3a',
-  outlineLight: '#d5d3de',
-  surface: '#ffffff',
-  surfaceWarm: '#fff5eb',
-  surfaceAccent: '#eef0ff',
+  outline: '#2D2D2D',             // near-black outlines (neo-brutalist)
+  outlineLight: '#C8C0B0',        // subtle dividers
+  surface: '#FFFFFF',             // card surface
+  surfaceWarm: '#FFF5E0',         // warm tinted surface
+  surfaceAccent: '#FFF8E1',       // very soft yellow surface
 
-  // Accent — confident indigo
-  accent: '#5b5bd6',
-  accentSoft: '#ededfc',
+  // Accent — golden yellow
+  accent: '#F5C542',              // primary CTA, FAB, active states (was indigo)
+  accentSoft: '#FFF8E1',          // soft yellow bg for hero cards
+  accentDark: '#E0B035',          // pressed/dark state for yellow buttons
 
   // Semantic
-  success: '#3bb897',
-  successSoft: '#dff5ee',
-  warning: '#e8a838',
-  warningSoft: '#fff4db',
-  error: '#e05555',
-  errorSoft: '#fde8e8',
+  success: '#3BB897',
+  successSoft: '#DFF5EE',
+  warning: '#E8A838',
+  warningSoft: '#FFF4DB',
+  error: '#E05555',
+  errorSoft: '#FDE8E8',
 
   // Text
-  textTertiary: '#a0a0b2',
+  textTertiary: '#A09080',        // warm tertiary text
 
-  // Shadows — soft, not harsh
-  shadow: '#c8c8d4',
+  // Shadows — hard-edged neo-brutalist, dark shadow for punch
+  shadow: '#2D2D2D',              // black shadow (was soft purple-grey)
 
   // FAB
-  fabBackground: '#5b5bd6',
-  fabText: '#ffffff',
+  fabBackground: '#F5C542',       // golden yellow (was indigo)
+  fabText: '#2D2D2D',             // black text on yellow (was white)
 
-  // Category tints — Song (lavender)
-  songBg: '#ede9fe',
-  songText: '#6d28d9',
-  // Category tints — Movie (pink)
-  movieBg: '#fce7f3',
-  movieText: '#be185d',
-  // Category tints — Book (mint)
-  bookBg: '#d1fae5',
-  bookText: '#065f46',
-  // Category tints — Life hack (peach)
-  lifehackBg: '#fef3c7',
-  lifehackText: '#92400e',
-  // Category tints — Quote (sky)
-  quoteBg: '#e0f2fe',
-  quoteText: '#075985',
-  // Category tints — Random (lilac)
-  randomBg: '#f3e8ff',
-  randomText: '#7e22ce',
+  // Dashed borders inside cards
+  dashedBorder: '#C0BAB0',        // warm grey dashed separator
+  cardBorder: '#2D2D2D',          // explicit card border (same as outline)
+
+  // Category tints — warmer versions matching designs
+  songBg: '#FFE8CC',    songText: '#8B5E3C',    // warm amber
+  movieBg: '#FFE0E8',   movieText: '#8B3C5E',   // warm pink
+  bookBg: '#E0F0E8',    bookText: '#3C6B4F',    // warm mint
+  lifehackBg: '#FFF3D0', lifehackText: '#7A5B1E', // warm gold
+  quoteBg: '#FFF0D0',   quoteText: '#6B5A2E',   // warm honey
+  randomBg: '#F0E8FF',  randomText: '#5E3C8B',  // warm lavender
 
   // Chat bubbles
-  bubbleOwn: '#5b5bd6',
-  bubbleOwnText: '#ffffff',
-  bubbleOther: '#f0eff4',
-  bubbleOtherText: '#2d2d3a',
+  bubbleOwn: '#F5C542',           // golden yellow (was indigo)
+  bubbleOwnText: '#2D2D2D',       // black text on yellow (was white)
+  bubbleOther: '#FFFFFF',         // white (was grey)
+  bubbleOtherText: '#2D2D2D',     // black text
 
   // Input
-  inputBackground: '#f0eff4',
-  inputBorder: '#d5d3de',
+  inputBackground: '#FFFFFF',     // white input fields
+  inputBorder: '#2D2D2D',         // black border on inputs
 
   // Header
-  headerBackground: '#ffffff',
-  headerTintColor: '#2d2d3a',
+  headerBackground: '#F5F0E8',    // cream (was white)
+  headerTintColor: '#2D2D2D',
 
   // Tab bar
-  tabBarActive: '#5b5bd6',
-  tabBarInactive: '#a0a0b2',
-  tabBarBorder: '#d5d3de',
-  tabBarBackground: '#ffffff',
+  tabBarActive: '#2D2D2D',        // black icon + label (was indigo)
+  tabBarInactive: '#A09080',      // warm grey
+  tabBarBorder: '#C8C0B0',
+  tabBarBackground: '#F5F0E8',    // cream (was white)
 
   // Placeholder text
-  placeholder: '#999999',
+  placeholder: '#A09080',
 };
 
 export const Colors = {
@@ -103,6 +97,34 @@ export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
 // ---------------------------------------------------------------------------
 // Fonts
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Font weights
+// ---------------------------------------------------------------------------
+
+export const Weight = {
+  regular: '400',
+  medium: '500',
+  semibold: '600',
+  bold: '700',
+  extrabold: '800',
+  black: '900',
+} as const;
+
+// ---------------------------------------------------------------------------
+// Line heights — paired to Typography scale
+// ---------------------------------------------------------------------------
+
+export const LineHeight = {
+  hero: 56,
+  display: 48,
+  title: 40,
+  heading: 32,
+  subtitle: 28,
+  body: 24,
+  small: 20,
+  caption: 16,
+} as const;
 
 export const Fonts = Platform.select({
   ios: {
@@ -150,36 +172,36 @@ export const Spacing = {
 } as const;
 
 // ---------------------------------------------------------------------------
-// Border radius
+// Border radius — rounder to match cozy aesthetic
 // ---------------------------------------------------------------------------
 
 export const Radius = {
-  sm: 6,
-  md: 8,
-  lg: 12,
-  xl: 16,
-  xxl: 20,
-  full: 9999,
+  sm: 8,   // was 6 — tags, chips, small elements
+  md: 12,  // was 8 — inputs, small cards
+  lg: 16,  // was 12 — main cards, buttons
+  xl: 20,  // was 16 — modals, large surfaces
+  xxl: 24, // was 20 — hero sections
+  full: 9999, // pill shapes
 } as const;
 
 // ---------------------------------------------------------------------------
-// Shadows — hard-edged neo-brutalist (offset only, no blur)
+// Shadows — hard-edged neo-brutalist (offset only, no blur, black shadow)
 // ---------------------------------------------------------------------------
 
 export const Shadows = {
   sm: {
     offset: { width: 2, height: 2 },
-    opacity: 1,
+    opacity: 0.9,
     radius: 0,
   },
   md: {
     offset: { width: 3, height: 3 },
-    opacity: 1,
+    opacity: 0.9,
     radius: 0,
   },
   lg: {
     offset: { width: 4, height: 4 },
-    opacity: 1,
+    opacity: 0.9,
     radius: 0,
   },
 } as const;
@@ -189,6 +211,7 @@ export const Shadows = {
 // ---------------------------------------------------------------------------
 
 export const Typography = {
+  hero: 48,
   display: 40,
   title: 32,
   heading: 24,

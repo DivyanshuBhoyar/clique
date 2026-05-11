@@ -1,5 +1,6 @@
 import { Image } from 'expo-image';
 import { StyleSheet, Text, View } from 'react-native';
+import { Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 const COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ef4444', '#14b8a6'];
@@ -66,7 +67,7 @@ const styles = StyleSheet.create({
     },
     fallbackText: {
         color: '#fff',
-        fontWeight: '700',
+        fontWeight: Weight.bold,
     },
     badge: {
         position: 'absolute',

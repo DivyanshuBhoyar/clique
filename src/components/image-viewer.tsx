@@ -3,6 +3,7 @@ import { Modal, Pressable, StyleSheet, useWindowDimensions, View } from 'react-n
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
+import { Weight, Typography } from '@/constants/theme';
 
 interface ImageViewerProps {
     visible: boolean;
@@ -51,8 +52,8 @@ const styles = StyleSheet.create({
     },
     closeText: {
         color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
+        fontSize: Typography.body,
+        fontWeight: Weight.semibold,
     },
     imageArea: {
         flex: 1,

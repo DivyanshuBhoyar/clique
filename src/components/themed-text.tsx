@@ -1,10 +1,17 @@
 import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
 
-import { Fonts, ThemeColor, Typography } from '@/constants/theme';
+import {
+  Fonts,
+  LineHeight,
+  ThemeColor,
+  Typography,
+  Weight,
+} from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export type ThemedTextType =
   | 'default'
+  | 'display'
   | 'title'
   | 'heading'
   | 'subtitle'
@@ -12,6 +19,7 @@ export type ThemedTextType =
   | 'small'
   | 'smallBold'
   | 'caption'
+  | 'captionBold'
   | 'link'
   | 'linkPrimary'
   | 'code';
@@ -29,6 +37,7 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
       style={[
         { color: theme[themeColor ?? 'text'] },
         type === 'default' && styles.default,
+        type === 'display' && styles.display,
         type === 'title' && styles.title,
         type === 'heading' && styles.heading,
         type === 'subtitle' && styles.subtitle,
@@ -36,6 +45,7 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
         type === 'small' && styles.small,
         type === 'smallBold' && styles.smallBold,
         type === 'caption' && styles.caption,
+        type === 'captionBold' && styles.captionBold,
         type === 'link' && styles.link,
         type === 'linkPrimary' && styles.linkPrimary,
         type === 'code' && styles.code,
@@ -47,60 +57,74 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
 }
 
 const styles = StyleSheet.create({
-  caption: {
-    fontSize: Typography.caption,
-    lineHeight: 16,
-    fontWeight: '400',
-  },
-  small: {
-    fontSize: Typography.small,
-    lineHeight: 20,
-    fontWeight: '400',
-  },
-  smallBold: {
-    fontSize: Typography.small,
-    lineHeight: 20,
-    fontWeight: '700',
-  },
-  default: {
-    fontSize: Typography.body,
-    lineHeight: 24,
-    fontWeight: '400',
-  },
-  bodyBold: {
-    fontSize: Typography.body,
-    lineHeight: 24,
-    fontWeight: '700',
-  },
-  subtitle: {
-    fontSize: Typography.subtitle,
-    lineHeight: 28,
-    fontWeight: '600',
-  },
-  heading: {
-    fontSize: Typography.heading,
-    lineHeight: 32,
-    fontWeight: '600',
+  display: {
+    fontSize: Typography.display,
+    lineHeight: LineHeight.display,
+    fontWeight: Weight.black,
+    fontFamily: Fonts.rounded,
   },
   title: {
     fontSize: Typography.title,
-    fontWeight: '700',
-    lineHeight: 36,
+    fontWeight: Weight.extrabold,
+    lineHeight: LineHeight.title,
+    fontFamily: Fonts.rounded,
+  },
+  heading: {
+    fontSize: Typography.heading,
+    lineHeight: LineHeight.heading,
+    fontWeight: Weight.bold,
+    fontFamily: Fonts.rounded,
+  },
+  subtitle: {
+    fontSize: Typography.subtitle,
+    lineHeight: LineHeight.subtitle,
+    fontWeight: Weight.bold,
+    fontFamily: Fonts.rounded,
+  },
+  default: {
+    fontSize: Typography.body,
+    lineHeight: LineHeight.body,
+    fontWeight: Weight.regular,
+  },
+  bodyBold: {
+    fontSize: Typography.body,
+    lineHeight: LineHeight.body,
+    fontWeight: Weight.bold,
+  },
+  small: {
+    fontSize: Typography.small,
+    lineHeight: LineHeight.small,
+    fontWeight: Weight.regular,
+  },
+  smallBold: {
+    fontSize: Typography.small,
+    lineHeight: LineHeight.small,
+    fontWeight: Weight.bold,
+  },
+  caption: {
+    fontSize: Typography.caption,
+    lineHeight: LineHeight.caption,
+    fontWeight: Weight.regular,
+  },
+  captionBold: {
+    fontSize: Typography.caption,
+    lineHeight: LineHeight.caption,
+    fontWeight: Weight.bold,
   },
   link: {
-    lineHeight: 20,
+    lineHeight: LineHeight.small,
     fontSize: Typography.small,
-    fontWeight: '500',
+    fontWeight: Weight.medium,
     textDecorationLine: 'underline',
   },
   linkPrimary: {
-    lineHeight: 20,
+    lineHeight: LineHeight.small,
     fontSize: Typography.small,
-    fontWeight: '600',
+    fontWeight: Weight.semibold,
   },
   code: {
     fontFamily: Fonts.mono,
-    fontWeight: Platform.select({ android: '700' }) ?? '500',
+    fontWeight: Platform.select({ android: Weight.bold }) ?? Weight.medium,
     fontSize: Typography.caption,
   },
 });

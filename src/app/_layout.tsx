@@ -1,11 +1,13 @@
+import { AnimatedSplashOverlay } from '@/components/animated-icon';
+import { ToastHost } from '@/components/ui/toast-provider';
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { ConvexReactClient } from "convex/react";
 import { Slot } from 'expo-router';
 import * as SecureStore from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
 import React from 'react';
-import { Platform, useColorScheme } from 'react-native';
+import { Platform } from 'react-native';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 // Required for OAuth on mobile: detects the redirect deep-link and closes
@@ -13,8 +15,6 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 if (Platform.OS !== "web") {
   WebBrowser.maybeCompleteAuthSession();
 }
-
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
 
 const convex = new ConvexReactClient(process.env.EXPO_PUBLIC_CONVEX_URL!, {
   unsavedChangesWarning: false,
@@ -27,7 +27,7 @@ const secureStorage = {
 };
 
 export default function RootLayout() {
-  const navTheme = { ...DefaultTheme, colors: { ...DefaultTheme.colors, background: '#faf9f7' } };
+  const navTheme = { ...DefaultTheme, colors: { ...DefaultTheme.colors, background: '#F5F0E8' } };
 
   return (
     <ConvexAuthProvider
@@ -42,6 +42,7 @@ export default function RootLayout() {
         <ThemeProvider value={navTheme}>
           <AnimatedSplashOverlay />
           <Slot />
+          <ToastHost />
         </ThemeProvider>
       </KeyboardProvider>
     </ConvexAuthProvider>
