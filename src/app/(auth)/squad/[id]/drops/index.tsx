@@ -19,7 +19,6 @@ import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { useBookmarkToggle } from '@/hooks/use-bookmark-mutation';
 import { useReactionPicker } from '@/hooks/use-reaction-picker';
-import { useTheme } from '@/hooks/use-theme';
 import { useDropVote } from '@/hooks/use-vote-mutation';
 
 const PAGE_SIZE = 20;
@@ -42,7 +41,6 @@ export default function DropsScreen() {
   const { id } = useGlobalSearchParams<{ id: string }>();
   const squadId = (typeof id === 'string' ? id : undefined) as Id<'squads'> | undefined;
   const router = useRouter();
-  const theme = useTheme();
   const [activeFilter, setActiveFilter] = useState(0);
 
   const currentUser = useQuery(api.users.current);

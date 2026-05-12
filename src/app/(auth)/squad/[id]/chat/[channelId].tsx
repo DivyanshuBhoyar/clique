@@ -4,12 +4,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ChatHeader } from '@/components/chat/chat-header';
 import { ChannelSwitcher } from '@/components/chat/channel-switcher';
+import { ChatHeader } from '@/components/chat/chat-header';
 import { EphemeralCountdown } from '@/components/chat/ephemeral-countdown';
 import { MessageActions } from '@/components/chat/message-actions';
 import { MessageInput } from '@/components/chat/message-input';
 import { MessageItem } from '@/components/chat/message-item';
+import { NewMessageBubble, NewMessageBubbleChannel } from '@/components/chat/new-message-bubble';
 import { TypingIndicator } from '@/components/chat/typing-indicator';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -45,6 +46,12 @@ export default function ChannelChatScreen() {
         api.channel.getChannels,
         squadId ? { squadId: squadId as Id<"squads"> } : "skip"
     );
+    const otherUnreadSummary = useQuery(
+        api.channel.getOtherChannelUnreadSummary,
+        squadId && channelId
+            ? { squadId: squadId as Id<"squads">, excludeChannelId: channelId as Id<"channels"> }
+            : "skip"
+    );
     const typingUsers = useQuery(
         api.typing.getTypingUsers,
         squadId && channelId
@@ -76,6 +83,13 @@ export default function ChannelChatScreen() {
     const [selectedMessage, setSelectedMessage] = useState<{ id: string; isOwn: boolean } | null>(null);
     const [showSwitcher, setShowSwitcher] = useState(false);
     const [pickerMessageId, setPickerMessageId] = useState<string | null>(null);
+    const [newMessageBubble, setNewMessageBubble] = useState<NewMessageBubbleChannel | null>(null);
+    const [extraBubbleChannelCount, setExtraBubbleChannelCount] = useState(0);
+    const unreadSnapshotRef = useRef<{
+        activeChannelId: string;
+        channels: Map<string, { unreadCount: number; lastMessageAt: number }>;
+    } | null>(null);
+    const bubbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const handleTyping = useTypingThrottle(
         squadId as Id<"squads"> | undefined,
@@ -88,6 +102,65 @@ export default function ChannelChatScreen() {
             markChannelRead({ channelId: channelId as Id<"channels"> });
         }
     }, [channelId, markChannelRead]);
+
+    useEffect(() => {
+        setNewMessageBubble(null);
+        setExtraBubbleChannelCount(0);
+        unreadSnapshotRef.current = null;
+        if (bubbleTimerRef.current) {
+            clearTimeout(bubbleTimerRef.current);
+            bubbleTimerRef.current = null;
+        }
+    }, [channelId]);
+
+    useEffect(() => {
+        return () => {
+            if (bubbleTimerRef.current) clearTimeout(bubbleTimerRef.current);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!otherUnreadSummary) return;
+        if (otherUnreadSummary.activeChannelId !== channelId) return;
+
+        const nextSnapshot = new Map(
+            otherUnreadSummary.channels.map((channel) => [
+                channel.channelId,
+                { unreadCount: channel.unreadCount, lastMessageAt: channel.lastMessageAt },
+            ])
+        );
+
+        const previousSnapshot = unreadSnapshotRef.current;
+        unreadSnapshotRef.current = {
+            activeChannelId: channelId,
+            channels: nextSnapshot,
+        };
+
+        if (!previousSnapshot || previousSnapshot.activeChannelId !== channelId) return;
+
+        const changedChannels = otherUnreadSummary.channels.filter((channel) => {
+            const previous = previousSnapshot.channels.get(channel.channelId);
+            if (!previous) return channel.unreadCount > 0;
+            return channel.lastMessageAt > previous.lastMessageAt || channel.unreadCount > previous.unreadCount;
+        });
+
+        if (changedChannels.length === 0) return;
+
+        const latestChannel = [...changedChannels].sort((a, b) => b.lastMessageAt - a.lastMessageAt)[0];
+        const extraCount = otherUnreadSummary.channels.filter(
+            (channel) => channel.channelId !== latestChannel.channelId
+        ).length;
+
+        setNewMessageBubble(latestChannel);
+        setExtraBubbleChannelCount(extraCount);
+
+        if (bubbleTimerRef.current) clearTimeout(bubbleTimerRef.current);
+        bubbleTimerRef.current = setTimeout(() => {
+            setNewMessageBubble(null);
+            setExtraBubbleChannelCount(0);
+            bubbleTimerRef.current = null;
+        }, 4000);
+    }, [channelId, otherUnreadSummary]);
 
     useEffect(() => {
         if (!squadId) return;
@@ -135,7 +208,30 @@ export default function ChannelChatScreen() {
             <ChatHeader
                 channelName={currentChannel?.name ?? 'Chat'}
                 onlineCount={onlineCount}
+                otherUnreadCount={otherUnreadSummary?.totalUnread ?? 0}
                 onTitlePress={() => setShowSwitcher(true)}
+            />
+
+            <NewMessageBubble
+                channel={newMessageBubble}
+                extraChannelCount={extraBubbleChannelCount}
+                onDismiss={() => {
+                    setNewMessageBubble(null);
+                    setExtraBubbleChannelCount(0);
+                    if (bubbleTimerRef.current) {
+                        clearTimeout(bubbleTimerRef.current);
+                        bubbleTimerRef.current = null;
+                    }
+                }}
+                onPress={(targetChannelId) => {
+                    setNewMessageBubble(null);
+                    setExtraBubbleChannelCount(0);
+                    if (bubbleTimerRef.current) {
+                        clearTimeout(bubbleTimerRef.current);
+                        bubbleTimerRef.current = null;
+                    }
+                    router.replace(`/squad/${squadId}/chat/${targetChannelId}`);
+                }}
             />
 
             <KeyboardAvoidingView

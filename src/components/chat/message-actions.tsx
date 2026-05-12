@@ -1,4 +1,4 @@
-import { LineHeight, Radius, Spacing, Typography, Weight } from '@/constants/theme';
+import { Radius, Spacing, Typography, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { Bookmark } from 'lucide-react-native';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';

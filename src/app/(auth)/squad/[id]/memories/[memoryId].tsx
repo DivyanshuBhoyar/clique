@@ -6,11 +6,11 @@ import { useCallback, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ImageViewer } from '@/components/image-viewer';
 import { AddItemModal } from '@/components/memories/add-item-modal';
 import { ItemCommentsModal } from '@/components/memories/item-comments-modal';
 import { ScrapbookSection } from '@/components/memories/scrapbook-section';
 import { WallQuoteCard } from '@/components/memories/wall-quote-card';
-import { ImageViewer } from '@/components/image-viewer';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { DashedSeparator } from '@/components/ui/dashed-separator';
@@ -67,7 +67,7 @@ export default function MemoryDetailScreen() {
 
     // Item comments modal
     const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
-    const [sendingItemComment, setSendingItemComment] = useState(false);
+    const [, setSendingItemComment] = useState(false);
 
     const {
         results: itemComments,

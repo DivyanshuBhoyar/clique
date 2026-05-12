@@ -1,5 +1,4 @@
 import { useRouter } from 'expo-router';
-import { useCallback } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 
 import { WallCard } from '@/components/memories/wall-card';

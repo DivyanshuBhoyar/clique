@@ -1,5 +1,6 @@
 import { useMutation } from 'convex/react';
 import { useRouter } from 'expo-router';
+import { Lock } from 'lucide-react-native';
 import { useState } from 'react';
 import {
     KeyboardAvoidingView,
@@ -11,12 +12,11 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Lock } from 'lucide-react-native';
 
-import { ScreenHeader } from '@/components/ui/screen-header';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Radius, Spacing, Typography, Weight } from '@/constants/theme';
+import { ScreenHeader } from '@/components/ui/screen-header';
+import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '../../../convex/_generated/api';

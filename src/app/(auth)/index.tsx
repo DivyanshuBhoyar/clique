@@ -56,7 +56,7 @@ import { ThemedView } from '@/components/themed-view';
 import { DashedSeparator } from '@/components/ui/dashed-separator';
 import { Fab } from '@/components/ui/fab';
 import { LoadingState } from '@/components/ui/loading-state';
-import { LineHeight, Radius, Shadows, Spacing, Typography, Weight } from '@/constants/theme';
+import { Radius, Shadows, Spacing, Typography, Weight } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { useTheme } from '@/hooks/use-theme';

@@ -1,22 +1,42 @@
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
+import { useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring } from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
-import { LineHeight, Spacing, Typography, Weight } from '@/constants/theme';
+import { LineHeight, Radius, Spacing, Typography, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ChatHeaderProps {
   channelName: string;
   onlineCount?: number;
+  otherUnreadCount?: number;
   onTitlePress?: () => void;
 }
 
-export function ChatHeader({ channelName, onlineCount, onTitlePress }: ChatHeaderProps) {
+export function ChatHeader({ channelName, onlineCount, otherUnreadCount = 0, onTitlePress }: ChatHeaderProps) {
   const theme = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const previousUnreadCount = useRef(otherUnreadCount);
+  const badgeScale = useSharedValue(1);
+  const badgeAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: badgeScale.value }],
+  }));
+
+  useEffect(() => {
+    if (otherUnreadCount > previousUnreadCount.current) {
+      badgeScale.value = withSequence(
+        withSpring(1.16, { damping: 8, stiffness: 280 }),
+        withSpring(1, { damping: 10, stiffness: 260 })
+      );
+    }
+    previousUnreadCount.current = otherUnreadCount;
+  }, [badgeScale, otherUnreadCount]);
+
+  const displayUnreadCount = otherUnreadCount > 99 ? '99+' : String(otherUnreadCount);
 
   return (
     <View
@@ -47,9 +67,28 @@ export function ChatHeader({ channelName, onlineCount, onTitlePress }: ChatHeade
         accessibilityLabel="Switch channel"
         style={styles.titleButton}
       >
-        <ThemedText style={[styles.title, { color: theme.text }]} numberOfLines={1}>
-          {channelName} ▾
-        </ThemedText>
+        <View style={styles.titleRow}>
+          <ThemedText style={[styles.title, { color: theme.text }]} numberOfLines={1}>
+            {channelName} ▾
+          </ThemedText>
+          {otherUnreadCount > 0 ? (
+            <Animated.View
+              style={[
+                styles.unreadBadge,
+                {
+                  backgroundColor: theme.accent,
+                  borderColor: theme.outline,
+                  shadowColor: theme.shadow,
+                },
+                badgeAnimatedStyle,
+              ]}
+            >
+              <ThemedText type="caption" style={[styles.unreadText, { color: theme.text }]}>
+                {displayUnreadCount}
+              </ThemedText>
+            </Animated.View>
+          ) : null}
+        </View>
         {onlineCount != null && onlineCount > 0 ? (
           <ThemedText type="caption" style={[styles.subtitle, { color: theme.textTertiary }]}>
             {onlineCount} online
@@ -88,11 +127,36 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: Spacing.sm,
   },
+  titleRow: {
+    maxWidth: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+  },
   title: {
+    flexShrink: 1,
     fontSize: Typography.body,
     lineHeight: LineHeight.body,
     fontWeight: Weight.bold,
     textAlign: 'center',
+  },
+  unreadBadge: {
+    minWidth: 24,
+    height: 22,
+    paddingHorizontal: Spacing.xs,
+    borderRadius: Radius.full,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 2,
+  },
+  unreadText: {
+    fontWeight: Weight.black,
+    lineHeight: 14,
   },
   subtitle: {
     marginTop: 1,

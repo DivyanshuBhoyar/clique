@@ -5,7 +5,6 @@ import { useCallback, useState } from 'react';
 import {
     ActionSheetIOS,
     Alert,
-    FlatList,
     KeyboardAvoidingView,
     Platform,
     StyleSheet,
@@ -28,7 +27,6 @@ import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { useBookmarkToggle } from '@/hooks/use-bookmark-mutation';
 import { useReactionPicker } from '@/hooks/use-reaction-picker';
-import { useTheme } from '@/hooks/use-theme';
 import { useCommentVote, useDropVote } from '@/hooks/use-vote-mutation';
 
 const COMMENTS_PAGE_SIZE = 20;
@@ -36,7 +34,6 @@ const COMMENTS_PAGE_SIZE = 20;
 export default function DropDetailScreen() {
     const { dropId } = useGlobalSearchParams<{ dropId: string }>();
     const router = useRouter();
-    const theme = useTheme();
     const [commentText, setCommentText] = useState('');
     const [isSendingComment, setIsSendingComment] = useState(false);
 

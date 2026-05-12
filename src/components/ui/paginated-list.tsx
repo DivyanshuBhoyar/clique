@@ -1,5 +1,5 @@
-import { ActivityIndicator, FlatList, StyleSheet, type ListRenderItem, type ListRenderItemInfo, type ViewStyle } from 'react-native';
 import type React from 'react';
+import { ActivityIndicator, FlatList, StyleSheet, type ListRenderItem, type ViewStyle } from 'react-native';
 
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';

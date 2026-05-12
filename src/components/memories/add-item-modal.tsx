@@ -1,4 +1,3 @@
-import { Image } from 'expo-image';
 import { useCallback, useState } from 'react';
 import { Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';

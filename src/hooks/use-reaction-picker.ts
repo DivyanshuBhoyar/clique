@@ -1,7 +1,5 @@
 import { useCallback, useState } from 'react';
 
-import { EmojiPickerModal } from '@/components/ui/emoji-picker-modal';
-
 interface UseReactionPickerReturn {
   targetId: string | null;
   openPicker: (id: string) => void;

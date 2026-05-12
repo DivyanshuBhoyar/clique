@@ -13,13 +13,6 @@ const TYPE_EMOJI: Record<string, string> = {
   ephemeral: '⏳',
 };
 
-function iconBgForType(type: string) {
-  const theme = useTheme();
-  if (type === 'mood') return theme.surfaceWarm;
-  if (type === 'topic') return theme.accentSoft;
-  return theme.errorSoft;
-}
-
 interface ChannelCardProps {
   channel: {
     _id: string;
@@ -34,7 +27,11 @@ interface ChannelCardProps {
 export function ChannelCard({ channel, squadId, type }: ChannelCardProps) {
   const theme = useTheme();
   const emoji = TYPE_EMOJI[type] ?? '💬';
-  const iconBg = iconBgForType(type);
+  const iconBg = type === 'mood'
+    ? theme.surfaceWarm
+    : type === 'topic'
+      ? theme.accentSoft
+      : theme.errorSoft;
   const preview = channel.recentMessages?.[0];
 
   return (

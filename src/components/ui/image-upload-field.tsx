@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Radius, Spacing, Weight, Typography } from '@/constants/theme';
+import { Radius, Typography, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 interface ImageUploadFieldProps {

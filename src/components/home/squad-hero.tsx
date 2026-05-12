@@ -1,7 +1,6 @@
 import { ThemedText } from '@/components/themed-text';
 import { UserAvatar } from '@/components/user-avatar';
 import { Radius, Spacing, Typography, Weight } from '@/constants/theme';
-import { Id } from '@/convex/_generated/dataModel';
 import { useTheme } from '@/hooks/use-theme';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 

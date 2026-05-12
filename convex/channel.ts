@@ -1,8 +1,24 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireMembership } from "./users";
+import { enrichUser, requireMembership } from "./users";
 import { assertLength } from "./validators";
+
+const UNREAD_COUNT_LIMIT = 100;
+const UNREAD_CHANNEL_LIMIT = 50;
+
+function isExpiredEphemeral(channel: { type: string; expiresAt?: number }) {
+    return channel.type === "ephemeral" && channel.expiresAt
+        ? Date.now() > channel.expiresAt
+        : false;
+}
+
+function getMessagePreview(message: { type: string; content: string; deleted?: boolean }) {
+    if (message.deleted) return "This message was deleted";
+    if (message.type === "image") return message.content ? `📷 ${message.content}` : "📷 Photo";
+    if (message.type === "system") return message.content;
+    return message.content;
+}
 
 export const getChannels = query({
     args: { squadId: v.id("squads") },
@@ -74,6 +90,81 @@ export const getChannelsWithUnread = query({
         );
 
         return enriched;
+    },
+});
+
+export const getOtherChannelUnreadSummary = query({
+    args: {
+        squadId: v.id("squads"),
+        excludeChannelId: v.id("channels"),
+    },
+    handler: async (ctx, args) => {
+        const { userId } = await requireMembership(ctx, args.squadId);
+
+        const channels = await ctx.db
+            .query("channels")
+            .withIndex("by_squad", (q) => q.eq("squadId", args.squadId))
+            .take(UNREAD_CHANNEL_LIMIT);
+
+        const visibleChannels = channels.filter(
+            (channel) => channel._id !== args.excludeChannelId && !isExpiredEphemeral(channel)
+        );
+
+        const readPairs = await Promise.all(
+            visibleChannels.map(async (channel) => {
+                const readStatus = await ctx.db
+                    .query("channelReadStatus")
+                    .withIndex("by_user_channel", (q) =>
+                        q.eq("userId", userId).eq("channelId", channel._id)
+                    )
+                    .first();
+
+                return [channel._id, readStatus?.lastReadAt ?? 0] as const;
+            })
+        );
+
+        const readMap = new Map(readPairs);
+
+        const summaries = await Promise.all(
+            visibleChannels
+                .map(async (channel) => {
+                    const lastReadAt = readMap.get(channel._id) ?? 0;
+                    const unreadMessages = await ctx.db
+                        .query("messages")
+                        .withIndex("by_channel", (q) =>
+                            q.eq("channelId", channel._id).gt("createdAt", lastReadAt)
+                        )
+                        .order("desc")
+                        .take(UNREAD_COUNT_LIMIT);
+
+                    const latestMessage = unreadMessages[0];
+                    if (!latestMessage) return null;
+
+                    const { avatarUrl } = await enrichUser(ctx, latestMessage.userId, args.squadId);
+
+                    return {
+                        channelId: channel._id,
+                        channelName: channel.name,
+                        channelType: channel.type,
+                        unreadCount: unreadMessages.length,
+                        hasMoreUnread: unreadMessages.length === UNREAD_COUNT_LIMIT,
+                        lastMessageAt: latestMessage.createdAt,
+                        lastMessagePreview: getMessagePreview(latestMessage),
+                        lastMessageNickname: latestMessage.nickname ?? "Someone",
+                        lastMessageAvatarUrl: avatarUrl,
+                    };
+                })
+        );
+
+        const channelsWithUnread = summaries
+            .filter((summary): summary is NonNullable<typeof summary> => summary !== null)
+            .sort((a, b) => b.lastMessageAt - a.lastMessageAt);
+
+        return {
+            activeChannelId: args.excludeChannelId,
+            totalUnread: channelsWithUnread.reduce((total, channel) => total + channel.unreadCount, 0),
+            channels: channelsWithUnread,
+        };
     },
 });
 

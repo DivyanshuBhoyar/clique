@@ -13,7 +13,6 @@ import { Fab } from '@/components/ui/fab';
 import { LoadingState } from '@/components/ui/loading-state';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { SegmentedControl } from '@/components/ui/segmented-control';
-import { Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { useBookmarkToggle } from '@/hooks/use-bookmark-mutation';
