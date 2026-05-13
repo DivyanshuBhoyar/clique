@@ -1,37 +1,27 @@
 import { useMutation, usePaginatedQuery, useQuery } from 'convex/react';
-import { Image } from 'expo-image';
 import { useGlobalSearchParams, useRouter } from 'expo-router';
-import { Heart, MoreHorizontal } from 'lucide-react-native';
+import { MoreHorizontal } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Alert } from 'react-native';
 
 import { ImageViewer } from '@/components/image-viewer';
 import { AddItemModal } from '@/components/memories/add-item-modal';
 import { ItemCommentsModal } from '@/components/memories/item-comments-modal';
-import { ScrapbookSection } from '@/components/memories/scrapbook-section';
-import { WallQuoteCard } from '@/components/memories/wall-quote-card';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { DashedSeparator } from '@/components/ui/dashed-separator';
+import { MemoryCommentCard } from '@/components/memories/memory-comment-card';
+import { MemoryDetailHeader } from '@/components/memories/memory-detail-header';
+import { CommentInputBar } from '@/components/ui/comment-input-bar';
+import { CommentThreadLayout } from '@/components/ui/comment-thread-layout';
+import { DetailScreenContainer } from '@/components/ui/detail-screen-container';
 import { EmojiPickerModal } from '@/components/ui/emoji-picker-modal';
-import { EmojiReactionStrip } from '@/components/ui/emoji-reaction-strip';
 import { LoadingState } from '@/components/ui/loading-state';
 import { NotFoundState } from '@/components/ui/not-found-state';
-import { PaginatedList } from '@/components/ui/paginated-list';
-import { ScreenHeader } from '@/components/ui/screen-header';
-import { UserAvatar } from '@/components/user-avatar';
-import { LineHeight, Spacing, Typography, Weight } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
-import { useTheme } from '@/hooks/use-theme';
-import { formatRelativeTime } from '@/utils/time';
 
 const COMMENTS_PAGE_SIZE = 20;
 
 export default function MemoryDetailScreen() {
     const { memoryId } = useGlobalSearchParams<{ memoryId: string }>();
-    const theme = useTheme();
     const router = useRouter();
 
     const currentUser = useQuery(api.users.current);
@@ -157,7 +147,6 @@ export default function MemoryDetailScreen() {
 
     const { memory, nickname, reactions, items, coverUrl } = detail;
     const isWall = memory.type === 'wall';
-    const isEvent = memory.type === 'event';
     const totalComments = comments.length;
 
     const groupedReactions = (() => {
@@ -172,270 +161,95 @@ export default function MemoryDetailScreen() {
     })();
 
     return (
-        <ThemedView style={styles.container}>
-            <SafeAreaView style={styles.safeArea} edges={[]}>
-                <ScreenHeader
-                    title={isWall ? 'Memory 💛' : (detail.memory.title ?? 'Event 🎉')}
-                    onBack={() => router.back()}
-                    rightIcon={MoreHorizontal}
-                    onRightPress={isOwner ? handleDelete : undefined}
-                />
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                    style={styles.inner}
-                >
-                    <PaginatedList
-                        data={comments}
-                        keyExtractor={(item) => item._id}
-                        status={status}
-                        loadMore={loadMore}
-                        pageSize={COMMENTS_PAGE_SIZE}
-                        contentContainerStyle={styles.listContent}
-                        ListHeaderComponent={
-                            <View style={styles.header}>
-                                {isWall && (
-                                    <WallQuoteCard content={memory.content ?? ''} title={memory.title} />
-                                )}
-
-                                {isEvent && coverUrl && (
-                                    <Pressable onPress={() => setCoverViewerVisible(true)}>
-                                        <Image source={{ uri: coverUrl }} style={styles.coverImage} contentFit="cover" />
-                                    </Pressable>
-                                )}
-                                {isEvent && memory.title && (
-                                    <ThemedText style={styles.eventTitle}>{memory.title}</ThemedText>
-                                )}
-
-                                <View style={styles.authorRow}>
-                                    <UserAvatar uri={null} size={28} fallbackText={nickname} />
-                                    <ThemedText type="small" style={{ fontWeight: Weight.semibold }}>@{nickname}</ThemedText>
-                                    <ThemedText type="caption" themeColor="textSecondary">
-                                        {'·'} {formatRelativeTime(memory.createdAt)}
-                                    </ThemedText>
-                                </View>
-
-                                <DashedSeparator marginVertical={Spacing.sm} />
-
-                                <EmojiReactionStrip
-                                    reactions={groupedReactions}
-                                    onToggle={handleToggleReaction}
-                                    onAdd={() => setReactionTarget({ type: 'memory', id: memory._id })}
-                                    wrap
-                                />
-
-                                {totalComments > 0 && (
-                                    <ThemedText type="small" style={[styles.commentCountLink, { color: theme.accent }]}>
-                                        {totalComments} comment{totalComments !== 1 ? 's' : ''} 💬
-                                    </ThemedText>
-                                )}
-
-                                {isEvent && (
-                                    <ScrapbookSection
-                                        items={items.map((item: any) => ({
-                                            _id: item._id,
-                                            type: item.type,
-                                            content: item.content,
-                                            caption: item.caption ?? undefined,
-                                            photoUrl: item.photoUrl,
-                                            avatarUrl: item.avatarUrl,
-                                            nickname: item.nickname,
-                                            createdAt: item.createdAt,
-                                            reactions: item.reactions,
-                                            commentCount: item.commentCount,
-                                        }))}
-                                        currentUserId={currentUser?._id}
-                                        onToggleItemReaction={handleToggleItemReaction}
-                                        onAddItemReaction={(itemId) => setReactionTarget({ type: 'item', id: itemId })}
-                                        onAddItem={() => setShowAddItem(true)}
-                                        onViewItemComments={(itemId) => setExpandedItemId(itemId)}
-                                    />
-                                )}
-
-                                <ThemedText style={styles.commentsHeading}>
-                                    {isWall ? 'Comments' : 'Reflections'}
-                                </ThemedText>
-                            </View>
-                        }
-                        renderItem={({ item }) => (
-                            <View style={[styles.commentCard, { backgroundColor: theme.surface, borderColor: theme.outline }]}>
-                                <View style={styles.commentHeader}>
-                                    <UserAvatar uri={item.avatarUrl} size={24} fallbackText={item.nickname} />
-                                    <ThemedText type="smallBold">@{item.nickname}</ThemedText>
-                                    <ThemedText type="caption" themeColor="textSecondary" style={{ marginLeft: 'auto' }}>
-                                        {formatRelativeTime(item.createdAt)}
-                                    </ThemedText>
-                                </View>
-                                <ThemedText style={styles.commentContent}>{item.content}</ThemedText>
-                                <View style={styles.commentFooter}>
-                                    <View style={styles.heartRow}>
-                                        <Heart size={13} color={theme.accent} strokeWidth={2} />
-                                        <ThemedText type="caption" style={{ color: theme.accent, fontWeight: Weight.semibold }}>0</ThemedText>
-                                    </View>
-                                </View>
-                            </View>
-                        )}
+        <DetailScreenContainer
+            title={isWall ? 'Memory 💛' : (detail.memory.title ?? 'Event 🎉')}
+            onBack={() => router.back()}
+            rightIcon={MoreHorizontal}
+            onRightPress={isOwner ? handleDelete : undefined}
+        >
+            <CommentThreadLayout
+                comments={comments}
+                commentCount={totalComments}
+                status={status}
+                loadMore={loadMore}
+                pageSize={COMMENTS_PAGE_SIZE}
+                keyExtractor={(item) => item._id}
+                title={isWall ? 'Comments' : 'Reflections'}
+                emptyText={isWall ? 'No comments yet. Add the first thought.' : 'No reflections yet. Leave the first one.'}
+                header={
+                    <MemoryDetailHeader
+                        memory={memory}
+                        nickname={nickname}
+                        reactions={groupedReactions}
+                        items={items}
+                        coverUrl={coverUrl}
+                        currentUserId={currentUser?._id}
+                        commentCount={totalComments}
+                        onOpenCover={() => setCoverViewerVisible(true)}
+                        onToggleReaction={handleToggleReaction}
+                        onAddMemoryReaction={() => setReactionTarget({ type: 'memory', id: memory._id })}
+                        onToggleItemReaction={handleToggleItemReaction}
+                        onAddItemReaction={(itemId) => setReactionTarget({ type: 'item', id: itemId })}
+                        onAddItem={() => setShowAddItem(true)}
+                        onViewItemComments={(itemId) => setExpandedItemId(itemId)}
                     />
+                }
+                inputBar={
+                    <CommentInputBar
+                        value={commentText}
+                        onChangeText={setCommentText}
+                        onSubmit={handleSendComment}
+                        sending={sending}
+                        placeholder={isWall ? 'Add a comment…' : 'Add a reflection…'}
+                        avatarUrl={(currentUser as any)?.avatarUrl}
+                        fallbackText={(currentUser as any)?.nickname ?? 'Me'}
+                    />
+                }
+                renderItem={({ item }) => (
+                    <MemoryCommentCard
+                        avatarUrl={item.avatarUrl}
+                        nickname={item.nickname}
+                        content={item.content}
+                        createdAt={item.createdAt}
+                    />
+                )}
+            >
+                <AddItemModal
+                    visible={showAddItem}
+                    onClose={() => setShowAddItem(false)}
+                    onAdd={handleAddItem}
+                />
 
-                    <View style={[styles.inputRow, { borderTopColor: theme.outlineLight, backgroundColor: theme.background }]}>
-                        <TextInput
-                            value={commentText}
-                            onChangeText={setCommentText}
-                            placeholder={isWall ? 'Add a comment…' : 'Add a reflection…'}
-                            placeholderTextColor={theme.placeholder}
-                            style={[styles.input, { color: theme.text, backgroundColor: theme.surface, borderColor: theme.outline }]}
-                            returnKeyType="send"
-                            onSubmitEditing={handleSendComment}
-                        />
-                        <Pressable
-                            onPress={handleSendComment}
-                            disabled={!commentText.trim() || sending}
-                            style={[
-                                styles.sendBtn,
-                                { backgroundColor: commentText.trim() && !sending ? theme.accent : theme.backgroundElement, borderColor: theme.outline },
-                                (!commentText.trim() || sending) && styles.sendDisabled,
-                            ]}
-                        >
-                            <ThemedText style={[styles.sendText, { color: commentText.trim() && !sending ? theme.text : theme.textTertiary }]}>
-                                {sending ? '…' : 'Send'}
-                            </ThemedText>
-                        </Pressable>
-                    </View>
-                </KeyboardAvoidingView>
-            </SafeAreaView>
+                <ItemCommentsModal
+                    visible={expandedItemId !== null}
+                    comments={itemComments}
+                    status={itemCommentsStatus}
+                    loadMore={loadMoreItemComments}
+                    onClose={() => setExpandedItemId(null)}
+                    onSend={handleSendItemComment}
+                />
 
-            <AddItemModal
-                visible={showAddItem}
-                onClose={() => setShowAddItem(false)}
-                onAdd={handleAddItem}
-            />
+                <ImageViewer
+                    visible={coverViewerVisible}
+                    uri={coverUrl ?? null}
+                    onClose={() => setCoverViewerVisible(false)}
+                />
 
-            <ItemCommentsModal
-                visible={expandedItemId !== null}
-                comments={itemComments}
-                status={itemCommentsStatus}
-                loadMore={loadMoreItemComments}
-                onClose={() => setExpandedItemId(null)}
-                onSend={handleSendItemComment}
-            />
-
-            <ImageViewer
-                visible={coverViewerVisible}
-                uri={coverUrl ?? null}
-                onClose={() => setCoverViewerVisible(false)}
-            />
-
-            <EmojiPickerModal
-                visible={reactionTarget !== null}
-                title={reactionTarget?.type === 'item' ? 'React to memory item' : 'React to memory'}
-                onClose={() => setReactionTarget(null)}
-                onSelect={(emoji) => {
-                    if (!reactionTarget) return;
-                    if (reactionTarget.type === 'memory') {
-                        toggleReaction({ memoryId: reactionTarget.id as Id<'memories'>, emoji });
-                    } else {
-                        toggleItemReaction({ itemId: reactionTarget.id as Id<'memoryItems'>, emoji });
-                    }
-                    setReactionTarget(null);
-                }}
-            />
-        </ThemedView>
+                <EmojiPickerModal
+                    visible={reactionTarget !== null}
+                    title={reactionTarget?.type === 'item' ? 'React to memory item' : 'React to memory'}
+                    onClose={() => setReactionTarget(null)}
+                    onSelect={(emoji) => {
+                        if (!reactionTarget) return;
+                        if (reactionTarget.type === 'memory') {
+                            toggleReaction({ memoryId: reactionTarget.id as Id<'memories'>, emoji });
+                        } else {
+                            toggleItemReaction({ itemId: reactionTarget.id as Id<'memoryItems'>, emoji });
+                        }
+                        setReactionTarget(null);
+                    }}
+                />
+            </CommentThreadLayout>
+        </DetailScreenContainer>
     );
 }
-
-const styles = StyleSheet.create({
-    container: { flex: 1 },
-    safeArea: { flex: 1 },
-    inner: { flex: 1 },
-    header: {
-        paddingHorizontal: Spacing.lg,
-        paddingTop: Spacing.md,
-        gap: Spacing.sm,
-    },
-    authorRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: Spacing.xs,
-        paddingVertical: Spacing.xs,
-    },
-    commentCountLink: {
-        fontWeight: Weight.semibold,
-        marginTop: Spacing.xs,
-    },
-    eventTitle: {
-        fontSize: Typography.subtitle,
-        fontWeight: Weight.extrabold,
-    },
-    coverImage: {
-        height: 220,
-        borderRadius: 16,
-        width: '100%',
-    },
-    commentsHeading: {
-        fontSize: Typography.body,
-        fontWeight: Weight.bold,
-        letterSpacing: 0.3,
-        marginTop: Spacing.lg,
-    },
-    listContent: {
-        paddingHorizontal: Spacing.lg,
-        paddingBottom: Spacing.lg,
-        gap: Spacing.sm,
-    },
-    commentCard: {
-        padding: Spacing.md,
-        borderWidth: 1.5,
-        borderRadius: 12,
-        gap: Spacing.xs,
-    },
-    commentHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: Spacing.xs,
-    },
-    commentFooter: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginTop: Spacing.xs,
-    },
-    heartRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-    },
-    commentContent: {
-        fontSize: Typography.body,
-        lineHeight: LineHeight.subtitle,
-    },
-    inputRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: Spacing.md,
-        paddingVertical: Spacing.sm,
-        borderTopWidth: 1.5,
-        gap: Spacing.sm,
-    },
-    input: {
-        flex: 1,
-        minHeight: 38,
-        paddingHorizontal: Spacing.md,
-        borderRadius: 9999,
-        borderWidth: 1.5,
-        fontSize: Typography.body,
-    },
-    sendBtn: {
-        paddingHorizontal: Spacing.md,
-        paddingVertical: Spacing.sm,
-        borderRadius: 9999,
-        borderWidth: 1.5,
-        minHeight: 38,
-        justifyContent: 'center',
-    },
-    sendDisabled: {
-        opacity: 0.4,
-    },
-    sendText: {
-        fontSize: Typography.small,
-        fontWeight: Weight.bold,
-    },
-});

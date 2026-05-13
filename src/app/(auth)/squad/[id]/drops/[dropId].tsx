@@ -5,24 +5,17 @@ import { useCallback, useState } from 'react';
 import {
     ActionSheetIOS,
     Alert,
-    KeyboardAvoidingView,
     Platform,
-    StyleSheet,
-    View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DropCard } from '@/components/drops/drop-card';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { CommentCard } from '@/components/ui/comment-card';
 import { CommentInputBar } from '@/components/ui/comment-input-bar';
+import { CommentThreadLayout } from '@/components/ui/comment-thread-layout';
+import { DetailScreenContainer } from '@/components/ui/detail-screen-container';
 import { EmojiPickerModal } from '@/components/ui/emoji-picker-modal';
 import { LoadingState } from '@/components/ui/loading-state';
 import { NotFoundState } from '@/components/ui/not-found-state';
-import { PaginatedList } from '@/components/ui/paginated-list';
-import { ScreenHeader } from '@/components/ui/screen-header';
-import { Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { useBookmarkToggle } from '@/hooks/use-bookmark-mutation';
@@ -158,81 +151,41 @@ export default function DropDetailScreen() {
     }
 
     return (
-        <ThemedView style={styles.container}>
-            <SafeAreaView style={styles.safeArea} edges={[]}>
-                <ScreenHeader
-                    title="Drop 🎁"
-                    onBack={() => router.back()}
-                    rightIcon={isMyDrop ? MoreHorizontal : undefined}
-                    onRightPress={isMyDrop ? handleMorePress : undefined}
-                />
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                    style={styles.flex}
-                >
-                    <PaginatedList
-                        data={comments}
-                        keyExtractor={(item) => item._id}
-                        status={status}
-                        loadMore={loadMore}
-                        pageSize={COMMENTS_PAGE_SIZE}
-                        contentContainerStyle={styles.listContent}
-                        ListHeaderComponent={
-                            <View style={styles.header}>
-                                <DropCard
-                                    dropId={drop._id}
-                                    category={drop.category}
-                                    nickname={drop.nickname}
-                                    avatarUrl={drop.avatarUrl}
-                                    content={drop.content}
-                                    createdAt={drop.createdAt}
-                                    commentCount={drop.commentCount}
-                                    reactions={drop.reactions}
-                                    currentUserId={currentUser?._id}
-                                    onToggleReaction={handleToggleReaction}
-                                    onAddReaction={() => reactionPicker.openPicker(drop._id)}
-                                    upvotes={drop.upvotes}
-                                    downvotes={drop.downvotes}
-                                    userVote={drop.userVote}
-                                    onVote={handleDropVote}
-                                    isBookmarked={drop.isBookmarked}
-                                    onToggleBookmark={(targetDropId) => bookmarkToggle({ targetType: 'drop', dropId: targetDropId as Id<'drops'> })}
-                                />
-
-                                <View style={styles.commentsTitleRow}>
-                                    <ThemedText type="bodyBold" selectable>
-                                        Comments
-                                    </ThemedText>
-                                    <ThemedText type="caption" themeColor="textSecondary" selectable>
-                                        {drop.commentCount === 1 ? '1 comment' : `${drop.commentCount} comments`}
-                                    </ThemedText>
-                                </View>
-                            </View>
-                        }
-                        ListEmptyComponent={
-                            <View style={styles.emptyComments}>
-                                <ThemedText type="small" themeColor="textSecondary" selectable>
-                                    No comments yet. Start the conversation.
-                                </ThemedText>
-                            </View>
-                        }
-                        renderItem={({ item }) => (
-                            <CommentCard
-                                avatarUrl={item.avatarUrl}
-                                nickname={item.nickname}
-                                content={item.content}
-                                createdAt={item.createdAt}
-                                upvotes={item.upvotes}
-                                downvotes={item.downvotes}
-                                userVote={item.userVote}
-                                isOwn={item.userId === (currentUser as any)?._id}
-                                onVote={(value) => handleCommentVote(item._id, value)}
-                                onDelete={() => handleCommentDelete(item._id, true)}
-                                onLongPress={() => handleCommentDelete(item._id, item.userId === (currentUser as any)?._id)}
-                            />
-                        )}
+        <DetailScreenContainer
+            title="Drop 🎁"
+            onBack={() => router.back()}
+            rightIcon={isMyDrop ? MoreHorizontal : undefined}
+            onRightPress={isMyDrop ? handleMorePress : undefined}
+        >
+            <CommentThreadLayout
+                comments={comments}
+                commentCount={drop.commentCount}
+                status={status}
+                loadMore={loadMore}
+                pageSize={COMMENTS_PAGE_SIZE}
+                keyExtractor={(item) => item._id}
+                header={
+                    <DropCard
+                        dropId={drop._id}
+                        category={drop.category}
+                        nickname={drop.nickname}
+                        avatarUrl={drop.avatarUrl}
+                        content={drop.content}
+                        createdAt={drop.createdAt}
+                        commentCount={drop.commentCount}
+                        reactions={drop.reactions}
+                        currentUserId={currentUser?._id}
+                        onToggleReaction={handleToggleReaction}
+                        onAddReaction={() => reactionPicker.openPicker(drop._id)}
+                        upvotes={drop.upvotes}
+                        downvotes={drop.downvotes}
+                        userVote={drop.userVote}
+                        onVote={handleDropVote}
+                        isBookmarked={drop.isBookmarked}
+                        onToggleBookmark={(targetDropId) => bookmarkToggle({ targetType: 'drop', dropId: targetDropId as Id<'drops'> })}
                     />
-
+                }
+                inputBar={
                     <CommentInputBar
                         value={commentText}
                         onChangeText={setCommentText}
@@ -241,36 +194,25 @@ export default function DropDetailScreen() {
                         avatarUrl={(currentUser as any)?.avatarUrl}
                         fallbackText={(currentUser as any)?.nickname ?? 'Me'}
                     />
-
-                    <EmojiPickerModal {...reactionPicker.pickerProps} />
-                </KeyboardAvoidingView>
-            </SafeAreaView>
-        </ThemedView>
+                }
+                renderItem={({ item }) => (
+                    <CommentCard
+                        avatarUrl={item.avatarUrl}
+                        nickname={item.nickname}
+                        content={item.content}
+                        createdAt={item.createdAt}
+                        upvotes={item.upvotes}
+                        downvotes={item.downvotes}
+                        userVote={item.userVote}
+                        isOwn={item.userId === (currentUser as any)?._id}
+                        onVote={(value) => handleCommentVote(item._id, value)}
+                        onDelete={() => handleCommentDelete(item._id, true)}
+                        onLongPress={() => handleCommentDelete(item._id, item.userId === (currentUser as any)?._id)}
+                    />
+                )}
+            >
+                <EmojiPickerModal {...reactionPicker.pickerProps} />
+            </CommentThreadLayout>
+        </DetailScreenContainer>
     );
 }
-
-const styles = StyleSheet.create({
-    container: { flex: 1 },
-    safeArea: { flex: 1 },
-    flex: { flex: 1 },
-    header: {
-        paddingHorizontal: Spacing.lg,
-        paddingTop: Spacing.md,
-        gap: Spacing.md,
-    },
-    commentsTitleRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: Spacing.md,
-        paddingTop: Spacing.xs,
-        paddingBottom: Spacing.xs,
-    },
-    listContent: {
-        paddingBottom: Spacing.xxxl,
-    },
-    emptyComments: {
-        padding: Spacing.xxl,
-        alignItems: 'center',
-    },
-});
