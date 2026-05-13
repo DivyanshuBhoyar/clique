@@ -55,6 +55,7 @@ export const sendImageMessage = mutation({
         channelId: v.id("channels"),
         storageId: v.id("_storage"),
         content: v.optional(v.string()),
+        parentMessageId: v.optional(v.id("messages")),
     },
 
     handler: async (ctx, args) => {
@@ -71,6 +72,13 @@ export const sendImageMessage = mutation({
             throw new Error("This room has expired");
         }
 
+        if (args.parentMessageId) {
+            const parent = await ctx.db.get(args.parentMessageId);
+            if (!parent || parent.channelId !== args.channelId) {
+                throw new Error("Invalid parent");
+            }
+        }
+
         return await ctx.db.insert("messages", {
             squadId: args.squadId,
             channelId: args.channelId,
@@ -79,6 +87,7 @@ export const sendImageMessage = mutation({
             type: "image",
             storageId: args.storageId,
             nickname: membership.nickname,
+            parentMessageId: args.parentMessageId,
             createdAt: Date.now(),
         });
     },

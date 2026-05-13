@@ -1,6 +1,6 @@
 import { Radius, Spacing, Typography, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { Bookmark } from 'lucide-react-native';
+import { Bookmark, Reply } from 'lucide-react-native';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 interface MessageActionsProps {
@@ -10,6 +10,7 @@ interface MessageActionsProps {
     onClose: () => void;
     onDelete: () => void;
     onReact: (emoji: string) => void;
+    onReply?: () => void;
     onBookmark?: () => void;
     onMoreReactions?: () => void;
 }
@@ -23,6 +24,7 @@ export function MessageActions({
     onClose,
     onDelete,
     onReact,
+    onReply,
     onBookmark,
     onMoreReactions,
 }: MessageActionsProps) {
@@ -57,6 +59,20 @@ export function MessageActions({
                             </Pressable>
                         )}
                     </View>
+
+                    {onReply && (
+                        <Pressable
+                            onPress={() => { onReply(); onClose(); }}
+                            style={[styles.actionRow, { borderBottomColor: theme.outlineLight }]}
+                            accessibilityRole="button"
+                            accessibilityLabel="Reply to message"
+                        >
+                            <Reply size={18} color={theme.text} strokeWidth={2} />
+                            <Text style={{ color: theme.text, fontSize: Typography.body, fontWeight: Weight.medium }}>
+                                Reply
+                            </Text>
+                        </Pressable>
+                    )}
 
                     {onBookmark && (
                         <Pressable

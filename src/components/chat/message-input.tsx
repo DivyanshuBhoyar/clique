@@ -1,19 +1,27 @@
+import { Plus, Send, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { ActivityIndicator, Image, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
-import { Plus, Send, X } from 'lucide-react-native';
 
+import { ThemedText } from '@/components/themed-text';
 import { LineHeight, Radius, Spacing, Typography } from '@/constants/theme';
+import { Id } from '@/convex/_generated/dataModel';
 import { useImageUpload } from '@/hooks/use-image-upload';
 import { useTheme } from '@/hooks/use-theme';
-import { Id } from '@/convex/_generated/dataModel';
+
+interface ReplyTarget {
+  nickname?: string;
+  content: string;
+}
 
 interface MessageInputProps {
   onSend: (content: string) => Promise<void>;
   onSendImage: (storageId: Id<"_storage">, caption?: string) => Promise<void>;
   onTyping?: () => void;
+  replyTo?: ReplyTarget | null;
+  onCancelReply?: () => void;
 }
 
-export function MessageInput({ onSend, onSendImage, onTyping }: MessageInputProps) {
+export function MessageInput({ onSend, onSendImage, onTyping, replyTo, onCancelReply }: MessageInputProps) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const theme = useTheme();
@@ -51,6 +59,29 @@ export function MessageInput({ onSend, onSendImage, onTyping }: MessageInputProp
         },
       ]}
     >
+      {replyTo ? (
+        <View style={[styles.replyComposer, { borderBottomColor: theme.outlineLight }]}>
+          <View style={[styles.replyBar, { backgroundColor: theme.accent }]} />
+          <View style={styles.replyCopy}>
+            <ThemedText type="caption" style={[styles.replyLabel, { color: theme.textSecondary }]}>
+              Replying to {replyTo.nickname ?? 'someone'}
+            </ThemedText>
+            <ThemedText type="small" style={{ color: theme.text }} numberOfLines={1}>
+              {replyTo.content}
+            </ThemedText>
+          </View>
+          <Pressable
+            onPress={onCancelReply}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel reply"
+            hitSlop={8}
+            style={styles.cancelReplyButton}
+          >
+            <X size={16} color={theme.textSecondary} />
+          </Pressable>
+        </View>
+      ) : null}
+
       {/* Image preview */}
       {previewUri && (
         <View style={styles.previewRow}>
@@ -154,6 +185,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
     paddingTop: Spacing.sm,
+  },
+  replyComposer: {
+    minHeight: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+  },
+  replyBar: {
+    width: 4,
+    alignSelf: 'stretch',
+    borderRadius: Radius.full,
+  },
+  replyCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  replyLabel: {
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  cancelReplyButton: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   previewWrap: {
     position: 'relative',

@@ -13,17 +13,24 @@
  * the newest message appears at the bottom without needing to scroll.
  * The list data is still ordered newest-first from Convex.
  */
-import { Pressable, StyleSheet, View, Image } from 'react-native';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
 
-import { EmojiReactionStrip } from '@/components/ui/emoji-reaction-strip';
 import { ThemedText } from '@/components/themed-text';
+import { EmojiReactionStrip } from '@/components/ui/emoji-reaction-strip';
 import { UserAvatar } from '@/components/user-avatar';
+import { LineHeight, Radius, Spacing, Typography, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { LineHeight, Radius, Spacing, Typography } from '@/constants/theme';
 
 interface Reaction {
   emoji: string;
   userId: string;
+}
+
+interface ParentMessagePreview {
+  nickname?: string;
+  content: string;
+  type?: 'text' | 'image' | 'system';
+  deleted?: boolean;
 }
 
 interface MessageItemProps {
@@ -34,6 +41,7 @@ interface MessageItemProps {
   createdAt: number;
   editedAt?: number;
   deleted?: boolean;
+  parentMessage?: ParentMessagePreview | null;
   isOwnMessage: boolean;
   reactions?: Reaction[];
   currentUserId?: string;
@@ -51,6 +59,7 @@ export function MessageItem({
   createdAt,
   editedAt,
   deleted,
+  parentMessage,
   isOwnMessage,
   reactions = [],
   currentUserId,
@@ -119,6 +128,36 @@ export function MessageItem({
               },
             ]}
           >
+            {parentMessage ? (
+              <View
+                style={[
+                  styles.replyPreview,
+                  {
+                    backgroundColor: isOwnMessage ? 'rgba(255,255,255,0.28)' : theme.backgroundElement,
+                    borderLeftColor: isOwnMessage ? theme.text : theme.accent,
+                  },
+                ]}
+              >
+                <ThemedText
+                  type="caption"
+                  style={[styles.replyName, { color: isOwnMessage ? theme.text : theme.textSecondary }]}
+                  numberOfLines={1}
+                >
+                  ↪ {parentMessage.nickname ?? 'someone'}
+                </ThemedText>
+                <ThemedText
+                  style={[styles.replyContent, { color: isOwnMessage ? theme.text : theme.textSecondary }]}
+                  numberOfLines={2}
+                >
+                  {parentMessage.deleted
+                    ? 'Message deleted'
+                    : parentMessage.type === 'image'
+                      ? parentMessage.content || '📷 Photo'
+                      : parentMessage.content}
+                </ThemedText>
+              </View>
+            ) : null}
+
             {deleted ? (
               <ThemedText
                 type="small"
@@ -211,6 +250,26 @@ const styles = StyleSheet.create({
   bubble: {
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
+  },
+  replyPreview: {
+    marginBottom: Spacing.sm,
+    paddingVertical: 6,
+    paddingHorizontal: Spacing.sm,
+    borderLeftWidth: 3,
+    borderRadius: Radius.sm,
+  },
+  replyName: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: Weight.black,
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+  },
+  replyContent: {
+    marginTop: 2,
+    fontSize: Typography.caption,
+    lineHeight: LineHeight.caption,
+    fontWeight: Weight.medium,
   },
   content: {
     fontSize: Typography.body,

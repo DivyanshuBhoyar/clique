@@ -27,6 +27,19 @@ import { formatDeleteIn } from '@/utils/time';
 
 const PAGE_SIZE = 50;
 
+interface SelectedMessage {
+    id: string;
+    isOwn: boolean;
+    nickname?: string;
+    content: string;
+}
+
+interface ReplyTarget {
+    id: Id<"messages">;
+    nickname?: string;
+    content: string;
+}
+
 export default function ChannelChatScreen() {
     const { id: squadId, channelId } = useLocalSearchParams<{ id: string; channelId: string }>();
     const router = useRouter();
@@ -80,7 +93,8 @@ export default function ChannelChatScreen() {
     const currentChannel = channels?.find(c => c._id === channelId);
     const onlineCount = presence?.filter((p) => p.isOnline).length ?? 0;
 
-    const [selectedMessage, setSelectedMessage] = useState<{ id: string; isOwn: boolean } | null>(null);
+    const [selectedMessage, setSelectedMessage] = useState<SelectedMessage | null>(null);
+    const [replyTarget, setReplyTarget] = useState<ReplyTarget | null>(null);
     const [showSwitcher, setShowSwitcher] = useState(false);
     const [pickerMessageId, setPickerMessageId] = useState<string | null>(null);
     const [newMessageBubble, setNewMessageBubble] = useState<NewMessageBubbleChannel | null>(null);
@@ -104,6 +118,7 @@ export default function ChannelChatScreen() {
     }, [channelId, markChannelRead]);
 
     useEffect(() => {
+        setReplyTarget(null);
         setNewMessageBubble(null);
         setExtraBubbleChannelCount(0);
         unreadSnapshotRef.current = null;
@@ -260,6 +275,7 @@ export default function ChannelChatScreen() {
                                         createdAt={item.createdAt}
                                         editedAt={item.editedAt}
                                         deleted={item.deleted}
+                                        parentMessage={item.parentMessage}
                                         isOwnMessage={item.userId === currentUser?._id}
                                         reactions={item.reactions}
                                         currentUserId={currentUser?._id}
@@ -268,6 +284,12 @@ export default function ChannelChatScreen() {
                                         onLongPress={() => setSelectedMessage({
                                             id: item._id,
                                             isOwn: item.userId === currentUser?._id,
+                                            nickname: item.nickname,
+                                            content: item.deleted
+                                                ? 'Message deleted'
+                                                : item.type === 'image'
+                                                    ? item.content || '📷 Photo'
+                                                    : item.content,
                                         })}
                                     />
                                 )}
@@ -302,12 +324,16 @@ export default function ChannelChatScreen() {
                     ) : (
                         <MessageInput
                             onTyping={handleTyping}
+                            replyTo={replyTarget}
+                            onCancelReply={() => setReplyTarget(null)}
                             onSend={async (content) => {
                                 await sendMessage({
                                     squadId: squadId as Id<"squads">,
                                     channelId: channelId as Id<"channels">,
                                     content,
+                                    parentMessageId: replyTarget?.id,
                                 });
+                                setReplyTarget(null);
                             }}
                             onSendImage={async (storageId, caption) => {
                                 await sendImageMessage({
@@ -315,7 +341,9 @@ export default function ChannelChatScreen() {
                                     channelId: channelId as Id<"channels">,
                                     storageId,
                                     content: caption,
+                                    parentMessageId: replyTarget?.id,
                                 });
+                                setReplyTarget(null);
                             }}
                         />
                     )}
@@ -331,6 +359,14 @@ export default function ChannelChatScreen() {
                         onClose={() => setSelectedMessage(null)}
                         onDelete={handleDelete}
                         onReact={handleReact}
+                        onReply={() => {
+                            if (!selectedMessage) return;
+                            setReplyTarget({
+                                id: selectedMessage.id as Id<"messages">,
+                                nickname: selectedMessage.nickname,
+                                content: selectedMessage.content,
+                            });
+                        }}
                         onBookmark={handleBookmark}
                         onMoreReactions={() => {
                             setPickerMessageId(selectedMessage?.id ?? null);
