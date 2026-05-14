@@ -4,11 +4,12 @@
  * Design: ▲ score ▼ in a row, active state uses golden yellow (up) or red (down).
  * Lucide ThumbsUp/ThumbsDown icons for a cleaner look than text arrows.
  */
-import { GestureResponderEvent, Pressable, StyleSheet, View } from 'react-native';
-import { ThumbsUp, ThumbsDown } from 'lucide-react-native';
 import { ThemedText } from '@/components/themed-text';
-import { useTheme } from '@/hooks/use-theme';
 import { Spacing, Typography, Weight } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { mediumImpact } from '@/utils/haptics';
+import { ThumbsDown, ThumbsUp } from 'lucide-react-native';
+import { GestureResponderEvent, Pressable, StyleSheet, View } from 'react-native';
 
 interface VoteButtonsProps {
     upvotes: number;
@@ -25,7 +26,7 @@ export function VoteButtons({ upvotes, downvotes, userVote, onVote }: VoteButton
     return (
         <View style={styles.row}>
             <Pressable
-                onPress={(e) => { stop(e); onVote('up'); }}
+                onPress={(e) => { stop(e); mediumImpact(); onVote('up'); }}
                 hitSlop={8}
                 style={styles.btn}
                 accessibilityRole="button"
@@ -56,7 +57,7 @@ export function VoteButtons({ upvotes, downvotes, userVote, onVote }: VoteButton
             </ThemedText>
 
             <Pressable
-                onPress={(e) => { stop(e); onVote('down'); }}
+                onPress={(e) => { stop(e); mediumImpact(); onVote('down'); }}
                 hitSlop={8}
                 style={styles.btn}
                 accessibilityRole="button"

@@ -1,5 +1,7 @@
 import { Radius, Spacing, Typography, Weight } from '@/constants/theme';
+import { useMostUsedEmojis } from '@/hooks/use-most-used-emojis';
 import { useTheme } from '@/hooks/use-theme';
+import { heavyImpact, lightImpact } from '@/utils/haptics';
 import { Bookmark, Reply } from 'lucide-react-native';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -15,8 +17,6 @@ interface MessageActionsProps {
     onMoreReactions?: () => void;
 }
 
-const REACTIONS = ['👍', '❤️', '😂', '🔥', '👀'];
-
 export function MessageActions({
     visible,
     isOwnMessage,
@@ -29,6 +29,7 @@ export function MessageActions({
     onMoreReactions,
 }: MessageActionsProps) {
     const theme = useTheme();
+    const { mostUsedEmojis, recordEmojiUsage } = useMostUsedEmojis(5);
 
     if (!visible) return null;
 
@@ -37,10 +38,15 @@ export function MessageActions({
             <Pressable style={styles.overlay} onPress={onClose}>
                 <View style={[styles.sheet, { backgroundColor: theme.surface, borderColor: theme.outline, borderTopWidth: 2 }]}>
                     <View style={[styles.reactionRow, { borderBottomColor: theme.outlineLight }]}>
-                        {REACTIONS.map((emoji) => (
+                        {mostUsedEmojis.map((emoji) => (
                             <Pressable
                                 key={emoji}
-                                onPress={() => { onReact(emoji); onClose(); }}
+                                onPress={() => {
+                                    lightImpact();
+                                    recordEmojiUsage(emoji);
+                                    onReact(emoji);
+                                    onClose();
+                                }}
                                 style={styles.reactionButton}
                                 accessibilityRole="button"
                                 accessibilityLabel={`React with ${emoji}`}
@@ -95,7 +101,7 @@ export function MessageActions({
 
                     {isOwnMessage && (
                         <Pressable
-                            onPress={() => { onDelete(); onClose(); }}
+                            onPress={() => { heavyImpact(); onDelete(); onClose(); }}
                             style={[styles.actionButton, { borderBottomColor: theme.outlineLight }]}
                             accessibilityRole="button"
                             accessibilityLabel="Delete message"

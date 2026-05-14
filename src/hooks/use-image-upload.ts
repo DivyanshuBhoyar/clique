@@ -1,8 +1,9 @@
-import * as ImagePicker from 'expo-image-picker';
-import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { useMutation } from 'convex/react';
+import { File as ExpoFile } from 'expo-file-system';
+import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
+import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
@@ -62,13 +63,22 @@ export function useImageUpload(): UseImageUploadResult {
 
             const uploadUrl = await generateUploadUrl();
 
-            const fileResponse = await fetch(manipulated.uri);
-            const blob = await fileResponse.blob();
+            let body: ArrayBuffer | Blob;
+
+            if (Platform.OS === 'web') {
+                // Web: fetch the data URL and convert to blob
+                const resp = await fetch(manipulated.uri);
+                body = await resp.blob();
+            } else {
+                // Native: use expo-file-system's File class which implements Blob
+                const file = new ExpoFile(manipulated.uri);
+                body = await file.arrayBuffer();
+            }
 
             const uploadResponse = await fetch(uploadUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'image/jpeg' },
-                body: blob,
+                body,
             });
 
             if (!uploadResponse.ok) {

@@ -7,6 +7,7 @@ import { LineHeight, Radius, Spacing, Typography } from '@/constants/theme';
 import { Id } from '@/convex/_generated/dataModel';
 import { useImageUpload } from '@/hooks/use-image-upload';
 import { useTheme } from '@/hooks/use-theme';
+import { successNotification } from '@/utils/haptics';
 
 interface ReplyTarget {
   nickname?: string;
@@ -41,6 +42,7 @@ export function MessageInput({ onSend, onSendImage, onTyping, replyTo, onCancelR
         const content = text.trim();
         await onSend(content);
       }
+      successNotification();
       setText('');
     } catch {
       // keep text on failure

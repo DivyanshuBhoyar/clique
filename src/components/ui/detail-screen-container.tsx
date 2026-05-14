@@ -1,7 +1,7 @@
+import { type LucideIcon } from 'lucide-react-native';
 import { type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { type LucideIcon } from 'lucide-react-native';
 
 import { ThemedView } from '@/components/themed-view';
 import { ScreenHeader } from '@/components/ui/screen-header';

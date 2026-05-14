@@ -25,9 +25,27 @@ interface PollCardProps {
     compact?: boolean;
 }
 
+function formatPollExpiry(expiresAt?: number) {
+    if (!expiresAt) return null;
+
+    const diff = expiresAt - Date.now();
+    if (diff <= 0) return 'Closed';
+
+    const minutes = Math.ceil(diff / (1000 * 60));
+    if (minutes < 60) return `Closes in ${minutes}m`;
+
+    const hours = Math.ceil(minutes / 60);
+    if (hours < 24) return `Closes in ${hours}h`;
+
+    const days = Math.ceil(hours / 24);
+    return `Closes in ${days}d`;
+}
+
 export function PollCard({ poll, onVote, compact }: PollCardProps) {
     const theme = useTheme();
     const hasVoted = poll.myVoteOptionId !== null;
+    const expiryLabel = formatPollExpiry(poll.expiresAt);
+    const isClosed = Boolean(poll.expiresAt && poll.expiresAt <= Date.now());
 
     return (
         <View style={[styles.container, compact && styles.compact, { borderColor: theme.outline, backgroundColor: theme.surface }]}>
@@ -37,9 +55,29 @@ export function PollCard({ poll, onVote, compact }: PollCardProps) {
                     {poll.question}
                 </ThemedText>
             </View>
-            <ThemedText type="caption" themeColor="textSecondary">
-                {poll.totalVotes} vote{poll.totalVotes !== 1 ? 's' : ''}
-            </ThemedText>
+            <View style={styles.metaRow}>
+                <ThemedText type="caption" themeColor="textSecondary">
+                    {poll.totalVotes} vote{poll.totalVotes !== 1 ? 's' : ''}
+                </ThemedText>
+                {expiryLabel ? (
+                    <View
+                        style={[
+                            styles.expiryChip,
+                            {
+                                borderColor: isClosed ? theme.outlineLight : theme.accent,
+                                backgroundColor: isClosed ? theme.backgroundElement : theme.accentSoft,
+                            },
+                        ]}
+                    >
+                        <ThemedText
+                            type="captionBold"
+                            style={{ color: isClosed ? theme.textSecondary : theme.text }}
+                        >
+                            {expiryLabel}
+                        </ThemedText>
+                    </View>
+                ) : null}
+            </View>
 
             <View style={styles.options}>
                 {poll.options.map((option) => {
@@ -59,9 +97,12 @@ export function PollCard({ poll, onVote, compact }: PollCardProps) {
                                     backgroundColor: theme.surface,
                                 },
                             ]}
-                            onPress={() => onVote(poll._id, option._id)}
+                            onPress={() => {
+                                if (!isClosed) onVote(poll._id, option._id);
+                            }}
+                            disabled={isClosed}
                             accessibilityRole="button"
-                            accessibilityLabel={`Vote for ${option.text}`}
+                            accessibilityLabel={isClosed ? `Poll closed: ${option.text}` : `Vote for ${option.text}`}
                         >
                             {hasVoted && (
                                 <View
@@ -115,6 +156,18 @@ const styles = StyleSheet.create({
     pollEmoji: {
         fontSize: Typography.body,
         marginTop: 1,
+    },
+    metaRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: Spacing.sm,
+    },
+    expiryChip: {
+        borderWidth: 1.5,
+        borderRadius: Radius.full,
+        paddingHorizontal: Spacing.sm,
+        paddingVertical: 2,
     },
     options: {
         gap: Spacing.sm,

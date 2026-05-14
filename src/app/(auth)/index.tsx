@@ -32,23 +32,30 @@ import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { HomeMiniHeader } from '@/components/home/home-mini-header';
+import { HomeSettingsSheet } from '@/components/home/home-settings-sheet';
 import { JumpInGrid } from '@/components/home/jump-in-grid';
 import { NoSquadsLanding } from '@/components/home/no-squads-landing';
 import { RecentActivitySection } from '@/components/home/recent-activity-section';
 import { SquadHero } from '@/components/home/squad-hero';
 import { ThemedView } from '@/components/themed-view';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { DashedSeparator } from '@/components/ui/dashed-separator';
 import { Fab } from '@/components/ui/fab';
 import { LoadingState } from '@/components/ui/loading-state';
 import { Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
+import { useToast } from '@/hooks/use-toast';
+import { heavyImpact } from '@/utils/haptics';
 
 export default function HomeScreen() {
     const router = useRouter();
     const { signOut } = useAuthActions();
+    const toast = useToast();
 
     const [showJoinForm, setShowJoinForm] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
+    const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
     const [squadName, setSquadName] = useState('');
     const [password, setPassword] = useState('');
     const [nickname, setNickname] = useState('');
@@ -81,8 +88,11 @@ export default function HomeScreen() {
             setShowJoinForm(false);
             setSquadName(''); setPassword(''); setNickname('');
             router.push(`/squad/${squadId}/chat` as any);
-        } catch {
-            // error handled silently — user sees native alert via Convex
+        } catch (error) {
+            const message = error instanceof Error && error.message
+                ? error.message
+                : 'Wrong password or squad name';
+            toast.error(message);
         } finally {
             setIsJoining(false);
         }
@@ -129,7 +139,7 @@ export default function HomeScreen() {
     return (
         <ThemedView style={styles.container}>
             <SafeAreaView style={styles.safeArea} edges={['top']}>
-                <HomeMiniHeader onSettingsPress={() => signOut()} />
+                <HomeMiniHeader onSettingsPress={() => setShowSettings(true)} />
 
                 <ScrollView
                     contentContainerStyle={styles.scrollContent}
@@ -171,6 +181,43 @@ export default function HomeScreen() {
                 <Fab
                     onPress={() => router.push('/create-squad')}
                     accessibilityLabel="Create new squad"
+                />
+
+                <HomeSettingsSheet
+                    visible={showSettings}
+                    squadName={activeSquad?.name ?? 'Your Squad'}
+                    memberCount={memberCount}
+                    onClose={() => setShowSettings(false)}
+                    onCreateSquad={() => {
+                        setShowSettings(false);
+                        router.push('/create-squad');
+                    }}
+                    onMembersPress={() => {
+                        setShowSettings(false);
+                        toast.info('Member list is coming next.');
+                    }}
+                    onSquadSettingsPress={() => {
+                        setShowSettings(false);
+                        toast.info('Squad settings are coming next.');
+                    }}
+                    onSignOutPress={() => {
+                        setShowSettings(false);
+                        setShowSignOutConfirm(true);
+                    }}
+                />
+
+                <ConfirmDialog
+                    visible={showSignOutConfirm}
+                    title="Sign out?"
+                    message="You can always come back with your email and rejoin your squad."
+                    confirmLabel="Sign out"
+                    destructive
+                    onCancel={() => setShowSignOutConfirm(false)}
+                    onConfirm={() => {
+                        heavyImpact();
+                        setShowSignOutConfirm(false);
+                        signOut();
+                    }}
                 />
             </SafeAreaView>
         </ThemedView>

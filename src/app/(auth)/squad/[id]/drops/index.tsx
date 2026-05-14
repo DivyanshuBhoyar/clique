@@ -25,6 +25,7 @@ const PAGE_SIZE = 20;
 
 const FILTER_CHIPS = [
   { label: 'All', emoji: '✨' },
+  { label: 'Top', emoji: '🏆' },
   { label: 'Song', emoji: '🎵' },
   { label: 'Movie', emoji: '🎬' },
   { label: 'Book', emoji: '📚' },
@@ -34,7 +35,7 @@ const FILTER_CHIPS = [
 ];
 
 const CHIP_CATEGORY: Record<number, string> = {
-  1: 'song', 2: 'movie', 3: 'book', 4: 'quote', 5: 'lifehack', 6: 'random',
+  2: 'song', 3: 'movie', 4: 'book', 5: 'quote', 6: 'lifehack', 7: 'random',
 };
 
 export default function DropsScreen() {
@@ -72,7 +73,15 @@ export default function DropsScreen() {
 
   const filteredDrops = (drops ?? []).filter((d) => {
     if (activeFilter === 0) return true;
+    if (activeFilter === 1) return true;
     return d.category === CHIP_CATEGORY[activeFilter];
+  }).sort((a, b) => {
+    if (activeFilter !== 1) return 0;
+
+    const scoreA = (a.upvotes ?? 0) - (a.downvotes ?? 0);
+    const scoreB = (b.upvotes ?? 0) - (b.downvotes ?? 0);
+    if (scoreA !== scoreB) return scoreB - scoreA;
+    return b.createdAt - a.createdAt;
   });
 
   if (drops === undefined) {
@@ -100,6 +109,8 @@ export default function DropsScreen() {
             title="No drops yet"
             subtitle={activeFilter === 0
               ? 'Be the first to drop something!'
+              : activeFilter === 1
+                ? 'No drops to rank yet'
               : `No ${FILTER_CHIPS[activeFilter].label.toLowerCase()} drops yet`}
             actionLabel="Drop something"
             onAction={() => router.push(`/squad/${squadId}/drops/new` as any)}

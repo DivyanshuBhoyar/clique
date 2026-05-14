@@ -1,6 +1,7 @@
 import { ThemedText } from '@/components/themed-text';
 import { LineHeight, Radius, Spacing, Typography, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { lightImpact } from '@/utils/haptics';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 interface ConfessionReaction {
@@ -19,6 +20,7 @@ interface Confession {
 interface ConfessionFeedProps {
     confessions: Confession[];
     onToggleReaction: (confessionId: string, emoji: string) => void;
+    onMoreReaction?: (confessionId: string) => void;
     onLoadMore: () => void;
     hasMore: boolean;
 }
@@ -36,7 +38,7 @@ function timeAgo(timestamp: number): string {
     return `${days}d ago`;
 }
 
-export function ConfessionFeed({ confessions, onToggleReaction, onLoadMore, hasMore }: ConfessionFeedProps) {
+export function ConfessionFeed({ confessions, onToggleReaction, onMoreReaction, onLoadMore, hasMore }: ConfessionFeedProps) {
     const theme = useTheme();
 
     if (confessions.length === 0) {
@@ -72,7 +74,7 @@ export function ConfessionFeed({ confessions, onToggleReaction, onLoadMore, hasM
                                         borderColor: r.hasReacted ? theme.accent : theme.outlineLight,
                                     },
                                 ]}
-                                onPress={() => onToggleReaction(confession._id, r.emoji)}
+                                onPress={() => { lightImpact(); onToggleReaction(confession._id, r.emoji); }}
                             >
                                 <ThemedText style={styles.reactionEmoji}>{r.emoji}</ThemedText>
                                 <ThemedText type="caption" style={{ fontWeight: r.hasReacted ? Weight.bold : Weight.regular }}>{r.count}</ThemedText>
@@ -90,12 +92,22 @@ export function ConfessionFeed({ confessions, onToggleReaction, onLoadMore, hasM
                                     <Pressable
                                         key={emoji}
                                         style={[styles.quickBtn, { borderColor: theme.outlineLight }]}
-                                        onPress={() => onToggleReaction(confession._id, emoji)}
+                                        onPress={() => { lightImpact(); onToggleReaction(confession._id, emoji); }}
                                     >
                                         <ThemedText style={styles.quickEmoji}>{emoji}</ThemedText>
                                     </Pressable>
                                 );
                             })}
+                            {onMoreReaction ? (
+                                <Pressable
+                                    style={[styles.quickBtn, styles.moreBtn, { borderColor: theme.dashedBorder }]}
+                                    onPress={() => onMoreReaction(confession._id)}
+                                    accessibilityRole="button"
+                                    accessibilityLabel="Pick another confession reaction"
+                                >
+                                    <ThemedText style={[styles.quickEmoji, { color: theme.textSecondary }]}>+</ThemedText>
+                                </Pressable>
+                            ) : null}
                         </View>
                     </View>
                 </View>
@@ -158,6 +170,11 @@ const styles = StyleSheet.create({
         paddingVertical: 2,
         borderRadius: Radius.full,
         borderWidth: 1,
+        minWidth: 28,
+        alignItems: 'center',
+    },
+    moreBtn: {
+        borderStyle: 'dashed',
     },
     quickEmoji: {
         fontSize: Typography.small,

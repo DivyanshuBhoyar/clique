@@ -1,4 +1,5 @@
 import { ThemedText } from '@/components/themed-text';
+import { EmojiPickerModal } from '@/components/ui/emoji-picker-modal';
 import { EmptySectionCard } from '@/components/ui/empty-section-card';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { SectionHeader } from '@/components/ui/section-header';
@@ -32,6 +33,7 @@ export default function VibesScreen() {
 
     const [vibePickerVisible, setVibePickerVisible] = useState(false);
     const [showCreatePoll, setShowCreatePoll] = useState(false);
+    const [reactionPickerConfessionId, setReactionPickerConfessionId] = useState<string | null>(null);
 
     const vibes = useQuery(api.vibes.getSquadVibes, squadId ? { squadId } : 'skip');
     const currentQuestion = useQuery(api.questions.getCurrentQuestion, squadId ? { squadId } : 'skip');
@@ -232,6 +234,7 @@ export default function VibesScreen() {
                                 emoji,
                             })
                         }
+                        onMoreReaction={setReactionPickerConfessionId}
                         onLoadMore={() => loadMoreConfessions(PAGE_SIZE)}
                         hasMore={confessionsStatus === 'CanLoadMore'}
                     />
@@ -244,6 +247,20 @@ export default function VibesScreen() {
                 onSelect={(emoji, label) => setVibe({ squadId, emoji, label })}
                 onClear={() => clearVibe({ squadId })}
                 currentAvatarUrl={currentAvatarUrl ?? undefined}
+            />
+
+            <EmojiPickerModal
+                visible={reactionPickerConfessionId !== null}
+                title="React to confession"
+                onClose={() => setReactionPickerConfessionId(null)}
+                onSelect={async (emoji) => {
+                    if (!reactionPickerConfessionId) return;
+                    await toggleConfessionReaction({
+                        confessionId: reactionPickerConfessionId as Id<'confessions'>,
+                        emoji,
+                    });
+                    setReactionPickerConfessionId(null);
+                }}
             />
         </SafeAreaView>
     );

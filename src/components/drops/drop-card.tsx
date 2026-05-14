@@ -12,7 +12,7 @@
  * The `truncate` prop limits content to 3 lines in the list view.
  */
 import { Bookmark, MessageCircle } from 'lucide-react-native';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { GestureResponderEvent, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { CategoryChip } from '@/components/drops/category-chip';
 import { VoteButtons } from '@/components/drops/vote-buttons';
@@ -48,6 +48,39 @@ interface DropCardProps {
     onVote: (dropId: string, value: 'up' | 'down') => void;
     isBookmarked?: boolean;
     onToggleBookmark?: (dropId: string) => void;
+}
+
+const URL_REGEX = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi;
+const URL_PART_REGEX = /^(https?:\/\/[^\s]+|www\.[^\s]+)$/i;
+
+function normalizeUrl(url: string) {
+    return url.startsWith('http') ? url : `https://${url}`;
+}
+
+function openDropUrl(url: string, event?: GestureResponderEvent) {
+    event?.stopPropagation();
+    Linking.openURL(normalizeUrl(url)).catch(() => {
+        // If the OS cannot open the URL, keep the drop card interaction intact.
+    });
+}
+
+function renderLinkedContent(content: string, linkColor: string) {
+    const pieces = content.split(URL_REGEX);
+
+    return pieces.map((piece, index) => {
+        if (!piece) return null;
+        if (!URL_PART_REGEX.test(piece)) return piece;
+
+        return (
+            <Text
+                key={`${piece}-${index}`}
+                onPress={(event) => openDropUrl(piece, event)}
+                style={{ color: linkColor, textDecorationLine: 'underline' }}
+            >
+                {piece}
+            </Text>
+        );
+    });
 }
 
 export function DropCard({
@@ -113,7 +146,7 @@ export function DropCard({
                 numberOfLines={truncate ? 3 : undefined}
                 selectable={!truncate}
             >
-                {content}
+                {renderLinkedContent(content, theme.accentDark)}
             </ThemedText>
 
             <DashedSeparator />

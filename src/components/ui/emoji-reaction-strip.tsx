@@ -11,11 +11,12 @@
  *   />
  *   <EmojiReactionStrip ... compact />   // smaller for chat bubbles
  */
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Plus } from 'lucide-react-native';
 import { ThemedText } from '@/components/themed-text';
+import { LineHeight, Radius, Spacing, Typography, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { Radius, Spacing, Weight, LineHeight, Typography } from '@/constants/theme';
+import { lightImpact } from '@/utils/haptics';
+import { Plus } from 'lucide-react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 export interface Reaction {
   emoji: string;
@@ -48,7 +49,7 @@ export function EmojiReactionStrip({
   const pills = reactions.map((r) => (
     <Pressable
       key={r.emoji}
-      onPress={() => onToggle(r.emoji)}
+      onPress={() => { lightImpact(); onToggle(r.emoji); }}
       hitSlop={8}
       accessibilityRole="button"
       accessibilityLabel={`${r.emoji} ${r.count} reactions, tap to ${r.reacted ? 'remove' : 'add'}`}
@@ -145,7 +146,7 @@ export function EmojiReactionStack({
         {visibleReactions.map((r, index) => (
           <Pressable
             key={r.emoji}
-            onPress={() => onToggle(r.emoji)}
+            onPress={() => { lightImpact(); onToggle(r.emoji); }}
             hitSlop={8}
             accessibilityRole="button"
             accessibilityLabel={`${r.emoji} ${r.count} reactions, tap to ${r.reacted ? 'remove' : 'add'}`}
