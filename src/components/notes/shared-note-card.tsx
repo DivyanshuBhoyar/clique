@@ -9,8 +9,8 @@
 import { Bookmark, Pin } from 'lucide-react-native';
 import { GestureResponderEvent, Pressable, StyleSheet, View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
 import { markdownToPlainText } from '@/components/notes/markdown-preview';
+import { ThemedText } from '@/components/themed-text';
 import { DashedSeparator } from '@/components/ui/dashed-separator';
 import { UserAvatar } from '@/components/user-avatar';
 import { LineHeight, Radius, Spacing, Typography, Weight } from '@/constants/theme';

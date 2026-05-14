@@ -1,5 +1,5 @@
-import Markdown from 'react-native-markdown-display';
 import { StyleSheet, View } from 'react-native';
+import Markdown from 'react-native-markdown-display';
 
 import { LineHeight, Radius, Spacing, Typography, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';

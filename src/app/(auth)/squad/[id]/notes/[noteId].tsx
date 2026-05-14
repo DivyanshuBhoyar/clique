@@ -7,6 +7,7 @@ import {
     Alert,
     KeyboardAvoidingView,
     Platform,
+    Pressable,
     ScrollView,
     StyleSheet,
     TextInput,
@@ -14,8 +15,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { MarkdownToolbar } from '@/components/notes/markdown-toolbar';
 import { MarkdownPreview } from '@/components/notes/markdown-preview';
+import { MarkdownToolbar } from '@/components/notes/markdown-toolbar';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { DashedSeparator } from '@/components/ui/dashed-separator';
@@ -45,6 +46,7 @@ export default function NoteEditorScreen() {
     const [content, setContent] = useState('');
     const [initialized, setInitialized] = useState(false);
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+    const [editorMode, setEditorMode] = useState<'write' | 'preview'>('write');
 
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const titleRef = useRef(title);
@@ -162,8 +164,6 @@ export default function NoteEditorScreen() {
                     onRightPress={handleMorePress}
                 />
 
-                <MarkdownToolbar onInsert={insertMarkdown} />
-
                 <KeyboardAvoidingView
                     behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                     style={styles.flex}
@@ -216,24 +216,59 @@ export default function NoteEditorScreen() {
                             />
                         </View>
 
-                        <TextInput
-                            style={[styles.contentInput, { color: theme.text }]}
-                            placeholder="Start writing… ✍️"
-                            placeholderTextColor={theme.placeholder}
-                            value={content}
-                            onChangeText={handleContentChange}
-                            onSelectionChange={handleSelectionChange}
-                            multiline
-                            textAlignVertical="top"
-                            autoFocus={initialized && !content}
-                        />
+                        <View style={[styles.modeToggle, { backgroundColor: theme.surface, borderColor: theme.outline }]}>
+                            {(['write', 'preview'] as const).map((mode) => {
+                                const isActive = editorMode === mode;
+                                return (
+                                    <Pressable
+                                        key={mode}
+                                        onPress={() => setEditorMode(mode)}
+                                        style={[
+                                            styles.modeButton,
+                                            {
+                                                backgroundColor: isActive ? theme.accent : 'transparent',
+                                                borderRightColor: theme.outline,
+                                            },
+                                            mode === 'write' && styles.modeButtonDivider,
+                                        ]}
+                                        accessibilityRole="tab"
+                                        accessibilityState={{ selected: isActive }}
+                                        accessibilityLabel={mode === 'write' ? 'Write markdown' : 'Preview markdown'}
+                                    >
+                                        <ThemedText
+                                            type="smallBold"
+                                            style={{ color: isActive ? theme.text : theme.textSecondary }}
+                                        >
+                                            {mode === 'write' ? 'Write' : 'Preview'}
+                                        </ThemedText>
+                                    </Pressable>
+                                );
+                            })}
+                        </View>
 
-                        {content.trim().length > 0 && (
+                        {editorMode === 'write' && <MarkdownToolbar onInsert={insertMarkdown} />}
+
+                        {editorMode === 'write' ? (
+                            <TextInput
+                                style={[styles.contentInput, { color: theme.text }]}
+                                placeholder="Start writing… ✍️"
+                                placeholderTextColor={theme.placeholder}
+                                value={content}
+                                onChangeText={handleContentChange}
+                                onSelectionChange={handleSelectionChange}
+                                multiline
+                                textAlignVertical="top"
+                                autoFocus={initialized && !content}
+                            />
+                        ) : (
                             <View style={[styles.previewCard, { backgroundColor: theme.surface, borderColor: theme.outline }]}>
-                                <ThemedText type="captionBold" themeColor="textSecondary" style={styles.previewLabel}>
-                                    PREVIEW
-                                </ThemedText>
-                                <MarkdownPreview content={content} />
+                                {content.trim().length > 0 ? (
+                                    <MarkdownPreview content={content} />
+                                ) : (
+                                    <ThemedText type="small" themeColor="textSecondary" style={styles.emptyPreviewText}>
+                                        Nothing to preview yet. Switch back to Write and start typing.
+                                    </ThemedText>
+                                )}
                             </View>
                         )}
                     </ScrollView>
@@ -295,14 +330,30 @@ const styles = StyleSheet.create({
         textAlignVertical: 'top',
         minHeight: 200,
     },
+    modeToggle: {
+        flexDirection: 'row',
+        borderWidth: 2,
+        borderRadius: Radius.md,
+        overflow: 'hidden',
+        marginBottom: Spacing.md,
+    },
+    modeButton: {
+        flex: 1,
+        minHeight: 42,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    modeButtonDivider: {
+        borderRightWidth: 2,
+    },
     previewCard: {
         borderWidth: 2,
         borderRadius: Radius.lg,
         padding: Spacing.lg,
-        marginTop: Spacing.lg,
+        minHeight: 220,
     },
-    previewLabel: {
-        letterSpacing: 1,
-        marginBottom: Spacing.sm,
+    emptyPreviewText: {
+        textAlign: 'center',
+        marginTop: Spacing.xl,
     },
 });
