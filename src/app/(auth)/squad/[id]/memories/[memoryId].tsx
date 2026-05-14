@@ -5,7 +5,9 @@ import { useCallback, useState } from 'react';
 
 import { ImageViewer } from '@/components/image-viewer';
 import { AddItemModal } from '@/components/memories/add-item-modal';
+import { EditMemoryModal } from '@/components/memories/edit-memory-modal';
 import { ItemCommentsModal } from '@/components/memories/item-comments-modal';
+import { MemoryActionsModal } from '@/components/memories/memory-actions-modal';
 import { MemoryCommentCard } from '@/components/memories/memory-comment-card';
 import { MemoryDetailHeader } from '@/components/memories/memory-detail-header';
 import { CommentInputBar } from '@/components/ui/comment-input-bar';
@@ -17,12 +19,14 @@ import { LoadingState } from '@/components/ui/loading-state';
 import { NotFoundState } from '@/components/ui/not-found-state';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
+import { useToast } from '@/hooks/use-toast';
 
 const COMMENTS_PAGE_SIZE = 20;
 
 export default function MemoryDetailScreen() {
     const { memoryId } = useGlobalSearchParams<{ memoryId: string }>();
     const router = useRouter();
+    const toast = useToast();
 
     const currentUser = useQuery(api.users.current);
     const toggleReaction = useMutation(api.memories.toggleMemoryReaction);
@@ -30,6 +34,7 @@ export default function MemoryDetailScreen() {
     const addComment = useMutation(api.memories.addMemoryComment);
     const addItemComment = useMutation(api.memories.addMemoryItemComment);
     const addMemoryItem = useMutation(api.memories.addMemoryItem);
+    const editMemory = useMutation(api.memories.editMemory);
     const deleteMemory = useMutation(api.memories.deleteMemory);
 
     const detail = useQuery(
@@ -51,6 +56,8 @@ export default function MemoryDetailScreen() {
     const [sending, setSending] = useState(false);
     const [coverViewerVisible, setCoverViewerVisible] = useState(false);
     const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
+    const [showActions, setShowActions] = useState(false);
+    const [showEditMemory, setShowEditMemory] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [reactionTarget, setReactionTarget] = useState<{ type: 'memory' | 'item'; id: string } | null>(null);
 
@@ -131,6 +138,29 @@ export default function MemoryDetailScreen() {
         setShowDeleteConfirm(true);
     };
 
+    const handleEditMemory = useCallback(async (args: {
+        title?: string;
+        content?: string;
+        coverStorageId?: Id<'_storage'>;
+        removeCover?: boolean;
+    }) => {
+        if (!memoryId) return;
+        try {
+            await editMemory({
+                memoryId: memoryId as Id<'memories'>,
+                title: args.title,
+                content: args.content,
+                coverStorageId: args.coverStorageId,
+                removeCover: args.removeCover,
+            });
+            toast.success('Memory updated');
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Could not update memory';
+            toast.error(message);
+            throw error;
+        }
+    }, [editMemory, memoryId, toast]);
+
     if (detail === undefined) {
         return <LoadingState />;
     }
@@ -161,7 +191,7 @@ export default function MemoryDetailScreen() {
             title={isWall ? 'Memory 💛' : (detail.memory.title ?? 'Event 🎉')}
             onBack={() => router.back()}
             rightIcon={MoreHorizontal}
-            onRightPress={isOwner ? handleDelete : undefined}
+            onRightPress={isOwner ? () => setShowActions(true) : undefined}
         >
             <CommentThreadLayout
                 comments={comments}
@@ -215,6 +245,21 @@ export default function MemoryDetailScreen() {
                     visible={showAddItem}
                     onClose={() => setShowAddItem(false)}
                     onAdd={handleAddItem}
+                />
+
+                <MemoryActionsModal
+                    visible={showActions}
+                    onClose={() => setShowActions(false)}
+                    onEdit={() => setShowEditMemory(true)}
+                    onDelete={handleDelete}
+                />
+
+                <EditMemoryModal
+                    visible={showEditMemory}
+                    memory={memory}
+                    coverUrl={coverUrl}
+                    onClose={() => setShowEditMemory(false)}
+                    onSave={handleEditMemory}
                 />
 
                 <ItemCommentsModal

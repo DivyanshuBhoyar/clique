@@ -87,6 +87,7 @@ export default function ChannelChatScreen() {
         replyTarget,
         selectMessage,
         startReplyToSelectedMessage,
+        startReplyToMessage,
         clearReplyTarget,
         clearSelectedMessage,
     } = useChatReplyTarget(channelId);
@@ -213,6 +214,7 @@ export default function ChannelChatScreen() {
                         onEndReached={handleEndReached}
                         onToggleReaction={handleToggleReaction}
                         onSelectMessage={(message) => selectMessage(message, currentUser?._id)}
+                        onReplyToMessage={startReplyToMessage}
                     />
 
                     <TypingIndicator typingUsers={typingUsers ?? []} currentUserId={currentUser?._id} />

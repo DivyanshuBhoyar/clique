@@ -199,14 +199,6 @@ export default function HomeScreen() {
                         setShowSettings(false);
                         router.push('/create-squad');
                     }}
-                    onMembersPress={() => {
-                        setShowSettings(false);
-                        if (activeSquad) router.push(`/squad/${activeSquad._id}/members` as any);
-                    }}
-                    onSquadSettingsPress={() => {
-                        setShowSettings(false);
-                        if (activeSquad) router.push(`/squad/${activeSquad._id}/settings` as any);
-                    }}
                     onSignOutPress={() => {
                         setShowSettings(false);
                         setShowSignOutConfirm(true);

@@ -1,11 +1,13 @@
-import { useQuery } from 'convex/react';
+import { useMutation, useQuery } from 'convex/react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Crown, Mail, Sparkles, UserRound } from 'lucide-react-native';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Crown, Mail, Sparkles, Trash2, UserRound } from 'lucide-react-native';
+import { useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { LoadingState } from '@/components/ui/loading-state';
 import { NotFoundState } from '@/components/ui/not-found-state';
 import { ScreenHeader } from '@/components/ui/screen-header';
@@ -14,21 +16,42 @@ import { Radius, Shadows, Spacing, Typography, Weight } from '@/constants/theme'
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { useTheme } from '@/hooks/use-theme';
+import { useToast } from '@/hooks/use-toast';
+import { heavyImpact } from '@/utils/haptics';
 import { formatRelativeTime } from '@/utils/time';
 
 export default function MemberProfileScreen() {
     const router = useRouter();
     const theme = useTheme();
+    const toast = useToast();
     const { id, memberId } = useLocalSearchParams<{ id: string; memberId: string }>();
     const squadId = id as Id<'squads'>;
+    const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
 
+    const squad = useQuery(api.squad.getSquad, squadId ? { id: squadId } : 'skip');
+    const currentUser = useQuery(api.users.current);
     const profile = useQuery(
         api.squad.getSquadMemberProfile,
         squadId && memberId ? { squadId, userId: memberId as Id<'users'> } : 'skip',
     );
+    const removeMember = useMutation(api.squad.removeSquadMember);
 
-    if (profile === undefined) return <LoadingState message="Opening profile…" />;
+    if (profile === undefined || squad === undefined || currentUser === undefined) return <LoadingState message="Opening profile…" />;
     if (profile === null) return <NotFoundState message="Member not found." />;
+
+    const canRemoveMember = squad?.createdBy === currentUser?._id && !profile.isMe && !profile.isOwner;
+
+    const handleRemoveMember = async () => {
+        heavyImpact();
+        setShowRemoveConfirm(false);
+        try {
+            await removeMember({ squadId, memberUserId: profile.userId });
+            toast.success(`${profile.nickname} was removed from the squad`);
+            router.replace(`/squad/${squadId}/members` as any);
+        } catch (err: any) {
+            toast.error(err.message ?? 'Could not remove member');
+        }
+    };
 
     return (
         <ThemedView style={styles.container}>
@@ -76,7 +99,37 @@ export default function MemberProfileScreen() {
                             <ThemedText type="small" selectable>{profile.email}</ThemedText>
                         </InfoCard>
                     ) : null}
+
+                    {canRemoveMember ? (
+                        <View style={[styles.dangerCard, { backgroundColor: theme.errorSoft, borderColor: theme.error }]}>
+                            <View style={styles.dangerCopy}>
+                                <ThemedText type="bodyBold" style={{ color: theme.error }}>Remove from squad</ThemedText>
+                                <ThemedText type="caption" themeColor="textSecondary">
+                                    They will lose access immediately and need the password to rejoin.
+                                </ThemedText>
+                            </View>
+                            <Pressable
+                                onPress={() => setShowRemoveConfirm(true)}
+                                style={[styles.removeBtn, { backgroundColor: theme.surface, borderColor: theme.error }]}
+                                accessibilityRole="button"
+                                accessibilityLabel={`Remove ${profile.nickname} from squad`}
+                            >
+                                <Trash2 size={17} color={theme.error} strokeWidth={2.5} />
+                                <ThemedText type="smallBold" style={{ color: theme.error }}>Remove</ThemedText>
+                            </Pressable>
+                        </View>
+                    ) : null}
                 </ScrollView>
+
+                <ConfirmDialog
+                    visible={showRemoveConfirm}
+                    title="Remove member?"
+                    message={`${profile.nickname} will lose access to this squad. Their previous posts stay visible.`}
+                    confirmLabel="Remove"
+                    destructive
+                    onCancel={() => setShowRemoveConfirm(false)}
+                    onConfirm={handleRemoveMember}
+                />
             </SafeAreaView>
         </ThemedView>
     );
@@ -151,4 +204,20 @@ const styles = StyleSheet.create({
     },
     infoCopy: { flex: 1, gap: 2 },
     infoLabel: { textTransform: 'uppercase', letterSpacing: 0.4, fontWeight: Weight.bold },
+    dangerCard: {
+        gap: Spacing.md,
+        borderWidth: 1.5,
+        borderRadius: Radius.lg,
+        padding: Spacing.md,
+    },
+    dangerCopy: { gap: 2 },
+    removeBtn: {
+        minHeight: 46,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: Spacing.sm,
+        borderWidth: 1.5,
+        borderRadius: Radius.md,
+    },
 });

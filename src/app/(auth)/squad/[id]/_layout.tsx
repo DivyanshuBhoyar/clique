@@ -2,11 +2,22 @@ import { Colors, Typography, Weight } from '@/constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery } from 'convex/react';
 import { Tabs, useLocalSearchParams } from 'expo-router';
-import { BookOpen, Heart, MessageCircle, Sparkles, Zap } from 'lucide-react-native';
+import { BookOpen, Heart, MessageCircle, Sparkles, Zap, type LucideIcon } from 'lucide-react-native';
 import { useEffect } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../../../../../convex/_generated/api';
 import { Id } from '../../../../../convex/_generated/dataModel';
+
+const SQUAD_TABS: Record<string, { label: string; Icon: LucideIcon }> = {
+    chat: { label: 'Chat', Icon: MessageCircle },
+    drops: { label: 'Drops', Icon: Zap },
+    memories: { label: 'Memories', Icon: Heart },
+    notes: { label: 'Notes', Icon: BookOpen },
+    vibes: { label: 'Vibes', Icon: Sparkles },
+};
+
+const SQUAD_TAB_ORDER = ['chat', 'drops', 'memories', 'notes', 'vibes'];
 
 /**
  * Squad tab bar layout.
@@ -55,6 +66,7 @@ export default function SquadTabsLayout() {
                     paddingBottom: Math.max(insets.bottom, 6),
                 },
             }}
+            tabBar={(props) => <SquadTabBar {...props} bottomInset={insets.bottom} />}
         >
             {/* 1. Chat — MessageCircle icon */}
             <Tabs.Screen
@@ -150,9 +162,16 @@ export default function SquadTabsLayout() {
                 }}
             />
 
-            {/* Members/settings — stack-style screens, hidden from tab bar */}
+            {/* Utility screens — reachable from in-flow buttons, never shown as bottom tabs */}
             <Tabs.Screen
                 name="members"
+                options={{
+                    href: null,
+                    tabBarStyle: { display: 'none' },
+                }}
+            />
+            <Tabs.Screen
+                name="members/[memberId]"
                 options={{
                     href: null,
                     tabBarStyle: { display: 'none' },
@@ -168,3 +187,84 @@ export default function SquadTabsLayout() {
         </Tabs>
     );
 }
+
+function SquadTabBar({ state, descriptors, navigation, bottomInset }: any & { bottomInset: number }) {
+    const focusedRoute = state.routes[state.index];
+    const focusedOptions = descriptors[focusedRoute.key]?.options;
+
+    if (focusedOptions?.tabBarStyle?.display === 'none') {
+        return null;
+    }
+
+    const routesByName = new Map(state.routes.map((route: any) => [route.name, route]));
+
+    return (
+        <View style={[styles.tabBar, { paddingBottom: Math.max(bottomInset, 6), height: 60 + bottomInset }]}>
+            {SQUAD_TAB_ORDER.map((routeName) => {
+                const route = routesByName.get(routeName);
+                if (!route) return null;
+
+                const { label, Icon } = SQUAD_TABS[routeName];
+                const focused = focusedRoute.name === routeName;
+                const color = focused ? Colors.light.tabBarActive : Colors.light.tabBarInactive;
+
+                const onPress = () => {
+                    const event = navigation.emit({
+                        type: 'tabPress',
+                        target: route.key,
+                        canPreventDefault: true,
+                    });
+
+                    if (!focused && !event.defaultPrevented) {
+                        navigation.navigate(route.name, route.params);
+                    }
+                };
+
+                return (
+                    <Pressable
+                        key={route.key}
+                        onPress={onPress}
+                        style={({ pressed }) => [styles.tabItem, pressed && styles.tabPressed]}
+                        accessibilityRole="button"
+                        accessibilityState={focused ? { selected: true } : {}}
+                        accessibilityLabel={label}
+                    >
+                        <Icon
+                            size={22}
+                            color={color}
+                            strokeWidth={focused ? 2.5 : 1.75}
+                            fill={focused ? color : 'transparent'}
+                        />
+                        <Text style={[styles.tabLabel, { color }]}>{label}</Text>
+                    </Pressable>
+                );
+            })}
+        </View>
+    );
+}
+
+const styles = StyleSheet.create({
+    tabBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-around',
+        paddingTop: 6,
+        borderTopWidth: 1.5,
+        borderTopColor: Colors.light.tabBarBorder,
+        backgroundColor: Colors.light.tabBarBackground,
+    },
+    tabItem: {
+        flex: 1,
+        minHeight: 48,
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 2,
+    },
+    tabLabel: {
+        fontSize: Typography.caption,
+        fontWeight: Weight.semibold,
+    },
+    tabPressed: {
+        opacity: 0.7,
+    },
+});

@@ -16,6 +16,7 @@ interface ChatMessageListProps {
     onEndReached: () => void;
     onToggleReaction: (messageId: string, emoji: string) => void;
     onSelectMessage: (message: ChatMessageSnapshot) => void;
+    onReplyToMessage: (message: ChatMessageSnapshot) => void;
 }
 
 export function ChatMessageList({
@@ -27,6 +28,7 @@ export function ChatMessageList({
     onEndReached,
     onToggleReaction,
     onSelectMessage,
+    onReplyToMessage,
 }: ChatMessageListProps) {
     const latestOwnMessageId = messages.find((message) => message.userId === currentUserId && !message.deleted)?._id;
 
@@ -58,9 +60,10 @@ export function ChatMessageList({
                 seenByText={seenByText}
                 onToggleReaction={onToggleReaction}
                 onLongPress={() => onSelectMessage(item)}
+                onSwipeReply={!item.deleted ? () => onReplyToMessage(item) : undefined}
             />
         );
-    }, [currentUserId, latestOwnMessageId, onSelectMessage, onToggleReaction, readReceipts]);
+    }, [currentUserId, latestOwnMessageId, onReplyToMessage, onSelectMessage, onToggleReaction, readReceipts]);
 
     if (messages.length === 0) {
         return (

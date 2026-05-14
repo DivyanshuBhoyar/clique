@@ -118,13 +118,15 @@ export const joinSquad = mutation({
 
         if (existing) return squadId;
 
+        const joinedAt = Date.now();
+
         await ctx.db.insert("memberships", {
             userId,
             squadId: squadId,
             nickname: args.nickname,
-            vibe: args.vibe,
-            statusText: args.statusText,
-            joinedAt: Date.now(),
+            ...(args.vibe ? { vibe: args.vibe, vibeUpdatedAt: joinedAt } : {}),
+            ...(args.statusText ? { statusText: args.statusText } : {}),
+            joinedAt,
         });
 
         return squadId;
@@ -221,6 +223,9 @@ export const leaveSquad = mutation({
         const userId = await getAuthUserId(ctx);
         if (!userId) throw new Error("Unauthenticated");
 
+        const squad = await ctx.db.get(args.squadId);
+        if (!squad) throw new Error("Squad not found");
+
         const membership = await ctx.db
             .query("memberships")
             .withIndex("by_user_squad", (q) =>
@@ -228,7 +233,39 @@ export const leaveSquad = mutation({
             )
             .first();
 
-        if (membership) await ctx.db.delete(membership._id);
+        if (!membership) throw new Error("Not a member of this squad");
+        if (squad.createdBy === userId) {
+            throw new Error("Squad creators cannot leave yet. Remove members or add ownership transfer first.");
+        }
+
+        await ctx.db.delete(membership._id);
+    },
+});
+
+export const removeSquadMember = mutation({
+    args: {
+        squadId: v.id("squads"),
+        memberUserId: v.id("users"),
+    },
+    handler: async (ctx, args) => {
+        const { userId } = await requireMembership(ctx, args.squadId);
+        const squad = await ctx.db.get(args.squadId);
+        if (!squad) throw new Error("Squad not found");
+        if (squad.createdBy !== userId) throw new Error("Only the squad creator can remove members");
+        if (args.memberUserId === userId) throw new Error("Use Leave Squad for your own membership");
+        if (args.memberUserId === squad.createdBy) throw new Error("The squad creator cannot be removed");
+
+        const membership = await ctx.db
+            .query("memberships")
+            .withIndex("by_user_squad", (q) =>
+                q.eq("userId", args.memberUserId).eq("squadId", args.squadId)
+            )
+            .first();
+
+        if (!membership) throw new Error("Member not found");
+
+        await ctx.db.delete(membership._id);
+        return { success: true };
     },
 });
 

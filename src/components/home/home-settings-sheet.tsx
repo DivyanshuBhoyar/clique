@@ -1,4 +1,4 @@
-import { LogOut, Plus, Settings, Users } from 'lucide-react-native';
+import { LogOut, Plus } from 'lucide-react-native';
 import type React from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 
@@ -12,8 +12,6 @@ interface HomeSettingsSheetProps {
   memberCount: number;
   onClose: () => void;
   onCreateSquad: () => void;
-  onMembersPress: () => void;
-  onSquadSettingsPress: () => void;
   onSignOutPress: () => void;
 }
 
@@ -23,8 +21,6 @@ export function HomeSettingsSheet({
   memberCount,
   onClose,
   onCreateSquad,
-  onMembersPress,
-  onSquadSettingsPress,
   onSignOutPress,
 }: HomeSettingsSheetProps) {
   const theme = useTheme();
@@ -58,18 +54,6 @@ export function HomeSettingsSheet({
           </View>
 
           <View style={styles.actions}>
-            <SettingsRow
-              icon={<Settings size={18} color={theme.text} strokeWidth={2.3} />}
-              title="Squad settings"
-              subtitle="Rename, password, and ownership tools"
-              onPress={onSquadSettingsPress}
-            />
-            <SettingsRow
-              icon={<Users size={18} color={theme.text} strokeWidth={2.3} />}
-              title="Members"
-              subtitle="View and manage your squad"
-              onPress={onMembersPress}
-            />
             <SettingsRow
               icon={<Plus size={18} color={theme.text} strokeWidth={2.3} />}
               title="Create another squad"

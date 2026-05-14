@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from 'convex/react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Crown, LockKeyhole, LogOut, Users } from 'lucide-react-native';
+import { Crown, LockKeyhole, LogOut } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -26,7 +26,6 @@ export default function SquadSettingsScreen() {
 
     const squad = useQuery(api.squad.getSquad, squadId ? { id: squadId } : 'skip');
     const currentUser = useQuery(api.users.current);
-    const members = useQuery(api.squad.getSquadMembers, squadId ? { squadId } : 'skip');
     const updateSquadSettings = useMutation(api.squad.updateSquadSettings);
     const leaveSquad = useMutation(api.squad.leaveSquad);
 
@@ -39,13 +38,11 @@ export default function SquadSettingsScreen() {
         if (squad?.name) setName(squad.name);
     }, [squad?.name]);
 
-    if (squad === undefined || currentUser === undefined || members === undefined) {
+    if (squad === undefined || currentUser === undefined) {
         return <LoadingState message="Opening squad settings…" />;
     }
 
-    const currentMember = members.find((member) => member.userId === currentUser?._id);
     const canManage = squad?.createdBy === currentUser?._id;
-    const memberCount = members.length;
 
     const handleSave = async () => {
         if (!squad || saving || !canManage) return;
@@ -150,35 +147,22 @@ export default function SquadSettingsScreen() {
                         ) : null}
                     </View>
 
-                    <Pressable
-                        onPress={() => router.push(`/squad/${squadId}/members` as any)}
-                        style={({ pressed }) => [
-                            styles.memberBtn,
-                            { backgroundColor: theme.surface, borderColor: theme.outlineLight },
-                            pressed && styles.pressed,
-                        ]}
-                        accessibilityRole="button"
-                        accessibilityLabel="Open member list"
-                    >
-                        <Users size={18} color={theme.text} strokeWidth={2.5} />
-                        <View style={styles.memberCopy}>
-                            <ThemedText type="bodyBold">Members</ThemedText>
-                            <ThemedText type="caption" themeColor="textSecondary">
-                                {memberCount} friend{memberCount !== 1 ? 's' : ''} · you are @{currentMember?.nickname ?? 'you'}
-                            </ThemedText>
-                        </View>
-                    </Pressable>
-
                     <View style={[styles.dangerZone, { borderTopColor: theme.outlineLight }]}>
                         <ThemedText type="caption" themeColor="textSecondary" style={styles.dangerLabel}>DANGER ZONE</ThemedText>
+                        {canManage ? (
+                            <ThemedText type="caption" themeColor="textSecondary">
+                                Member management lives on the Members screen. Creators cannot leave until ownership transfer exists.
+                            </ThemedText>
+                        ) : null}
                         <Pressable
                             onPress={() => setShowLeaveConfirm(true)}
-                            style={[styles.leaveBtn, { borderColor: theme.error, backgroundColor: theme.errorSoft }]}
+                            disabled={canManage}
+                            style={[styles.leaveBtn, { borderColor: theme.error, backgroundColor: theme.errorSoft, opacity: canManage ? 0.5 : 1 }]}
                             accessibilityRole="button"
-                            accessibilityLabel="Leave squad"
+                            accessibilityLabel={canManage ? 'Squad creators cannot leave yet' : 'Leave squad'}
                         >
                             <LogOut size={17} color={theme.error} strokeWidth={2.5} />
-                            <ThemedText type="smallBold" style={{ color: theme.error }}>Leave Squad</ThemedText>
+                            <ThemedText type="smallBold" style={{ color: theme.error }}>{canManage ? 'Creator cannot leave yet' : 'Leave Squad'}</ThemedText>
                         </Pressable>
                     </View>
                 </ScrollView>
@@ -247,15 +231,6 @@ const styles = StyleSheet.create({
     pressed: {
         transform: [{ translateX: 1 }, { translateY: 1 }],
     },
-    memberBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: Spacing.md,
-        borderWidth: 1.5,
-        borderRadius: Radius.lg,
-        padding: Spacing.lg,
-    },
-    memberCopy: { flex: 1, gap: 2 },
     dangerZone: {
         gap: Spacing.sm,
         borderTopWidth: 1.5,

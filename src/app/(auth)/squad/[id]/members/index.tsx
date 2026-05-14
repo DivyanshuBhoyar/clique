@@ -1,6 +1,6 @@
 import { useQuery } from 'convex/react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Crown, UserRound } from 'lucide-react-native';
+import { Crown, Settings, UserMinus, UserRound } from 'lucide-react-native';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -23,6 +23,7 @@ export default function MembersScreen() {
 
     const members = useQuery(api.squad.getSquadMembers, squadId ? { squadId } : 'skip');
     const onlineCount = members?.filter((member) => member.isOnline).length ?? 0;
+    const canManageMembers = members?.some((member) => member.isMe && member.isOwner) ?? false;
 
     if (members === undefined) return <LoadingState message="Gathering the squad…" />;
 
@@ -33,9 +34,20 @@ export default function MembersScreen() {
                     title="Members"
                     subtitle={`${members.length} friend${members.length !== 1 ? 's' : ''} · ${onlineCount} online`}
                     onBack={() => router.back()}
+                    rightIcon={Settings}
+                    onRightPress={() => router.push(`/squad/${squadId}/settings` as any)}
                 />
 
                 <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+                    {canManageMembers ? (
+                        <View style={[styles.manageHint, { backgroundColor: theme.warningSoft, borderColor: theme.outlineLight }]}>
+                            <UserMinus size={17} color={theme.text} strokeWidth={2.5} />
+                            <ThemedText type="caption" themeColor="textSecondary" style={styles.manageHintText}>
+                                You are the creator. Open profiles to remove members, or tap ⚙︎ for squad settings.
+                            </ThemedText>
+                        </View>
+                    ) : null}
+
                     {members.map((member) => (
                         <Pressable
                             key={member.userId}
@@ -78,7 +90,13 @@ export default function MembersScreen() {
                                 </ThemedText>
                             </View>
 
-                            <UserRound size={18} color={theme.textTertiary} strokeWidth={2} />
+                            {canManageMembers && !member.isMe && !member.isOwner ? (
+                                <View style={[styles.managePill, { backgroundColor: theme.errorSoft, borderColor: theme.error }]}>
+                                    <ThemedText type="caption" style={{ color: theme.error, fontWeight: Weight.bold }}>Manage</ThemedText>
+                                </View>
+                            ) : (
+                                <UserRound size={18} color={theme.textTertiary} strokeWidth={2} />
+                            )}
                         </Pressable>
                     ))}
                 </ScrollView>
@@ -134,5 +152,23 @@ const styles = StyleSheet.create({
         borderRadius: Radius.full,
         paddingHorizontal: Spacing.xs,
         paddingVertical: 1,
+    },
+    manageHint: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.sm,
+        borderWidth: 1.5,
+        borderRadius: Radius.lg,
+        padding: Spacing.md,
+    },
+    manageHintText: {
+        flex: 1,
+        fontWeight: Weight.medium,
+    },
+    managePill: {
+        borderWidth: 1,
+        borderRadius: Radius.full,
+        paddingHorizontal: Spacing.sm,
+        paddingVertical: 3,
     },
 });

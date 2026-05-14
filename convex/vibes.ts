@@ -50,12 +50,9 @@ export const getSquadVibes = query({
             .withIndex("by_squad", (q) => q.eq("squadId", args.squadId))
             .collect();
 
-        const now = Date.now();
-        const twentyFourHours = 24 * 60 * 60 * 1000;
-
         const vibes = [];
         for (const m of memberships) {
-            if (!m.vibe || !m.vibeUpdatedAt || (now - m.vibeUpdatedAt) >= twentyFourHours) continue;
+            if (!m.vibe) continue;
             const { avatarUrl } = await enrichUser(ctx, m.userId, args.squadId);
             vibes.push({
                 userId: m.userId,
@@ -63,10 +60,15 @@ export const getSquadVibes = query({
                 avatarUrl,
                 vibe: m.vibe!,
                 vibeLabel: m.vibeLabel ?? null,
-                vibeUpdatedAt: m.vibeUpdatedAt!,
+                vibeUpdatedAt: m.vibeUpdatedAt ?? m.joinedAt,
                 isCurrentUser: m.userId === userId,
             });
         }
-        return vibes;
+
+        return vibes.sort((a, b) => {
+            if (a.isCurrentUser) return -1;
+            if (b.isCurrentUser) return 1;
+            return b.vibeUpdatedAt - a.vibeUpdatedAt;
+        });
     },
 });

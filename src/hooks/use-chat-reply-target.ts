@@ -38,6 +38,14 @@ export function useChatReplyTarget(channelId?: string) {
         });
     }, [selectedMessage]);
 
+    const startReplyToMessage = useCallback((message: ChatMessageSnapshot) => {
+        setReplyTarget({
+            id: message._id as Id<'messages'>,
+            nickname: message.nickname,
+            content: getMessagePreview(message),
+        });
+    }, []);
+
     const clearReplyTarget = useCallback(() => setReplyTarget(null), []);
     const clearSelectedMessage = useCallback(() => setSelectedMessage(null), []);
 
@@ -46,6 +54,7 @@ export function useChatReplyTarget(channelId?: string) {
         replyTarget,
         selectMessage,
         startReplyToSelectedMessage,
+        startReplyToMessage,
         clearReplyTarget,
         clearSelectedMessage,
     };

@@ -1,5 +1,9 @@
 # Changelog
 
+- 2026-05-14: Fixed squad vibe loading so saved vibes persist, legacy vibe records render, and join-squad vibes get timestamps.
+- 2026-05-14: Revisited squad management UX: Chat opens Members, Members opens Settings, and utility routes stay off the bottom tab bar.
+- 2026-05-14: Added creator-only squad member removal, safer leave-squad rules, and member-management UI affordances.
+- 2026-05-14: Added memory editing for wall/event memories and swipe-right-to-reply for chat bubbles.
 - 2026-05-14: Added social grounding pass: ConfirmDialog destructive prompts, memory photo gallery, members/profile routes, squad settings, real recent activity, read receipts, and message edit UI.
 - 2026-05-14: Replaced bare spinner loading with a playful branded loading card and screen-specific copy for Chat, Drops, and Notes.
 - 2026-05-14: Refined Notes markdown UX from always-on bottom preview to an explicit `Write` / `Preview` mode toggle.

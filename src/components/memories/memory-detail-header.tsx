@@ -71,6 +71,11 @@ export function MemoryDetailHeader({
             {isEvent && memory.title && (
                 <ThemedText style={styles.eventTitle}>{memory.title}</ThemedText>
             )}
+            {isEvent && memory.content ? (
+                <ThemedText type="small" themeColor="textSecondary" style={styles.eventContent}>
+                    {memory.content}
+                </ThemedText>
+            ) : null}
 
             <View style={styles.authorRow}>
                 <UserAvatar uri={null} size={28} fallbackText={nickname} />
@@ -135,6 +140,9 @@ const styles = StyleSheet.create({
     eventTitle: {
         fontSize: Typography.subtitle,
         fontWeight: Weight.extrabold,
+    },
+    eventContent: {
+        lineHeight: 20,
     },
     coverImage: {
         height: 220,

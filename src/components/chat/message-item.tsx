@@ -13,13 +13,15 @@
  * the newest message appears at the bottom without needing to scroll.
  * The list data is still ordered newest-first from Convex.
  */
-import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { useMemo, useRef } from 'react';
+import { Animated, Image, PanResponder, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { EmojiReactionStrip } from '@/components/ui/emoji-reaction-strip';
 import { UserAvatar } from '@/components/user-avatar';
 import { LineHeight, Radius, Spacing, Typography, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { lightImpact } from '@/utils/haptics';
 
 interface Reaction {
   emoji: string;
@@ -49,6 +51,7 @@ interface MessageItemProps {
   seenByText?: string | null;
   onToggleReaction?: (messageId: string, emoji: string) => void;
   onLongPress?: () => void;
+  onSwipeReply?: () => void;
   onImagePress?: (imageUrl: string) => void;
 }
 
@@ -68,9 +71,57 @@ export function MessageItem({
   seenByText,
   onToggleReaction,
   onLongPress,
+  onSwipeReply,
   onImagePress,
 }: MessageItemProps) {
   const theme = useTheme();
+  const translateX = useRef(new Animated.Value(0)).current;
+  const didTriggerReply = useRef(false);
+
+  const replyCueOpacity = translateX.interpolate({
+    inputRange: [0, 24, 64],
+    outputRange: [0, 0.55, 1],
+    extrapolate: 'clamp',
+  });
+
+  const panResponder = useMemo(
+    () => PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gesture) => {
+        if (!onSwipeReply || deleted) return false;
+        return gesture.dx > 14 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.5;
+      },
+      onPanResponderMove: (_, gesture) => {
+        const nextX = Math.max(0, Math.min(gesture.dx, 84));
+        translateX.setValue(nextX);
+        if (nextX >= 64 && !didTriggerReply.current) {
+          didTriggerReply.current = true;
+          lightImpact();
+        }
+      },
+      onPanResponderRelease: (_, gesture) => {
+        if (gesture.dx >= 64 && onSwipeReply && !deleted) {
+          onSwipeReply();
+        }
+        didTriggerReply.current = false;
+        Animated.spring(translateX, {
+          toValue: 0,
+          useNativeDriver: true,
+          friction: 7,
+          tension: 70,
+        }).start();
+      },
+      onPanResponderTerminate: () => {
+        didTriggerReply.current = false;
+        Animated.spring(translateX, {
+          toValue: 0,
+          useNativeDriver: true,
+          friction: 7,
+          tension: 70,
+        }).start();
+      },
+    }),
+    [deleted, onSwipeReply, translateX],
+  );
 
   const time = new Date(createdAt).toLocaleTimeString([], {
     hour: '2-digit',
@@ -94,8 +145,15 @@ export function MessageItem({
   })();
 
   return (
-    <Pressable onLongPress={onLongPress} delayLongPress={300}>
-      <View style={[styles.row, isOwnMessage && styles.rowRight]}>
+    <View style={styles.swipeShell}>
+      {onSwipeReply ? (
+        <Animated.View style={[styles.replyCue, { opacity: replyCueOpacity }]}>
+          <ThemedText type="caption" style={[styles.replyCueText, { color: theme.accent }]}>↩ Reply</ThemedText>
+        </Animated.View>
+      ) : null}
+      <Animated.View style={{ transform: [{ translateX }] }} {...panResponder.panHandlers}>
+        <Pressable onLongPress={onLongPress} delayLongPress={300}>
+          <View style={[styles.row, isOwnMessage && styles.rowRight]}>
         {/* Avatar — only shown for others' messages */}
         {!isOwnMessage && (
           <View style={styles.avatarWrap}>
@@ -229,12 +287,29 @@ export function MessageItem({
             </ThemedText>
           ) : null}
         </View>
-      </View>
-    </Pressable>
+          </View>
+        </Pressable>
+      </Animated.View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  swipeShell: {
+    position: 'relative',
+  },
+  replyCue: {
+    position: 'absolute',
+    left: Spacing.lg,
+    top: 0,
+    bottom: Spacing.sm,
+    justifyContent: 'center',
+  },
+  replyCueText: {
+    fontWeight: Weight.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'flex-end',

@@ -75,7 +75,7 @@ export function MessageInput({ onSend, onSendImage, onEdit, onTyping, replyTo, o
       ]}
     >
       {isEditing ? (
-        <View style={[styles.replyComposer, { borderBottomColor: theme.outlineLight }]}> 
+        <View style={[styles.replyComposer, { borderBottomColor: theme.outlineLight }]}>
           <View style={[styles.replyBar, { backgroundColor: theme.accent }]} />
           <View style={styles.replyCopy}>
             <ThemedText type="caption" style={[styles.replyLabel, { color: theme.textSecondary }]}>Editing message</ThemedText>

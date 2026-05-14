@@ -61,6 +61,56 @@ export const deleteMemory = mutation({
 });
 
 
+export const editMemory = mutation({
+    args: {
+        memoryId: v.id("memories"),
+        title: v.optional(v.string()),
+        content: v.optional(v.string()),
+        coverStorageId: v.optional(v.id("_storage")),
+        removeCover: v.optional(v.boolean()),
+    },
+    handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) throw new Error("Unauthenticated");
+
+        const memory = await ctx.db.get(args.memoryId);
+        if (!memory) throw new Error("Memory not found");
+        if (memory.createdBy !== userId) throw new Error("Not authorized");
+
+        await requireMembership(ctx, memory.squadId);
+
+        const nextTitle = args.title !== undefined ? args.title.trim() : memory.title;
+        const nextContent = args.content !== undefined ? args.content.trim() : memory.content;
+
+        if (nextTitle) assertLength("Title", nextTitle, 100);
+        if (nextContent) assertLength("Content", nextContent, 2000);
+
+        if (memory.type === "wall" && !nextContent) {
+            throw new Error("Wall memory requires content");
+        }
+        if (memory.type === "event" && !nextTitle) {
+            throw new Error("Event memory requires a title");
+        }
+
+        const nextCoverStorageId = args.removeCover
+            ? undefined
+            : args.coverStorageId ?? memory.coverStorageId;
+
+        await ctx.db.replace(args.memoryId, {
+            squadId: memory.squadId,
+            type: memory.type,
+            createdBy: memory.createdBy,
+            createdAt: memory.createdAt,
+            ...(nextTitle ? { title: nextTitle } : {}),
+            ...(nextContent ? { content: nextContent } : {}),
+            ...(nextCoverStorageId ? { coverStorageId: nextCoverStorageId } : {}),
+        });
+
+        return { success: true };
+    },
+});
+
+
 export const generateUploadUrl = mutation({
     args: {},
     handler: async (ctx) => {
