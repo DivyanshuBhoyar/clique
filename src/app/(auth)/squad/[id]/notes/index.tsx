@@ -1,27 +1,27 @@
 import { useMutation, usePaginatedQuery, useQuery } from 'convex/react';
-import { Link, useRouter, useGlobalSearchParams } from 'expo-router';
+import { Link, useGlobalSearchParams, useRouter } from 'expo-router';
+import { Plus, SlidersHorizontal } from 'lucide-react-native';
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, SlidersHorizontal } from 'lucide-react-native';
 
 import { JournalCard } from '@/components/notes/journal-card';
 import { NoteCard } from '@/components/notes/note-card';
-import { FilterChips } from '@/components/ui/filter-chips';
-import { EmptyState } from '@/components/ui/empty-state';
-import { Fab } from '@/components/ui/fab';
 import { SharedNoteCard } from '@/components/notes/shared-note-card';
-import { ScreenHeader } from '@/components/ui/screen-header';
-import { SearchBar } from '@/components/ui/search-bar';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Fab } from '@/components/ui/fab';
+import { FilterChips } from '@/components/ui/filter-chips';
+import { LoadingState } from '@/components/ui/loading-state';
+import { PaginatedList } from '@/components/ui/paginated-list';
+import { ScreenHeader } from '@/components/ui/screen-header';
+import { SearchBar } from '@/components/ui/search-bar';
 import { Radius, Spacing, Weight } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
 import { api } from '@/convex/_generated/api';
 import { Doc, Id } from '@/convex/_generated/dataModel';
 import { useBookmarkToggle } from '@/hooks/use-bookmark-mutation';
-import { PaginatedList } from '@/components/ui/paginated-list';
-import { LoadingState } from '@/components/ui/loading-state';
+import { useTheme } from '@/hooks/use-theme';
 
 const PAGE_SIZE = 20;
 const FEED_CHIPS = [

@@ -11,14 +11,14 @@
  * The right edge gets a 4px accent-coloured left-border to differentiate
  * note type at a glance: warm yellow for journal, plain outline for personal.
  */
-import { GestureResponderEvent, Pressable, StyleSheet, View } from 'react-native';
 import { Bookmark, Pin } from 'lucide-react-native';
+import { GestureResponderEvent, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { DashedSeparator } from '@/components/ui/dashed-separator';
 import { UserAvatar } from '@/components/user-avatar';
-import { useTheme } from '@/hooks/use-theme';
 import { LineHeight, Radius, Spacing, Typography, Weight } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { formatRelativeTime } from '@/utils/time';
 
 interface NoteCardProps {
