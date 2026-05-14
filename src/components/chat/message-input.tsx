@@ -1,5 +1,5 @@
 import { Plus, Send, X } from 'lucide-react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -17,25 +17,38 @@ interface ReplyTarget {
 interface MessageInputProps {
   onSend: (content: string) => Promise<void>;
   onSendImage: (storageId: Id<"_storage">, caption?: string) => Promise<void>;
+  onEdit?: (content: string) => Promise<void>;
   onTyping?: () => void;
   replyTo?: ReplyTarget | null;
   onCancelReply?: () => void;
+  editContent?: string | null;
+  onCancelEdit?: () => void;
 }
 
-export function MessageInput({ onSend, onSendImage, onTyping, replyTo, onCancelReply }: MessageInputProps) {
+export function MessageInput({ onSend, onSendImage, onEdit, onTyping, replyTo, onCancelReply, editContent, onCancelEdit }: MessageInputProps) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const theme = useTheme();
   const { previewUri, storageId, uploading, pickAndUpload, reset } = useImageUpload();
+  const isEditing = editContent !== undefined && editContent !== null;
 
-  const canSend = (text.trim().length > 0 || (previewUri && storageId)) && !sending && !uploading;
+  useEffect(() => {
+    if (isEditing) {
+      reset();
+      setText(editContent ?? '');
+    }
+  }, [editContent, isEditing, reset]);
+
+  const canSend = (isEditing ? text.trim().length > 0 : (text.trim().length > 0 || (previewUri && storageId))) && !sending && !uploading;
 
   const handleSend = async () => {
     if (!canSend) return;
 
     setSending(true);
     try {
-      if (previewUri && storageId) {
+      if (isEditing && onEdit) {
+        await onEdit(text.trim());
+      } else if (previewUri && storageId) {
         await onSendImage(storageId, text.trim() || undefined);
         reset();
       } else {
@@ -61,7 +74,26 @@ export function MessageInput({ onSend, onSendImage, onTyping, replyTo, onCancelR
         },
       ]}
     >
-      {replyTo ? (
+      {isEditing ? (
+        <View style={[styles.replyComposer, { borderBottomColor: theme.outlineLight }]}> 
+          <View style={[styles.replyBar, { backgroundColor: theme.accent }]} />
+          <View style={styles.replyCopy}>
+            <ThemedText type="caption" style={[styles.replyLabel, { color: theme.textSecondary }]}>Editing message</ThemedText>
+            <ThemedText type="small" style={{ color: theme.text }} numberOfLines={1}>
+              Save changes or cancel to keep the original.
+            </ThemedText>
+          </View>
+          <Pressable
+            onPress={onCancelEdit}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel editing"
+            hitSlop={8}
+            style={styles.cancelReplyButton}
+          >
+            <X size={16} color={theme.textSecondary} />
+          </Pressable>
+        </View>
+      ) : replyTo ? (
         <View style={[styles.replyComposer, { borderBottomColor: theme.outlineLight }]}>
           <View style={[styles.replyBar, { backgroundColor: theme.accent }]} />
           <View style={styles.replyCopy}>
@@ -85,7 +117,7 @@ export function MessageInput({ onSend, onSendImage, onTyping, replyTo, onCancelR
       ) : null}
 
       {/* Image preview */}
-      {previewUri && (
+      {!isEditing && previewUri && (
         <View style={styles.previewRow}>
           <View style={styles.previewWrap}>
             <Image source={{ uri: previewUri }} style={styles.previewImage} resizeMode="cover" />
@@ -103,19 +135,21 @@ export function MessageInput({ onSend, onSendImage, onTyping, replyTo, onCancelR
 
       <View style={styles.inputRow}>
         {/* Attachment button */}
-        <Pressable
-          accessibilityLabel="Add attachment"
-          accessibilityRole="button"
-          style={styles.sideBtn}
-          onPress={pickAndUpload}
-          disabled={uploading}
-        >
-          {uploading ? (
-            <ActivityIndicator size="small" color={theme.textSecondary} />
-          ) : (
-            <Plus size={20} color={theme.textSecondary} strokeWidth={2} />
-          )}
-        </Pressable>
+        {!isEditing ? (
+          <Pressable
+            accessibilityLabel="Add attachment"
+            accessibilityRole="button"
+            style={styles.sideBtn}
+            onPress={pickAndUpload}
+            disabled={uploading}
+          >
+            {uploading ? (
+              <ActivityIndicator size="small" color={theme.textSecondary} />
+            ) : (
+              <Plus size={20} color={theme.textSecondary} strokeWidth={2} />
+            )}
+          </Pressable>
+        ) : null}
 
         {/* Text input */}
         <View
@@ -130,7 +164,7 @@ export function MessageInput({ onSend, onSendImage, onTyping, replyTo, onCancelR
           <TextInput
             value={text}
             onChangeText={(v) => { setText(v); onTyping?.(); }}
-            placeholder={previewUri ? "Add a caption..." : "Say something cozy..."}
+            placeholder={isEditing ? "Edit message..." : previewUri ? "Add a caption..." : "Say something cozy..."}
             placeholderTextColor={theme.placeholder}
             style={[
               styles.input,
@@ -150,7 +184,7 @@ export function MessageInput({ onSend, onSendImage, onTyping, replyTo, onCancelR
           onPress={handleSend}
           disabled={!canSend}
           accessibilityRole="button"
-          accessibilityLabel="Send message"
+          accessibilityLabel={isEditing ? 'Save edited message' : 'Send message'}
           style={({ pressed }) => [
             styles.sendBtn,
             {

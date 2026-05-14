@@ -5,6 +5,8 @@ export interface ChatSelectedMessage {
     isOwn: boolean;
     nickname?: string;
     content: string;
+    deleted?: boolean;
+    type?: 'text' | 'image' | 'system';
 }
 
 export interface ChatReplyTarget {

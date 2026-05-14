@@ -24,6 +24,8 @@ export function useChatReplyTarget(channelId?: string) {
             isOwn: message.userId === currentUserId,
             nickname: message.nickname,
             content: getMessagePreview(message),
+            deleted: message.deleted,
+            type: message.type,
         });
     }, []);
 

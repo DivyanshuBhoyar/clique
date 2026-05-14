@@ -1,12 +1,12 @@
+import { Colors, Typography, Weight } from '@/constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery } from 'convex/react';
 import { Tabs, useLocalSearchParams } from 'expo-router';
+import { BookOpen, Heart, MessageCircle, Sparkles, Zap } from 'lucide-react-native';
 import { useEffect } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MessageCircle, Zap, Heart, BookOpen, Sparkles } from 'lucide-react-native';
 import { api } from '../../../../../convex/_generated/api';
 import { Id } from '../../../../../convex/_generated/dataModel';
-import { Colors, Typography, Weight } from '@/constants/theme';
 
 /**
  * Squad tab bar layout.
@@ -144,6 +144,22 @@ export default function SquadTabsLayout() {
             {/* Bookmarks — stack screen, hidden from tab bar */}
             <Tabs.Screen
                 name="bookmarks"
+                options={{
+                    href: null,
+                    tabBarStyle: { display: 'none' },
+                }}
+            />
+
+            {/* Members/settings — stack-style screens, hidden from tab bar */}
+            <Tabs.Screen
+                name="members"
+                options={{
+                    href: null,
+                    tabBarStyle: { display: 'none' },
+                }}
+            />
+            <Tabs.Screen
+                name="settings"
                 options={{
                     href: null,
                     tabBarStyle: { display: 'none' },

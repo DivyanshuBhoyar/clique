@@ -264,3 +264,32 @@ export const markChannelRead = mutation({
         }
     },
 });
+
+export const getChannelReadReceipts = query({
+    args: { channelId: v.id("channels") },
+    handler: async (ctx, args) => {
+        const channel = await ctx.db.get(args.channelId);
+        if (!channel) return [];
+
+        const { userId } = await requireMembership(ctx, channel.squadId);
+
+        const statuses = await ctx.db
+            .query("channelReadStatus")
+            .withIndex("by_channel", (q) => q.eq("channelId", args.channelId))
+            .take(50);
+
+        const visibleStatuses = statuses.filter((status) => status.userId !== userId);
+
+        return await Promise.all(
+            visibleStatuses.map(async (status) => {
+                const { nickname, avatarUrl } = await enrichUser(ctx, status.userId, channel.squadId);
+                return {
+                    userId: status.userId,
+                    nickname,
+                    avatarUrl,
+                    lastReadAt: status.lastReadAt,
+                };
+            })
+        );
+    },
+});

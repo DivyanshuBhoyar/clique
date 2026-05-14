@@ -2,7 +2,7 @@ import { Radius, Spacing, Typography, Weight } from '@/constants/theme';
 import { useMostUsedEmojis } from '@/hooks/use-most-used-emojis';
 import { useTheme } from '@/hooks/use-theme';
 import { heavyImpact, lightImpact } from '@/utils/haptics';
-import { Bookmark, Reply } from 'lucide-react-native';
+import { Bookmark, Pencil, Reply } from 'lucide-react-native';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 interface MessageActionsProps {
@@ -11,6 +11,7 @@ interface MessageActionsProps {
     isBookmarked?: boolean;
     onClose: () => void;
     onDelete: () => void;
+    onEdit?: () => void;
     onReact: (emoji: string) => void;
     onReply?: () => void;
     onBookmark?: () => void;
@@ -23,6 +24,7 @@ export function MessageActions({
     isBookmarked,
     onClose,
     onDelete,
+    onEdit,
     onReact,
     onReply,
     onBookmark,
@@ -95,6 +97,20 @@ export function MessageActions({
                             />
                             <Text style={{ color: theme.text, fontSize: Typography.body, fontWeight: Weight.medium }}>
                                 {isBookmarked ? 'Remove bookmark' : 'Bookmark'}
+                            </Text>
+                        </Pressable>
+                    )}
+
+                    {isOwnMessage && onEdit && (
+                        <Pressable
+                            onPress={() => { onEdit(); onClose(); }}
+                            style={[styles.actionRow, { borderBottomColor: theme.outlineLight }]}
+                            accessibilityRole="button"
+                            accessibilityLabel="Edit message"
+                        >
+                            <Pencil size={18} color={theme.text} strokeWidth={2} />
+                            <Text style={{ color: theme.text, fontSize: Typography.body, fontWeight: Weight.medium }}>
+                                Edit
                             </Text>
                         </Pressable>
                     )}

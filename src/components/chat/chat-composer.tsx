@@ -19,20 +19,26 @@ interface ChatComposerProps {
     isEphemeral: boolean;
     channelExpiry?: ChannelExpiryState | null;
     replyTarget: ChatReplyTarget | null;
+    editTarget?: { id: Id<'messages'>; content: string } | null;
     onTyping?: () => void;
     onCancelReply: () => void;
+    onCancelEdit?: () => void;
     onSend: (content: string, parentMessageId?: Id<'messages'>) => Promise<void>;
     onSendImage: (storageId: Id<'_storage'>, caption?: string, parentMessageId?: Id<'messages'>) => Promise<void>;
+    onEdit?: (content: string) => Promise<void>;
 }
 
 export function ChatComposer({
     isEphemeral,
     channelExpiry,
     replyTarget,
+    editTarget,
     onTyping,
     onCancelReply,
+    onCancelEdit,
     onSend,
     onSendImage,
+    onEdit,
 }: ChatComposerProps) {
     const theme = useTheme();
     const isExpired = channelExpiry?.isExpired ?? false;
@@ -56,10 +62,13 @@ export function ChatComposer({
         <>
             <MessageInput
                 onTyping={onTyping}
-                replyTo={replyTarget}
+                replyTo={editTarget ? null : replyTarget}
                 onCancelReply={onCancelReply}
+                editContent={editTarget?.content ?? null}
+                onCancelEdit={onCancelEdit}
                 onSend={(content) => onSend(content, replyTarget?.id)}
                 onSendImage={(storageId, caption) => onSendImage(storageId, caption, replyTarget?.id)}
+                onEdit={onEdit}
             />
 
             {isEphemeral && channelExpiry?.expiresAt && (

@@ -32,6 +32,7 @@ interface MemoryDetailHeaderProps {
     onToggleItemReaction: (itemId: string, emoji: string) => void;
     onAddItemReaction: (itemId: string) => void;
     onAddItem: () => void;
+    onViewPhotos?: () => void;
     onViewItemComments: (itemId: string) => void;
 }
 
@@ -49,6 +50,7 @@ export function MemoryDetailHeader({
     onToggleItemReaction,
     onAddItemReaction,
     onAddItem,
+    onViewPhotos,
     onViewItemComments,
 }: MemoryDetailHeaderProps) {
     const theme = useTheme();
@@ -111,6 +113,7 @@ export function MemoryDetailHeader({
                     onToggleItemReaction={onToggleItemReaction}
                     onAddItemReaction={onAddItemReaction}
                     onAddItem={onAddItem}
+                    onViewPhotos={onViewPhotos}
                     onViewItemComments={onViewItemComments}
                 />
             )}

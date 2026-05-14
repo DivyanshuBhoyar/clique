@@ -25,6 +25,7 @@ interface ScrapbookSectionProps {
   onToggleItemReaction: (itemId: string, emoji: string) => void;
   onAddItemReaction: (itemId: string) => void;
   onAddItem: () => void;
+  onViewPhotos?: () => void;
   onViewItemComments: (itemId: string) => void;
 }
 
@@ -34,21 +35,37 @@ export function ScrapbookSection({
   onToggleItemReaction,
   onAddItemReaction,
   onAddItem,
+  onViewPhotos,
   onViewItemComments,
 }: ScrapbookSectionProps) {
   const theme = useTheme();
+  const photoCount = items.filter((item) => item.type === 'photo' && item.photoUrl).length;
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <ThemedText style={styles.title}>📸 Scrapbook</ThemedText>
-        <Pressable
-          onPress={onAddItem}
-          style={[styles.addBtn, { backgroundColor: theme.surface, borderColor: theme.outline, borderRadius: Radius.full }]}
-        >
-          <Plus size={13} color={theme.text} strokeWidth={2.5} />
-          <ThemedText style={[styles.addBtnText, { color: theme.text }]}>Add</ThemedText>
-        </Pressable>
+        <View style={styles.headerActions}>
+          {photoCount > 0 && onViewPhotos ? (
+            <Pressable
+              onPress={onViewPhotos}
+              style={[styles.addBtn, { backgroundColor: theme.accentSoft, borderColor: theme.outline, borderRadius: Radius.full }]}
+              accessibilityRole="button"
+              accessibilityLabel="View all memory photos"
+            >
+              <ThemedText style={[styles.addBtnText, { color: theme.text }]}>View photos</ThemedText>
+            </Pressable>
+          ) : null}
+          <Pressable
+            onPress={onAddItem}
+            style={[styles.addBtn, { backgroundColor: theme.surface, borderColor: theme.outline, borderRadius: Radius.full }]}
+            accessibilityRole="button"
+            accessibilityLabel="Add scrapbook item"
+          >
+            <Plus size={13} color={theme.text} strokeWidth={2.5} />
+            <ThemedText style={[styles.addBtnText, { color: theme.text }]}>Add</ThemedText>
+          </Pressable>
+        </View>
       </View>
 
       {items.length === 0 ? (
@@ -95,6 +112,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
   },
   title: {
     fontSize: Typography.small,

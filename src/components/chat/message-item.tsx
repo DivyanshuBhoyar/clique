@@ -46,6 +46,7 @@ interface MessageItemProps {
   reactions?: Reaction[];
   currentUserId?: string;
   imageUrl?: string | null;
+  seenByText?: string | null;
   onToggleReaction?: (messageId: string, emoji: string) => void;
   onLongPress?: () => void;
   onImagePress?: (imageUrl: string) => void;
@@ -64,6 +65,7 @@ export function MessageItem({
   reactions = [],
   currentUserId,
   imageUrl,
+  seenByText,
   onToggleReaction,
   onLongPress,
   onImagePress,
@@ -216,6 +218,16 @@ export function MessageItem({
           >
             {time}{editedAt ? ' · edited' : ''}
           </ThemedText>
+
+          {seenByText ? (
+            <ThemedText
+              type="caption"
+              style={[styles.seenBy, { color: theme.textTertiary }, isOwnMessage && styles.timeRight]}
+              numberOfLines={1}
+            >
+              👁 {seenByText}
+            </ThemedText>
+          ) : null}
         </View>
       </View>
     </Pressable>
@@ -293,5 +305,9 @@ const styles = StyleSheet.create({
   timeRight: {
     alignSelf: 'flex-end',
     marginRight: Spacing.xs,
+  },
+  seenBy: {
+    marginTop: 1,
+    marginLeft: Spacing.xs,
   },
 });

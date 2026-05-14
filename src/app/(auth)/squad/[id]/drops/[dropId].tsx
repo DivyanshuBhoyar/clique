@@ -2,16 +2,13 @@ import { useMutation, usePaginatedQuery, useQuery } from 'convex/react';
 import { useGlobalSearchParams, useRouter } from 'expo-router';
 import { MoreHorizontal } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
-import {
-    ActionSheetIOS,
-    Alert,
-    Platform,
-} from 'react-native';
+import { Alert } from 'react-native';
 
 import { DropCard } from '@/components/drops/drop-card';
 import { CommentCard } from '@/components/ui/comment-card';
 import { CommentInputBar } from '@/components/ui/comment-input-bar';
 import { CommentThreadLayout } from '@/components/ui/comment-thread-layout';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { DetailScreenContainer } from '@/components/ui/detail-screen-container';
 import { EmojiPickerModal } from '@/components/ui/emoji-picker-modal';
 import { LoadingState } from '@/components/ui/loading-state';
@@ -29,6 +26,8 @@ export default function DropDetailScreen() {
     const router = useRouter();
     const [commentText, setCommentText] = useState('');
     const [isSendingComment, setIsSendingComment] = useState(false);
+    const [showDeleteDropConfirm, setShowDeleteDropConfirm] = useState(false);
+    const [commentPendingDelete, setCommentPendingDelete] = useState<string | null>(null);
 
     const currentUser = useQuery(api.users.current);
     const toggleReaction = useMutation(api.drops.toggleDropReaction);
@@ -92,55 +91,13 @@ export default function DropDetailScreen() {
 
     const handleMorePress = useCallback(() => {
         if (!drop || drop === null || !isMyDrop) return;
-
-        const options = ['🗑 Delete drop', 'Cancel'];
-        const cancel = options.length - 1;
-
-        if (Platform.OS === 'ios') {
-            ActionSheetIOS.showActionSheetWithOptions(
-                { options, cancelButtonIndex: cancel, destructiveButtonIndex: 0 },
-                async (idx) => {
-                    if (idx === 0) {
-                        await deleteDrop({ dropId: dropId as Id<'drops'> });
-                        router.back();
-                    }
-                },
-            );
-        } else {
-            Alert.alert('Drop actions', undefined, [
-                {
-                    text: '🗑 Delete drop',
-                    style: 'destructive',
-                    onPress: async () => {
-                        await deleteDrop({ dropId: dropId as Id<'drops'> });
-                        router.back();
-                    },
-                },
-                { text: 'Cancel', style: 'cancel' },
-            ]);
-        }
-    }, [drop, isMyDrop, dropId, deleteDrop, router]);
+        setShowDeleteDropConfirm(true);
+    }, [drop, isMyDrop]);
 
     const handleCommentDelete = useCallback((commentId: string, isOwn: boolean) => {
         if (!isOwn) return;
-        if (Platform.OS === 'ios') {
-            ActionSheetIOS.showActionSheetWithOptions(
-                { options: ['🗑 Delete comment', 'Cancel'], cancelButtonIndex: 1, destructiveButtonIndex: 0 },
-                async (idx) => {
-                    if (idx === 0) await deleteDropComment({ commentId: commentId as Id<'dropComments'> });
-                },
-            );
-        } else {
-            Alert.alert('Comment actions', undefined, [
-                {
-                    text: '🗑 Delete comment',
-                    style: 'destructive',
-                    onPress: () => deleteDropComment({ commentId: commentId as Id<'dropComments'> }),
-                },
-                { text: 'Cancel', style: 'cancel' },
-            ]);
-        }
-    }, [deleteDropComment]);
+        setCommentPendingDelete(commentId);
+    }, []);
 
     if (drop === undefined) {
         return <LoadingState />;
@@ -212,6 +169,35 @@ export default function DropDetailScreen() {
                 )}
             >
                 <EmojiPickerModal {...reactionPicker.pickerProps} />
+
+                <ConfirmDialog
+                    visible={showDeleteDropConfirm}
+                    title="Delete drop?"
+                    message="This removes the drop, its reactions, comments, votes, and bookmarks for everyone."
+                    confirmLabel="Delete"
+                    destructive
+                    onCancel={() => setShowDeleteDropConfirm(false)}
+                    onConfirm={async () => {
+                        setShowDeleteDropConfirm(false);
+                        await deleteDrop({ dropId: dropId as Id<'drops'> });
+                        router.back();
+                    }}
+                />
+
+                <ConfirmDialog
+                    visible={commentPendingDelete !== null}
+                    title="Delete comment?"
+                    message="This comment will disappear from the drop thread."
+                    confirmLabel="Delete"
+                    destructive
+                    onCancel={() => setCommentPendingDelete(null)}
+                    onConfirm={async () => {
+                        if (!commentPendingDelete) return;
+                        const commentId = commentPendingDelete;
+                        setCommentPendingDelete(null);
+                        await deleteDropComment({ commentId: commentId as Id<'dropComments'> });
+                    }}
+                />
             </CommentThreadLayout>
         </DetailScreenContainer>
     );

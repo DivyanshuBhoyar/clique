@@ -2,7 +2,6 @@ import { useMutation, usePaginatedQuery, useQuery } from 'convex/react';
 import { useGlobalSearchParams, useRouter } from 'expo-router';
 import { MoreHorizontal } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
-import { Alert } from 'react-native';
 
 import { ImageViewer } from '@/components/image-viewer';
 import { AddItemModal } from '@/components/memories/add-item-modal';
@@ -11,6 +10,7 @@ import { MemoryCommentCard } from '@/components/memories/memory-comment-card';
 import { MemoryDetailHeader } from '@/components/memories/memory-detail-header';
 import { CommentInputBar } from '@/components/ui/comment-input-bar';
 import { CommentThreadLayout } from '@/components/ui/comment-thread-layout';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { DetailScreenContainer } from '@/components/ui/detail-screen-container';
 import { EmojiPickerModal } from '@/components/ui/emoji-picker-modal';
 import { LoadingState } from '@/components/ui/loading-state';
@@ -50,6 +50,8 @@ export default function MemoryDetailScreen() {
     const [commentText, setCommentText] = useState('');
     const [sending, setSending] = useState(false);
     const [coverViewerVisible, setCoverViewerVisible] = useState(false);
+    const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [reactionTarget, setReactionTarget] = useState<{ type: 'memory' | 'item'; id: string } | null>(null);
 
     // Add item modal
@@ -126,15 +128,7 @@ export default function MemoryDetailScreen() {
 
     const handleDelete = () => {
         if (!memoryId) return;
-        Alert.alert('Delete', 'Are you sure?', [
-            { text: 'Cancel', style: 'cancel' },
-            {
-                text: 'Delete', style: 'destructive', onPress: async () => {
-                    await deleteMemory({ memoryId: memoryId as Id<"memories"> });
-                    router.back();
-                },
-            },
-        ]);
+        setShowDeleteConfirm(true);
     };
 
     if (detail === undefined) {
@@ -146,6 +140,8 @@ export default function MemoryDetailScreen() {
     }
 
     const { memory, nickname, reactions, items, coverUrl } = detail;
+    const photoItems = items.filter((item: any) => item.type === 'photo' && item.photoUrl);
+    const activePhoto = galleryIndex === null ? null : photoItems[galleryIndex];
     const isWall = memory.type === 'wall';
     const totalComments = comments.length;
 
@@ -191,6 +187,7 @@ export default function MemoryDetailScreen() {
                         onToggleItemReaction={handleToggleItemReaction}
                         onAddItemReaction={(itemId) => setReactionTarget({ type: 'item', id: itemId })}
                         onAddItem={() => setShowAddItem(true)}
+                        onViewPhotos={() => setGalleryIndex(0)}
                         onViewItemComments={(itemId) => setExpandedItemId(itemId)}
                     />
                 }
@@ -233,6 +230,30 @@ export default function MemoryDetailScreen() {
                     visible={coverViewerVisible}
                     uri={coverUrl ?? null}
                     onClose={() => setCoverViewerVisible(false)}
+                />
+
+                <ImageViewer
+                    visible={galleryIndex !== null}
+                    uri={activePhoto?.photoUrl ?? null}
+                    title={activePhoto ? `${galleryIndex! + 1} of ${photoItems.length}${activePhoto.caption ? ` · ${activePhoto.caption}` : ''}` : undefined}
+                    onClose={() => setGalleryIndex(null)}
+                    onPrevious={galleryIndex !== null && galleryIndex > 0 ? () => setGalleryIndex(galleryIndex - 1) : undefined}
+                    onNext={galleryIndex !== null && galleryIndex < photoItems.length - 1 ? () => setGalleryIndex(galleryIndex + 1) : undefined}
+                />
+
+                <ConfirmDialog
+                    visible={showDeleteConfirm}
+                    title="Delete memory?"
+                    message="This removes the memory for everyone in your squad."
+                    confirmLabel="Delete"
+                    destructive
+                    onCancel={() => setShowDeleteConfirm(false)}
+                    onConfirm={async () => {
+                        if (!memoryId) return;
+                        setShowDeleteConfirm(false);
+                        await deleteMemory({ memoryId: memoryId as Id<"memories"> });
+                        router.back();
+                    }}
                 />
 
                 <EmojiPickerModal

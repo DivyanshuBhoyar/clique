@@ -13,12 +13,6 @@ const ACTIVITY_COLORS: Record<string, string> = {
     link: '#DDD0F0',
 };
 
-const ACTIVITY_ITEMS = [
-    { type: 'drop', label: 'maya dropped a song', sub: 'Sunset Lover · Petit Biscuit · 2m ago' },
-    { type: 'memory', label: 'new memory added', sub: 'beach day fits · 1h ago' },
-    { type: 'chat', label: 'theo: found our new study spot 📚', sub: '14m ago' },
-];
-
 function activityIcon(type: string, color: string) {
     const props = { size: 16, color, strokeWidth: 2 };
     switch (type) {
@@ -31,11 +25,22 @@ function activityIcon(type: string, color: string) {
     }
 }
 
-interface RecentActivitySectionProps {
-    onOpenActivity: (type: string) => void;
+export interface RecentActivityItem {
+    id: string;
+    type: 'drop' | 'memory' | 'chat' | 'note' | 'link';
+    label: string;
+    sub: string;
+    createdAt: number;
+    route: 'drops' | 'memories' | 'chat' | 'notes';
+    routeId?: string;
 }
 
-export function RecentActivitySection({ onOpenActivity }: RecentActivitySectionProps) {
+interface RecentActivitySectionProps {
+    items: RecentActivityItem[];
+    onOpenActivity: (item: RecentActivityItem) => void;
+}
+
+export function RecentActivitySection({ items, onOpenActivity }: RecentActivitySectionProps) {
     const theme = useTheme();
 
     return (
@@ -49,9 +54,17 @@ export function RecentActivitySection({ onOpenActivity }: RecentActivitySectionP
                 </Pressable>
             </View>
 
-            {ACTIVITY_ITEMS.map((item) => (
+            {items.length === 0 ? (
+                <View style={[styles.emptyRow, { backgroundColor: theme.surface, borderColor: theme.outlineLight }]}> 
+                    <ThemedText type="small" themeColor="textSecondary">
+                        No activity yet. Start with a message, drop, note, or memory.
+                    </ThemedText>
+                </View>
+            ) : null}
+
+            {items.map((item) => (
                 <Pressable
-                    key={`${item.type}-${item.label}`}
+                    key={item.id}
                     style={[
                         styles.activityRow,
                         {
@@ -64,7 +77,7 @@ export function RecentActivitySection({ onOpenActivity }: RecentActivitySectionP
                             elevation: 2,
                         },
                     ]}
-                    onPress={() => onOpenActivity(item.type)}
+                    onPress={() => onOpenActivity(item)}
                     accessibilityRole="button"
                     accessibilityLabel={item.label}
                 >
@@ -113,4 +126,9 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     activityText: { flex: 1 },
+    emptyRow: {
+        borderWidth: 1.5,
+        borderRadius: Radius.lg,
+        padding: Spacing.lg,
+    },
 });

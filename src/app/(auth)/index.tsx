@@ -106,6 +106,10 @@ export default function HomeScreen() {
         api.squad.getSquadMembers,
         activeSquadId ? { squadId: activeSquadId } : 'skip',
     );
+    const recentActivity = useQuery(
+        api.activity.getRecentActivity,
+        activeSquadId ? { squadId: activeSquadId, limit: 4 } : 'skip',
+    );
     const memberCount = squadMembers?.length ?? 0;
 
     /* ── No squads yet ─────────────────────────────────────────────── */
@@ -162,9 +166,12 @@ export default function HomeScreen() {
                     <DashedSeparator />
 
                     <RecentActivitySection
-                        onOpenActivity={(type) => {
+                        items={recentActivity ?? []}
+                        onOpenActivity={(item) => {
                             if (!activeSquad) return;
-                            router.push(`/squad/${activeSquad._id}/${type}` as any);
+                            const base = `/squad/${activeSquad._id}/${item.route}`;
+                            const route = item.routeId ? `${base}/${item.routeId}` : base;
+                            router.push(route as any);
                         }}
                     />
 
@@ -194,11 +201,11 @@ export default function HomeScreen() {
                     }}
                     onMembersPress={() => {
                         setShowSettings(false);
-                        toast.info('Member list is coming next.');
+                        if (activeSquad) router.push(`/squad/${activeSquad._id}/members` as any);
                     }}
                     onSquadSettingsPress={() => {
                         setShowSettings(false);
-                        toast.info('Squad settings are coming next.');
+                        if (activeSquad) router.push(`/squad/${activeSquad._id}/settings` as any);
                     }}
                     onSignOutPress={() => {
                         setShowSettings(false);

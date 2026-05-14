@@ -236,6 +236,7 @@ export const getSquadMembers = query({
     args: { squadId: v.id("squads") },
     handler: async (ctx, args) => {
         const { userId } = await requireMembership(ctx, args.squadId);
+        const squad = await ctx.db.get(args.squadId);
 
         const memberships = await ctx.db
             .query("memberships")
@@ -265,8 +266,11 @@ export const getSquadMembers = query({
                     vibeLabel: m.vibeLabel ?? null,
                     statusText: m.statusText ?? null,
                     joinedAt: m.joinedAt,
+                    lastActiveAt: m.lastActiveAt ?? null,
+                    isOnline: Date.now() - (m.lastActiveAt ?? 0) < 30000,
                     avatarUrl,
                     isMe: m.userId === userId,
+                    isOwner: squad?.createdBy === m.userId,
                 };
             })
         );
@@ -277,5 +281,88 @@ export const getSquadMembers = query({
             if (b.isMe) return 1;
             return a.joinedAt - b.joinedAt;
         });
+    },
+});
+
+export const getSquadMemberProfile = query({
+    args: {
+        squadId: v.id("squads"),
+        userId: v.id("users"),
+    },
+    handler: async (ctx, args) => {
+        const { userId: currentUserId } = await requireMembership(ctx, args.squadId);
+        const [squad, membership] = await Promise.all([
+            ctx.db.get(args.squadId),
+            ctx.db
+                .query("memberships")
+                .withIndex("by_user_squad", (q) => q.eq("userId", args.userId).eq("squadId", args.squadId))
+                .first(),
+        ]);
+
+        if (!membership) return null;
+
+        const [avatar, user] = await Promise.all([
+            ctx.db
+                .query("userAvatars")
+                .withIndex("by_user", (q) => q.eq("userId", membership.userId))
+                .first(),
+            ctx.db.get(membership.userId),
+        ]);
+
+        let avatarUrl: string | null = null;
+        if (avatar) {
+            avatarUrl = await ctx.storage.getUrl(avatar.storageId);
+        } else if (user?.image) {
+            avatarUrl = user.image;
+        }
+
+        return {
+            userId: membership.userId,
+            nickname: membership.nickname,
+            name: user?.name ?? null,
+            email: user?.email ?? null,
+            avatarUrl,
+            vibe: membership.vibe ?? null,
+            vibeLabel: membership.vibeLabel ?? null,
+            statusText: membership.statusText ?? null,
+            joinedAt: membership.joinedAt,
+            lastActiveAt: membership.lastActiveAt ?? null,
+            isOnline: Date.now() - (membership.lastActiveAt ?? 0) < 30000,
+            isMe: membership.userId === currentUserId,
+            isOwner: squad?.createdBy === membership.userId,
+        };
+    },
+});
+
+export const updateSquadSettings = mutation({
+    args: {
+        squadId: v.id("squads"),
+        name: v.optional(v.string()),
+        password: v.optional(v.string()),
+    },
+    handler: async (ctx, args) => {
+        const { userId } = await requireMembership(ctx, args.squadId);
+        const squad = await ctx.db.get(args.squadId);
+        if (!squad) throw new Error("Squad not found");
+        if (squad.createdBy !== userId) throw new Error("Only the squad creator can update settings");
+
+        const updates: { name?: string; passwordHash?: string } = {};
+
+        if (args.name !== undefined) {
+            assertNonEmpty("Name", args.name);
+            assertLength("Name", args.name, 50);
+            updates.name = args.name.trim();
+        }
+
+        if (args.password !== undefined) {
+            assertNonEmpty("Password", args.password);
+            assertLength("Password", args.password, 100);
+            updates.passwordHash = await hashPassword(args.password);
+        }
+
+        if (Object.keys(updates).length === 0) return { success: true };
+
+        await ctx.db.patch(args.squadId, updates);
+        return { success: true };
     },
 });

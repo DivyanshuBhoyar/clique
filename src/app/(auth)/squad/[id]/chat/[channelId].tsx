@@ -33,6 +33,7 @@ export default function ChannelChatScreen() {
 
     const sendMessage = useMutation(api.message.sendMessage);
     const sendImageMessage = useMutation(api.message.sendImageMessage);
+    const editMessage = useMutation(api.message.editMessage);
     const deleteMessage = useMutation(api.message.deleteMessage);
     const toggleReaction = useMutation(api.reaction.toggleReaction);
     const toggleBookmark = useMutation(api.bookmarks.toggleBookmark);
@@ -55,6 +56,10 @@ export default function ChannelChatScreen() {
         squadId && channelId
             ? { channelId: channelId as Id<"channels">, squadId: squadId as Id<"squads"> }
             : "skip"
+    );
+    const readReceipts = useQuery(
+        api.channel.getChannelReadReceipts,
+        channelId ? { channelId: channelId as Id<"channels"> } : "skip"
     );
 
     const { results: messages, loadMore, status } = usePaginatedQuery(
@@ -87,6 +92,7 @@ export default function ChannelChatScreen() {
     } = useChatReplyTarget(channelId);
     const [showSwitcher, setShowSwitcher] = useState(false);
     const [pickerMessageId, setPickerMessageId] = useState<string | null>(null);
+    const [editTarget, setEditTarget] = useState<{ id: Id<'messages'>; content: string } | null>(null);
     const { bubbleChannel, extraChannelCount, dismissBubble } = useOtherChannelUnreadBubble(
         channelId,
         otherUnreadSummary,
@@ -114,6 +120,12 @@ export default function ChannelChatScreen() {
             await deleteMessage({ messageId: selectedMessage.id as Id<"messages"> });
         }
     }, [selectedMessage, deleteMessage]);
+
+    const handleStartEdit = useCallback(() => {
+        if (!selectedMessage || selectedMessage.deleted) return;
+        setEditTarget({ id: selectedMessage.id as Id<'messages'>, content: selectedMessage.content });
+        clearSelectedMessage();
+    }, [clearSelectedMessage, selectedMessage]);
 
     const handleReact = useCallback(async (emoji: string) => {
         if (selectedMessage) {
@@ -158,6 +170,12 @@ export default function ChannelChatScreen() {
         clearReplyTarget();
     }, [channelId, clearReplyTarget, sendImageMessage, squadId]);
 
+    const handleEditMessage = useCallback(async (content: string) => {
+        if (!editTarget) return;
+        await editMessage({ messageId: editTarget.id, content });
+        setEditTarget(null);
+    }, [editMessage, editTarget]);
+
     if (messages === undefined) {
         return <LoadingState />;
     }
@@ -189,6 +207,7 @@ export default function ChannelChatScreen() {
                     <ChatMessageList
                         messages={messages}
                         currentUserId={currentUser?._id}
+                        readReceipts={readReceipts ?? []}
                         loadingMore={loadingMore}
                         flatListRef={flatListRef}
                         onEndReached={handleEndReached}
@@ -202,10 +221,13 @@ export default function ChannelChatScreen() {
                         isEphemeral={isEphemeral}
                         channelExpiry={channelExpiry}
                         replyTarget={replyTarget}
+                        editTarget={editTarget}
                         onTyping={handleTyping}
                         onCancelReply={clearReplyTarget}
+                        onCancelEdit={() => setEditTarget(null)}
                         onSend={handleSendMessage}
                         onSendImage={handleSendImageMessage}
+                        onEdit={handleEditMessage}
                     />
 
                     <MessageActions
@@ -214,6 +236,7 @@ export default function ChannelChatScreen() {
                         isBookmarked={selectedMessage ? (messages?.find((m: any) => m._id === selectedMessage.id) as any)?.isBookmarked : false}
                         onClose={clearSelectedMessage}
                         onDelete={handleDelete}
+                        onEdit={selectedMessage?.isOwn && !selectedMessage.deleted ? handleStartEdit : undefined}
                         onReact={handleReact}
                         onReply={startReplyToSelectedMessage}
                         onBookmark={handleBookmark}

@@ -78,7 +78,7 @@ export default function ChatScreen() {
                 <ScreenHeader
                     title={squad ? `🏠 ${squad.name}` : 'Squad Name'}
                     rightIcon={Users}
-                    onRightPress={() => { /* TODO: member list */ }}
+                    onRightPress={() => router.push(`/squad/${squadId}/members` as any)}
                 />
                 <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
                     <View style={styles.searchWrap}>

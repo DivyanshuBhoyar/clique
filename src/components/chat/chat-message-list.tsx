@@ -10,6 +10,7 @@ import { Spacing } from '@/constants/theme';
 interface ChatMessageListProps {
     messages: any[];
     currentUserId?: string;
+    readReceipts?: { userId: string; nickname: string; lastReadAt: number }[];
     loadingMore: boolean;
     flatListRef: RefObject<FlatList | null>;
     onEndReached: () => void;
@@ -20,30 +21,46 @@ interface ChatMessageListProps {
 export function ChatMessageList({
     messages,
     currentUserId,
+    readReceipts = [],
     loadingMore,
     flatListRef,
     onEndReached,
     onToggleReaction,
     onSelectMessage,
 }: ChatMessageListProps) {
-    const renderItem = useCallback(({ item }: { item: any }) => (
-        <MessageItem
-            messageId={item._id}
-            nickname={item.nickname}
-            avatarUrl={item.avatarUrl}
-            content={item.content}
-            createdAt={item.createdAt}
-            editedAt={item.editedAt}
-            deleted={item.deleted}
-            parentMessage={item.parentMessage}
-            isOwnMessage={item.userId === currentUserId}
-            reactions={item.reactions}
-            currentUserId={currentUserId}
-            imageUrl={item.imageUrl}
-            onToggleReaction={onToggleReaction}
-            onLongPress={() => onSelectMessage(item)}
-        />
-    ), [currentUserId, onSelectMessage, onToggleReaction]);
+    const latestOwnMessageId = messages.find((message) => message.userId === currentUserId && !message.deleted)?._id;
+
+    const renderItem = useCallback(({ item }: { item: any }) => {
+        const isOwnMessage = item.userId === currentUserId;
+        const readers = isOwnMessage && item._id === latestOwnMessageId
+            ? readReceipts.filter((receipt) => receipt.lastReadAt >= item.createdAt)
+            : [];
+        const seenByText = readers.length > 0
+            ? readers.length <= 2
+                ? `Seen by ${readers.map((reader) => reader.nickname).join(', ')}`
+                : `Seen by ${readers.length}`
+            : null;
+
+        return (
+            <MessageItem
+                messageId={item._id}
+                nickname={item.nickname}
+                avatarUrl={item.avatarUrl}
+                content={item.content}
+                createdAt={item.createdAt}
+                editedAt={item.editedAt}
+                deleted={item.deleted}
+                parentMessage={item.parentMessage}
+                isOwnMessage={isOwnMessage}
+                reactions={item.reactions}
+                currentUserId={currentUserId}
+                imageUrl={item.imageUrl}
+                seenByText={seenByText}
+                onToggleReaction={onToggleReaction}
+                onLongPress={() => onSelectMessage(item)}
+            />
+        );
+    }, [currentUserId, latestOwnMessageId, onSelectMessage, onToggleReaction, readReceipts]);
 
     if (messages.length === 0) {
         return (
