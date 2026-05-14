@@ -15,6 +15,7 @@ import { Bookmark, Pin } from 'lucide-react-native';
 import { GestureResponderEvent, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { markdownToPlainText } from '@/components/notes/markdown-preview';
 import { DashedSeparator } from '@/components/ui/dashed-separator';
 import { UserAvatar } from '@/components/user-avatar';
 import { LineHeight, Radius, Spacing, Typography, Weight } from '@/constants/theme';
@@ -77,6 +78,7 @@ export function NoteCard({
     const isJournal = type === 'journal';
     const chipLabel = tag ?? TYPE_LABEL[type] ?? 'Note';
     const stripColor = isJournal ? theme.accent : colorForCardSeed(title || chipLabel);
+    const plainPreview = markdownToPlainText(content);
 
     const previewCollaborators = collaborators?.length
         ? collaborators.slice(0, 3)
@@ -152,9 +154,9 @@ export function NoteCard({
                 {title || 'Untitled'}
             </ThemedText>
 
-            {content ? (
+            {plainPreview ? (
                 <ThemedText numberOfLines={2} type="small" themeColor="textSecondary" style={styles.preview}>
-                    {content}
+                    {plainPreview}
                 </ThemedText>
             ) : null}
 

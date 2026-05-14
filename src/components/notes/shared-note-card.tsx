@@ -10,6 +10,7 @@ import { Bookmark, Pin } from 'lucide-react-native';
 import { GestureResponderEvent, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { markdownToPlainText } from '@/components/notes/markdown-preview';
 import { DashedSeparator } from '@/components/ui/dashed-separator';
 import { UserAvatar } from '@/components/user-avatar';
 import { LineHeight, Radius, Spacing, Typography, Weight } from '@/constants/theme';
@@ -55,6 +56,7 @@ export function SharedNoteCard({
         ? collaborators.slice(0, 3)
         : [{ userId: 'owner', nickname: ownerNickname ?? 'Squad', avatarUrl: null }];
     const totalCollaborators = collaboratorCount ?? previewCollaborators.length;
+    const plainPreview = markdownToPlainText(content);
     const footerLabel =
         totalCollaborators > 1
             ? `${previewCollaborators[0]?.nickname ?? 'Squad'} +${totalCollaborators - 1}`
@@ -116,9 +118,9 @@ export function SharedNoteCard({
                 {title || 'Untitled'}
             </ThemedText>
 
-            {content ? (
+            {plainPreview ? (
                 <ThemedText numberOfLines={2} type="small" themeColor="textSecondary" style={styles.preview}>
-                    {content}
+                    {plainPreview}
                 </ThemedText>
             ) : null}
 

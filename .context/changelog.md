@@ -1,5 +1,6 @@
 # Changelog
 
+- 2026-05-14: Added Notes markdown rendering via `react-native-markdown-display`; cards strip raw markdown markers and editor shows a rendered preview card.
 - 2026-05-14: Added note-card pin/unpin toggles for owned notes in the Notes feed using existing `toggleNotePin` mutation.
 - 2026-05-14: Added `Custom` tile to Vibe picker; opens shared emoji picker and reuses existing optional label + `setVibe` flow.
 - 2026-05-13: Shipped low-complexity polish: haptics helper, join error toast, home settings sheet with deliberate sign-out, most-used chat quick reactions, Drops Top sort, tappable drop URLs, poll expiry chips, and confession `+` emoji picker.

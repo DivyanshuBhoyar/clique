@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MarkdownToolbar } from '@/components/notes/markdown-toolbar';
+import { MarkdownPreview } from '@/components/notes/markdown-preview';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { DashedSeparator } from '@/components/ui/dashed-separator';
@@ -226,6 +227,15 @@ export default function NoteEditorScreen() {
                             textAlignVertical="top"
                             autoFocus={initialized && !content}
                         />
+
+                        {content.trim().length > 0 && (
+                            <View style={[styles.previewCard, { backgroundColor: theme.surface, borderColor: theme.outline }]}>
+                                <ThemedText type="captionBold" themeColor="textSecondary" style={styles.previewLabel}>
+                                    PREVIEW
+                                </ThemedText>
+                                <MarkdownPreview content={content} />
+                            </View>
+                        )}
                     </ScrollView>
 
                     <SaveIndicator status={saveStatus} />
@@ -284,5 +294,15 @@ const styles = StyleSheet.create({
         lineHeight: LineHeight.subtitle,
         textAlignVertical: 'top',
         minHeight: 200,
+    },
+    previewCard: {
+        borderWidth: 2,
+        borderRadius: Radius.lg,
+        padding: Spacing.lg,
+        marginTop: Spacing.lg,
+    },
+    previewLabel: {
+        letterSpacing: 1,
+        marginBottom: Spacing.sm,
     },
 });
