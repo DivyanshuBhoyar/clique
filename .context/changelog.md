@@ -1,5 +1,6 @@
 # Changelog
 
+- 2026-05-14: Added shared frontend link previews and tappable inline URLs across Drops, Chat, Memories, and Confessions.
 - 2026-05-14: Fixed squad vibe loading so saved vibes persist, legacy vibe records render, and join-squad vibes get timestamps.
 - 2026-05-14: Revisited squad management UX: Chat opens Members, Members opens Settings, and utility routes stay off the bottom tab bar.
 - 2026-05-14: Added creator-only squad member removal, safer leave-squad rules, and member-management UI affordances.

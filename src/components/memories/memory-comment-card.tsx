@@ -2,9 +2,12 @@ import { Heart } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { LinkPreviewCard } from '@/components/ui/link-preview-card';
+import { LinkifiedText } from '@/components/ui/linkified-text';
 import { UserAvatar } from '@/components/user-avatar';
 import { LineHeight, Radius, Spacing, Typography, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { extractUrls } from '@/utils/links';
 import { formatRelativeTime } from '@/utils/time';
 
 interface MemoryCommentCardProps {
@@ -16,6 +19,7 @@ interface MemoryCommentCardProps {
 
 export function MemoryCommentCard({ avatarUrl, nickname, content, createdAt }: MemoryCommentCardProps) {
     const theme = useTheme();
+    const firstUrl = extractUrls(content)[0]?.url;
 
     return (
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.outline }]}>
@@ -26,7 +30,8 @@ export function MemoryCommentCard({ avatarUrl, nickname, content, createdAt }: M
                     {formatRelativeTime(createdAt)}
                 </ThemedText>
             </View>
-            <ThemedText style={styles.content}>{content}</ThemedText>
+            <LinkifiedText style={styles.content}>{content}</LinkifiedText>
+            {firstUrl ? <LinkPreviewCard url={firstUrl} compact /> : null}
             <View style={styles.footer}>
                 <View style={styles.heartRow}>
                     <Heart size={13} color={theme.accent} strokeWidth={2} />

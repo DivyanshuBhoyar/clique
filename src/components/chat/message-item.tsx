@@ -18,10 +18,13 @@ import { Animated, Image, PanResponder, Pressable, StyleSheet, View } from 'reac
 
 import { ThemedText } from '@/components/themed-text';
 import { EmojiReactionStrip } from '@/components/ui/emoji-reaction-strip';
+import { LinkPreviewCard } from '@/components/ui/link-preview-card';
+import { LinkifiedText } from '@/components/ui/linkified-text';
 import { UserAvatar } from '@/components/user-avatar';
 import { LineHeight, Radius, Spacing, Typography, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { lightImpact } from '@/utils/haptics';
+import { extractUrls } from '@/utils/links';
 
 interface Reaction {
   emoji: string;
@@ -127,6 +130,7 @@ export function MessageItem({
     hour: '2-digit',
     minute: '2-digit',
   });
+  const firstUrl = !deleted ? extractUrls(content)[0]?.url : undefined;
 
   // Group reactions by emoji for EmojiReactionStrip format
   const groupedReactions = (() => {
@@ -234,22 +238,36 @@ export function MessageItem({
                   accessibilityLabel="Photo message"
                 />
                 {content ? (
-                  <ThemedText
+                  <LinkifiedText
                     style={[styles.content, { color: isOwnMessage ? theme.bubbleOwnText : theme.bubbleOtherText, marginTop: 4 }]}
+                    linkColor={isOwnMessage ? theme.bubbleOwnText : theme.accentDark}
                   >
                     {content}
-                  </ThemedText>
+                  </LinkifiedText>
+                ) : null}
+                {firstUrl ? (
+                  <View style={styles.linkPreviewWrap}>
+                    <LinkPreviewCard url={firstUrl} compact embedded={isOwnMessage} />
+                  </View>
                 ) : null}
               </Pressable>
             ) : (
-              <ThemedText
-                style={[
-                  styles.content,
-                  { color: isOwnMessage ? theme.bubbleOwnText : theme.bubbleOtherText },
-                ]}
-              >
-                {content}
-              </ThemedText>
+              <>
+                <LinkifiedText
+                  style={[
+                    styles.content,
+                    { color: isOwnMessage ? theme.bubbleOwnText : theme.bubbleOtherText },
+                  ]}
+                  linkColor={isOwnMessage ? theme.bubbleOwnText : theme.accentDark}
+                >
+                  {content}
+                </LinkifiedText>
+                {firstUrl ? (
+                  <View style={styles.linkPreviewWrap}>
+                    <LinkPreviewCard url={firstUrl} compact embedded={isOwnMessage} />
+                  </View>
+                ) : null}
+              </>
             )}
           </View>
 
@@ -361,6 +379,9 @@ const styles = StyleSheet.create({
   content: {
     fontSize: Typography.body,
     lineHeight: LineHeight.body,
+  },
+  linkPreviewWrap: {
+    marginTop: Spacing.sm,
   },
   image: {
     width: 200,

@@ -1,7 +1,10 @@
 import { ThemedText } from '@/components/themed-text';
+import { LinkPreviewCard } from '@/components/ui/link-preview-card';
+import { LinkifiedText } from '@/components/ui/linkified-text';
 import { LineHeight, Radius, Spacing, Typography, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { lightImpact } from '@/utils/haptics';
+import { extractUrls } from '@/utils/links';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 interface ConfessionReaction {
@@ -53,65 +56,70 @@ export function ConfessionFeed({ confessions, onToggleReaction, onMoreReaction, 
 
     return (
         <View style={styles.container}>
-            {confessions.map((confession) => (
-                <View key={confession._id} style={[styles.card, { borderColor: theme.outline, backgroundColor: theme.surface }]}>
-                    <ThemedText type="small" style={styles.content}>{confession.content}</ThemedText>
+            {confessions.map((confession) => {
+                const firstUrl = extractUrls(confession.content)[0]?.url;
 
-                    <View style={styles.metaRow}>
-                        <ThemedText type="caption" themeColor="textTertiary">
-                            {timeAgo(confession.createdAt)}
-                        </ThemedText>
-                    </View>
+                return (
+                    <View key={confession._id} style={[styles.card, { borderColor: theme.outline, backgroundColor: theme.surface }]}> 
+                        <LinkifiedText type="small" style={styles.content}>{confession.content}</LinkifiedText>
+                        {firstUrl ? <LinkPreviewCard url={firstUrl} compact /> : null}
 
-                    <View style={styles.reactionsRow}>
-                        {confession.reactions.map((r) => (
-                            <Pressable
-                                key={r.emoji}
-                                style={[
-                                    styles.reactionChip,
-                                    {
-                                        backgroundColor: r.hasReacted ? theme.accentSoft : theme.backgroundElement,
-                                        borderColor: r.hasReacted ? theme.accent : theme.outlineLight,
-                                    },
-                                ]}
-                                onPress={() => { lightImpact(); onToggleReaction(confession._id, r.emoji); }}
-                            >
-                                <ThemedText style={styles.reactionEmoji}>{r.emoji}</ThemedText>
-                                <ThemedText type="caption" style={{ fontWeight: r.hasReacted ? Weight.bold : Weight.regular }}>{r.count}</ThemedText>
-                            </Pressable>
-                        ))}
+                        <View style={styles.metaRow}>
+                            <ThemedText type="caption" themeColor="textTertiary">
+                                {timeAgo(confession.createdAt)}
+                            </ThemedText>
+                        </View>
 
-                        <View style={styles.quickReactions}>
-                            {QUICK_REACTIONS.map((emoji) => {
-                                const alreadyReacted = confession.reactions.find(
-                                    (r) => r.emoji === emoji && r.hasReacted
-                                );
-                                if (alreadyReacted) return null;
-
-                                return (
-                                    <Pressable
-                                        key={emoji}
-                                        style={[styles.quickBtn, { borderColor: theme.outlineLight }]}
-                                        onPress={() => { lightImpact(); onToggleReaction(confession._id, emoji); }}
-                                    >
-                                        <ThemedText style={styles.quickEmoji}>{emoji}</ThemedText>
-                                    </Pressable>
-                                );
-                            })}
-                            {onMoreReaction ? (
+                        <View style={styles.reactionsRow}>
+                            {confession.reactions.map((r) => (
                                 <Pressable
-                                    style={[styles.quickBtn, styles.moreBtn, { borderColor: theme.dashedBorder }]}
-                                    onPress={() => onMoreReaction(confession._id)}
-                                    accessibilityRole="button"
-                                    accessibilityLabel="Pick another confession reaction"
+                                    key={r.emoji}
+                                    style={[
+                                        styles.reactionChip,
+                                        {
+                                            backgroundColor: r.hasReacted ? theme.accentSoft : theme.backgroundElement,
+                                            borderColor: r.hasReacted ? theme.accent : theme.outlineLight,
+                                        },
+                                    ]}
+                                    onPress={() => { lightImpact(); onToggleReaction(confession._id, r.emoji); }}
                                 >
-                                    <ThemedText style={[styles.quickEmoji, { color: theme.textSecondary }]}>+</ThemedText>
+                                    <ThemedText style={styles.reactionEmoji}>{r.emoji}</ThemedText>
+                                    <ThemedText type="caption" style={{ fontWeight: r.hasReacted ? Weight.bold : Weight.regular }}>{r.count}</ThemedText>
                                 </Pressable>
-                            ) : null}
+                            ))}
+
+                            <View style={styles.quickReactions}>
+                                {QUICK_REACTIONS.map((emoji) => {
+                                    const alreadyReacted = confession.reactions.find(
+                                        (r) => r.emoji === emoji && r.hasReacted
+                                    );
+                                    if (alreadyReacted) return null;
+
+                                    return (
+                                        <Pressable
+                                            key={emoji}
+                                            style={[styles.quickBtn, { borderColor: theme.outlineLight }]}
+                                            onPress={() => { lightImpact(); onToggleReaction(confession._id, emoji); }}
+                                        >
+                                            <ThemedText style={styles.quickEmoji}>{emoji}</ThemedText>
+                                        </Pressable>
+                                    );
+                                })}
+                                {onMoreReaction ? (
+                                    <Pressable
+                                        style={[styles.quickBtn, styles.moreBtn, { borderColor: theme.dashedBorder }]}
+                                        onPress={() => onMoreReaction(confession._id)}
+                                        accessibilityRole="button"
+                                        accessibilityLabel="Pick another confession reaction"
+                                    >
+                                        <ThemedText style={[styles.quickEmoji, { color: theme.textSecondary }]}>+</ThemedText>
+                                    </Pressable>
+                                ) : null}
+                            </View>
                         </View>
                     </View>
-                </View>
-            ))}
+                );
+            })}
 
             {hasMore && (
                 <Pressable onPress={onLoadMore} style={[styles.loadMore, { borderColor: theme.outlineLight }]}>

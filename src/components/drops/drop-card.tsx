@@ -12,16 +12,19 @@
  * The `truncate` prop limits content to 3 lines in the list view.
  */
 import { Bookmark, MessageCircle } from 'lucide-react-native';
-import { GestureResponderEvent, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { CategoryChip } from '@/components/drops/category-chip';
 import { VoteButtons } from '@/components/drops/vote-buttons';
 import { ThemedText } from '@/components/themed-text';
 import { DashedSeparator } from '@/components/ui/dashed-separator';
 import { EmojiReactionStack, EmojiReactionStrip } from '@/components/ui/emoji-reaction-strip';
+import { LinkPreviewCard } from '@/components/ui/link-preview-card';
+import { LinkifiedText } from '@/components/ui/linkified-text';
 import { UserAvatar } from '@/components/user-avatar';
 import { LineHeight, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { extractUrls } from '@/utils/links';
 import { formatRelativeTime } from '@/utils/time';
 
 interface Reaction {
@@ -50,39 +53,6 @@ interface DropCardProps {
     onToggleBookmark?: (dropId: string) => void;
 }
 
-const URL_REGEX = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi;
-const URL_PART_REGEX = /^(https?:\/\/[^\s]+|www\.[^\s]+)$/i;
-
-function normalizeUrl(url: string) {
-    return url.startsWith('http') ? url : `https://${url}`;
-}
-
-function openDropUrl(url: string, event?: GestureResponderEvent) {
-    event?.stopPropagation();
-    Linking.openURL(normalizeUrl(url)).catch(() => {
-        // If the OS cannot open the URL, keep the drop card interaction intact.
-    });
-}
-
-function renderLinkedContent(content: string, linkColor: string) {
-    const pieces = content.split(URL_REGEX);
-
-    return pieces.map((piece, index) => {
-        if (!piece) return null;
-        if (!URL_PART_REGEX.test(piece)) return piece;
-
-        return (
-            <Text
-                key={`${piece}-${index}`}
-                onPress={(event) => openDropUrl(piece, event)}
-                style={{ color: linkColor, textDecorationLine: 'underline' }}
-            >
-                {piece}
-            </Text>
-        );
-    });
-}
-
 export function DropCard({
     dropId,
     category,
@@ -106,6 +76,7 @@ export function DropCard({
     const theme = useTheme();
     const time = formatRelativeTime(createdAt);
     const isDetail = !truncate;
+    const firstUrl = extractUrls(content)[0]?.url;
 
     // Convert raw reactions [{emoji, userId}] → grouped [{emoji, count, reacted}]
     const groupedReactions = (() => {
@@ -141,13 +112,20 @@ export function DropCard({
             </View>
 
             {/* Content */}
-            <ThemedText
+            <LinkifiedText
                 style={styles.content}
                 numberOfLines={truncate ? 3 : undefined}
                 selectable={!truncate}
+                linkColor={theme.accentDark}
             >
-                {renderLinkedContent(content, theme.accentDark)}
-            </ThemedText>
+                {content}
+            </LinkifiedText>
+
+            {firstUrl ? (
+                <View style={styles.previewWrap} onStartShouldSetResponder={() => true}>
+                    <LinkPreviewCard url={firstUrl} compact={truncate} />
+                </View>
+            ) : null}
 
             <DashedSeparator />
 
@@ -231,6 +209,9 @@ const styles = StyleSheet.create({
     content: {
         fontSize: Typography.body,
         lineHeight: LineHeight.body,
+        marginBottom: Spacing.sm,
+    },
+    previewWrap: {
         marginBottom: Spacing.sm,
     },
     authorRow: {

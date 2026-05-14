@@ -4,19 +4,21 @@
  *
  * Design: white card, 2px border, Radius.md, EmojiReactionStrip at bottom.
  * Photo items show full-width image with tappable full-screen viewer.
- * Link items show a rounded preview box with domain.
+ * Link items show a shared preview card with domain/URL context.
  */
 import { Image } from 'expo-image';
-import { Link2 } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ImageViewer } from '@/components/image-viewer';
 import { ThemedText } from '@/components/themed-text';
 import { EmojiReactionStrip } from '@/components/ui/emoji-reaction-strip';
+import { LinkPreviewCard } from '@/components/ui/link-preview-card';
+import { LinkifiedText } from '@/components/ui/linkified-text';
 import { UserAvatar } from '@/components/user-avatar';
 import { LineHeight, Radius, Spacing, Typography, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { extractUrls } from '@/utils/links';
 import { formatRelativeTime } from '@/utils/time';
 
 interface Reaction {
@@ -37,11 +39,6 @@ interface MemoryItemCardProps {
     currentUserId?: string;
     onToggleReaction: (emoji: string) => void;
     onAddReaction?: () => void;
-}
-
-function getDomain(url: string): string {
-    try { return new URL(url).hostname.replace(/^www\./, ''); }
-    catch { return url; }
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -66,6 +63,8 @@ export function MemoryItemCard({
 }: MemoryItemCardProps) {
     const theme = useTheme();
     const [viewerVisible, setViewerVisible] = useState(false);
+    const firstContentUrl = extractUrls(content)[0]?.url;
+    const firstCaptionUrl = caption ? extractUrls(caption)[0]?.url : undefined;
 
     const groupedReactions = (() => {
         const map = new Map<string, { count: number; reacted: boolean }>();
@@ -110,20 +109,20 @@ export function MemoryItemCard({
 
             {/* Link preview */}
             {type === 'link' ? (
-                <View style={[styles.linkPreview, { backgroundColor: theme.backgroundElement, borderColor: theme.outlineLight }]}>
-                    <Link2 size={13} color={theme.textTertiary} strokeWidth={2} />
-                    <View style={styles.linkText}>
-                        <ThemedText style={styles.linkTitle} numberOfLines={2}>{content}</ThemedText>
-                        <ThemedText type="caption" themeColor="textTertiary">{getDomain(content)}</ThemedText>
-                    </View>
-                </View>
+                <LinkPreviewCard url={content} />
             ) : (
-                <ThemedText style={styles.content}>{content}</ThemedText>
+                <>
+                    <LinkifiedText style={styles.content}>{content}</LinkifiedText>
+                    {firstContentUrl ? <LinkPreviewCard url={firstContentUrl} compact /> : null}
+                </>
             )}
 
             {/* Photo caption */}
             {type === 'photo' && caption ? (
-                <ThemedText type="caption" themeColor="textTertiary" style={styles.caption}>{caption}</ThemedText>
+                <>
+                    <LinkifiedText type="caption" themeColor="textTertiary" style={styles.caption}>{caption}</LinkifiedText>
+                    {firstCaptionUrl ? <LinkPreviewCard url={firstCaptionUrl} compact /> : null}
+                </>
             ) : null}
 
             {/* Footer: reactions + comment count */}
@@ -194,23 +193,6 @@ const styles = StyleSheet.create({
     },
     caption: {
         fontStyle: 'italic',
-    },
-    linkPreview: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        gap: Spacing.sm,
-        padding: Spacing.sm,
-        borderRadius: Radius.sm,
-        borderWidth: 1,
-    },
-    linkText: {
-        flex: 1,
-        gap: 2,
-    },
-    linkTitle: {
-        fontSize: Typography.small,
-        lineHeight: LineHeight.small,
-        fontWeight: Weight.medium,
     },
     footer: {
         flexDirection: 'row',
