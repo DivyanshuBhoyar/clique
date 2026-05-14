@@ -1,5 +1,6 @@
 # Changelog
 
+- 2026-05-14: Replaced bare spinner loading with a playful branded loading card and screen-specific copy for Chat, Drops, and Notes.
 - 2026-05-14: Refined Notes markdown UX from always-on bottom preview to an explicit `Write` / `Preview` mode toggle.
 - 2026-05-14: Added Notes markdown rendering via `react-native-markdown-display`; cards strip raw markdown markers and editor shows a rendered preview card.
 - 2026-05-14: Added note-card pin/unpin toggles for owned notes in the Notes feed using existing `toggleNotePin` mutation.

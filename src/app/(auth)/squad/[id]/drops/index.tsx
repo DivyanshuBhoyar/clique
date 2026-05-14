@@ -85,7 +85,7 @@ export default function DropsScreen() {
   });
 
   if (drops === undefined) {
-    return <LoadingState />;
+    return <LoadingState message="Sorting the good drops from the chaos…" />;
   }
 
   return (

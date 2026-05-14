@@ -58,7 +58,7 @@ export default function ChatScreen() {
     };
 
     if (channels === undefined) {
-        return <LoadingState />;
+        return <LoadingState message="Warming up the group chat…" />;
     }
 
     const matchesSearch = (name: string) =>

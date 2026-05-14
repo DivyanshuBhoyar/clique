@@ -113,7 +113,7 @@ export default function NotesScreen() {
         : undefined;
 
     if (isInitialLoading) {
-        return <LoadingState />;
+        return <LoadingState message="Finding the notes worth rereading…" />;
     }
 
     return (
