@@ -37,6 +37,7 @@ interface NoteCardProps {
     collaboratorCount?: number;
     isBookmarked?: boolean;
     onToggleBookmark?: (noteId: string) => void;
+    onTogglePin?: (noteId: string) => void;
     noteId?: string;
 }
 
@@ -68,6 +69,7 @@ export function NoteCard({
     collaboratorCount,
     isBookmarked,
     onToggleBookmark,
+    onTogglePin,
     noteId,
 }: NoteCardProps) {
     const theme = useTheme();
@@ -111,10 +113,27 @@ export function NoteCard({
                             </ThemedText>
                         </View>
                     ) : null}
+                    {onTogglePin && noteId ? (
+                        <Pressable
+                            onPress={(e: GestureResponderEvent) => { e.stopPropagation(); onTogglePin(noteId); }}
+                            hitSlop={8}
+                            style={styles.iconButton}
+                            accessibilityRole="button"
+                            accessibilityLabel={pinned ? 'Unpin note' : 'Pin note'}
+                        >
+                            <Pin
+                                size={16}
+                                color={pinned ? theme.accent : theme.textSecondary}
+                                fill={pinned ? theme.accent : 'none'}
+                                strokeWidth={2}
+                            />
+                        </Pressable>
+                    ) : null}
                     {onToggleBookmark && noteId ? (
                         <Pressable
                             onPress={(e: GestureResponderEvent) => { e.stopPropagation(); onToggleBookmark(noteId); }}
                             hitSlop={8}
+                            style={styles.iconButton}
                             accessibilityRole="button"
                             accessibilityLabel={isBookmarked ? 'Remove bookmark' : 'Bookmark'}
                         >
@@ -193,6 +212,12 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: Spacing.sm,
+    },
+    iconButton: {
+        minWidth: 34,
+        minHeight: 34,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     typeLabel: {
         fontWeight: Weight.semibold,

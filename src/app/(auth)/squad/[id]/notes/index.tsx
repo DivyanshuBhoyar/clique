@@ -54,6 +54,7 @@ export default function NotesScreen() {
     const [searchText, setSearchText] = useState('');
 
     const createNote = useMutation(api.notes.createNote);
+    const toggleNotePin = useMutation(api.notes.toggleNotePin);
     const bookmarkToggle = useBookmarkToggle();
     const selectedFilter: NotesFeedFilter = FEED_CHIPS[activeFilter]?.key ?? 'all';
     const normalizedSearch = searchText.trim();
@@ -91,6 +92,10 @@ export default function NotesScreen() {
         if (!squadId) return;
         router.push(`/squad/${squadId}/notes/${noteId}`);
     }, [squadId, router]);
+
+    const handleTogglePin = useCallback(async (noteId: string) => {
+        await toggleNotePin({ noteId: noteId as Id<'notes'> });
+    }, [toggleNotePin]);
 
     const isInitialLoading = feedNotes === undefined;
     const showJournalHero = selectedFilter === 'mine' && normalizedSearch.length === 0;
@@ -198,6 +203,7 @@ export default function NotesScreen() {
                                     collaborators={item.collaborators}
                                     collaboratorCount={item.collaboratorCount}
                                     isBookmarked={item.isBookmarked}
+                                    onTogglePin={item.isMine ? handleTogglePin : undefined}
                                     onToggleBookmark={(noteId) => bookmarkToggle({ targetType: "note", noteId: noteId as any })}
                                 />
                             ) : (
@@ -213,6 +219,7 @@ export default function NotesScreen() {
                                     collaborators={item.collaborators}
                                     collaboratorCount={item.collaboratorCount}
                                     isBookmarked={item.isBookmarked}
+                                    onTogglePin={item.isMine ? handleTogglePin : undefined}
                                     onToggleBookmark={(noteId) => bookmarkToggle({ targetType: "note", noteId: noteId as any })}
                                 />
                             )}
