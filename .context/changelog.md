@@ -1,5 +1,6 @@
 # Changelog
 
+- 2026-05-14: Added `Custom` tile to Vibe picker; opens shared emoji picker and reuses existing optional label + `setVibe` flow.
 - 2026-05-13: Shipped low-complexity polish: haptics helper, join error toast, home settings sheet with deliberate sign-out, most-used chat quick reactions, Drops Top sort, tappable drop URLs, poll expiry chips, and confession `+` emoji picker.
 - 2026-05-11: Added Vibes archive route for past weekly questions and older polls; main Vibes page now shows a recent poll slice plus a past entries link.
 - 2026-05-07: Updated Drops cards: muted compact overlapping reaction stack on list cards, full-row detail reaction strip, per-emoji user reaction toggles, and always-relative timestamps.
