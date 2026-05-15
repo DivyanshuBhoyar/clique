@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ChannelMembersModal } from '@/components/chat/channel-members-modal';
 import { ChannelSwitcher } from '@/components/chat/channel-switcher';
 import { ChatComposer } from '@/components/chat/chat-composer';
 import { ChatHeader } from '@/components/chat/chat-header';
@@ -92,6 +93,7 @@ export default function ChannelChatScreen() {
         clearSelectedMessage,
     } = useChatReplyTarget(channelId);
     const [showSwitcher, setShowSwitcher] = useState(false);
+    const [showMembers, setShowMembers] = useState(false);
     const [pickerMessageId, setPickerMessageId] = useState<string | null>(null);
     const [editTarget, setEditTarget] = useState<{ id: Id<'messages'>; content: string } | null>(null);
     const { bubbleChannel, extraChannelCount, dismissBubble } = useOtherChannelUnreadBubble(
@@ -188,6 +190,11 @@ export default function ChannelChatScreen() {
                 onlineCount={onlineCount}
                 otherUnreadCount={otherUnreadSummary?.totalUnread ?? 0}
                 onTitlePress={() => setShowSwitcher(true)}
+                onSettingsPress={
+                    currentChannel?.type === 'private' && currentChannel.createdBy === currentUser?._id
+                        ? () => setShowMembers(true)
+                        : undefined
+                }
             />
 
             <NewMessageBubble
@@ -267,6 +274,17 @@ export default function ChannelChatScreen() {
                             router.replace(`/squad/${squadId}/chat/${newChannelId}`);
                         }}
                     />
+
+                    {currentChannel?.type === 'private' && (
+                        <ChannelMembersModal
+                            visible={showMembers}
+                            channelId={channelId as Id<"channels">}
+                            squadId={squadId as Id<"squads">}
+                            channelName={currentChannel.name}
+                            isCreator={currentChannel.createdBy === currentUser?._id}
+                            onClose={() => setShowMembers(false)}
+                        />
+                    )}
                 </ThemedView>
             </KeyboardAvoidingView>
         </SafeAreaView>

@@ -23,11 +23,25 @@ function getMessagePreview(message: { type: string; content: string; deleted?: b
 export const getChannels = query({
     args: { squadId: v.id("squads") },
     handler: async (ctx, args) => {
-        await requireMembership(ctx, args.squadId);
-        return await ctx.db
+        const { userId } = await requireMembership(ctx, args.squadId);
+        const channels = await ctx.db
             .query("channels")
             .withIndex("by_squad", (q) => q.eq("squadId", args.squadId))
             .collect();
+
+        // Filter out private channels the user isn't a member of
+        const visible = [];
+        for (const channel of channels) {
+            if (channel.type === "private") {
+                const membership = await ctx.db
+                    .query("channelMemberships")
+                    .withIndex("by_user_channel", (q) => q.eq("userId", userId).eq("channelId", channel._id))
+                    .first();
+                if (!membership) continue;
+            }
+            visible.push(channel);
+        }
+        return visible;
     },
 });
 
@@ -41,6 +55,19 @@ export const getChannelsWithUnread = query({
             .withIndex("by_squad", (q) => q.eq("squadId", args.squadId))
             .collect();
 
+        // Filter out private channels the user isn't a member of
+        const visibleChannels = [];
+        for (const channel of channels) {
+            if (channel.type === "private") {
+                const chMembership = await ctx.db
+                    .query("channelMemberships")
+                    .withIndex("by_user_channel", (q) => q.eq("userId", userId).eq("channelId", channel._id))
+                    .first();
+                if (!chMembership) continue;
+            }
+            visibleChannels.push(channel);
+        }
+
         // Batch fetch read statuses for all channels
         const readStatuses = await ctx.db
             .query("channelReadStatus")
@@ -50,7 +77,7 @@ export const getChannelsWithUnread = query({
         const readMap = new Map(readStatuses.map(r => [r.channelId, r.lastReadAt]));
 
         const enriched = await Promise.all(
-            channels.map(async (channel) => {
+            visibleChannels.map(async (channel) => {
                 const lastReadAt = readMap.get(channel._id) ?? 0;
 
                 // Count unread messages
@@ -177,9 +204,11 @@ export const createChannel = mutation({
             v.literal("mood"),
             v.literal("thread"),
             v.literal("ephemeral"),
+            v.literal("private"),
         ),
         parentChannelId: v.optional(v.id("channels")),
         expiresAt: v.optional(v.number()),
+        memberIds: v.optional(v.array(v.id("users"))),
     },
 
     handler: async (ctx, args) => {
@@ -205,7 +234,124 @@ export const createChannel = mutation({
             createdAt: Date.now(),
         });
 
+        // For private channels, create membership rows for the creator + selected members
+        if (args.type === "private") {
+            const memberSet = new Set(args.memberIds ?? []);
+            memberSet.add(userId); // Creator is always a member
+            for (const memberId of memberSet) {
+                await ctx.db.insert("channelMemberships", {
+                    channelId,
+                    userId: memberId,
+                    addedAt: Date.now(),
+                });
+            }
+        }
+
         return channelId;
+    },
+});
+
+export const updateChannelMembers = mutation({
+    args: {
+        channelId: v.id("channels"),
+        addIds: v.array(v.id("users")),
+        removeIds: v.array(v.id("users")),
+    },
+    handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) throw new Error("Unauthenticated");
+
+        const channel = await ctx.db.get(args.channelId);
+        if (!channel) throw new Error("Channel not found");
+        if (channel.type !== "private") throw new Error("Not a private channel");
+        if (channel.createdBy !== userId) throw new Error("Only the channel creator can manage members");
+
+        // Add new members
+        for (const addId of args.addIds) {
+            const existing = await ctx.db
+                .query("channelMemberships")
+                .withIndex("by_user_channel", (q) => q.eq("userId", addId).eq("channelId", args.channelId))
+                .first();
+            if (!existing) {
+                await ctx.db.insert("channelMemberships", {
+                    channelId: args.channelId,
+                    userId: addId,
+                    addedAt: Date.now(),
+                });
+
+                // Send a system welcome message
+                const { nickname } = await enrichUser(ctx, addId, channel.squadId);
+                await ctx.db.insert("messages", {
+                    channelId: args.channelId,
+                    squadId: channel.squadId,
+                    userId,
+                    content: `${nickname} was added to the channel`,
+                    type: "system",
+                    createdAt: Date.now(),
+                });
+            }
+        }
+
+        // Remove members (but never remove the creator)
+        for (const removeId of args.removeIds) {
+            if (removeId === userId) continue; // Creator cannot be removed
+            const membership = await ctx.db
+                .query("channelMemberships")
+                .withIndex("by_user_channel", (q) => q.eq("userId", removeId).eq("channelId", args.channelId))
+                .first();
+            if (membership) {
+                await ctx.db.delete(membership._id);
+            }
+        }
+    },
+});
+
+export const renameChannel = mutation({
+    args: {
+        channelId: v.id("channels"),
+        name: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) throw new Error("Unauthenticated");
+
+        const channel = await ctx.db.get(args.channelId);
+        if (!channel) throw new Error("Channel not found");
+        if (channel.createdBy !== userId) throw new Error("Only the channel creator can rename");
+
+        assertLength("Channel name", args.name, 50);
+        await ctx.db.patch(args.channelId, { name: args.name });
+    },
+});
+
+export const getChannelMembers = query({
+    args: { channelId: v.id("channels") },
+    handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) throw new Error("Unauthenticated");
+
+        const channel = await ctx.db.get(args.channelId);
+        if (!channel) return [];
+
+        await requireMembership(ctx, channel.squadId);
+
+        const memberships = await ctx.db
+            .query("channelMemberships")
+            .withIndex("by_channel", (q) => q.eq("channelId", args.channelId))
+            .collect();
+
+        return await Promise.all(
+            memberships.map(async (m) => {
+                const { nickname, avatarUrl } = await enrichUser(ctx, m.userId, channel.squadId);
+                return {
+                    userId: m.userId,
+                    nickname,
+                    avatarUrl,
+                    addedAt: m.addedAt,
+                    isCreator: m.userId === channel.createdBy,
+                };
+            })
+        );
     },
 });
 

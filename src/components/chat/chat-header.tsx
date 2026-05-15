@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft, Settings } from 'lucide-react-native';
 import { useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring } from 'react-native-reanimated';
@@ -14,9 +14,10 @@ interface ChatHeaderProps {
   onlineCount?: number;
   otherUnreadCount?: number;
   onTitlePress?: () => void;
+  onSettingsPress?: () => void;
 }
 
-export function ChatHeader({ channelName, onlineCount, otherUnreadCount = 0, onTitlePress }: ChatHeaderProps) {
+export function ChatHeader({ channelName, onlineCount, otherUnreadCount = 0, onTitlePress, onSettingsPress }: ChatHeaderProps) {
   const theme = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -51,7 +52,10 @@ export function ChatHeader({ channelName, onlineCount, otherUnreadCount = 0, onT
     >
       <View style={styles.side}>
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => {
+            if (router.canGoBack()) router.back();
+            else router.replace('..');
+          }}
           accessibilityRole="button"
           accessibilityLabel="Go back"
           hitSlop={8}
@@ -96,7 +100,19 @@ export function ChatHeader({ channelName, onlineCount, otherUnreadCount = 0, onT
         ) : null}
       </Pressable>
 
-      <View style={styles.side} />
+      <View style={styles.side}>
+        {onSettingsPress && (
+          <Pressable
+            onPress={onSettingsPress}
+            accessibilityRole="button"
+            accessibilityLabel="Channel settings"
+            hitSlop={8}
+            style={styles.iconButton}
+          >
+            <Settings size={22} color={theme.text} strokeWidth={2} />
+          </Pressable>
+        )}
+      </View>
     </View>
   );
 }

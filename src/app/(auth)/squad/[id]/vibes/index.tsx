@@ -17,7 +17,7 @@ import { Id } from '@/convex/_generated/dataModel';
 import { useTheme } from '@/hooks/use-theme';
 import { useMutation, usePaginatedQuery, useQuery } from 'convex/react';
 import { useGlobalSearchParams, useRouter } from 'expo-router';
-import { History, Plus } from 'lucide-react-native';
+import { Globe, History, Plus } from 'lucide-react-native';
 import { useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -74,7 +74,7 @@ export default function VibesScreen() {
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={[]}>
-            <ScreenHeader title="Vibes ✨" />
+            <ScreenHeader title="Vibes ✨" leftIcon={Globe} onLeftPress={() => router.navigate('/?switcher=1' as any)} />
 
             <ScrollView
                 contentInsetAdjustmentBehavior="automatic"

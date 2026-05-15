@@ -7,17 +7,19 @@
  *   <ScreenHeader title="Drops 🎁" onBack={() => router.back()} rightIcon={Plus} onRightPress={...} />
  *   <ScreenHeader title="🏠 The Cove" />   // no back or right button
  */
+import { ChevronLeft, type LucideIcon } from 'lucide-react-native';
 import { Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, type LucideIcon } from 'lucide-react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { Radius, Spacing, Typography, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { Radius, Spacing, Weight, Typography } from '@/constants/theme';
 
 interface ScreenHeaderProps {
   title: string;
   onBack?: () => void;
+  leftIcon?: LucideIcon;
+  onLeftPress?: () => void;
   rightIcon?: LucideIcon;
   onRightPress?: () => void;
   style?: ViewStyle;
@@ -28,6 +30,8 @@ interface ScreenHeaderProps {
 export function ScreenHeader({
   title,
   onBack,
+  leftIcon: LeftIcon,
+  onLeftPress,
   rightIcon: RightIcon,
   onRightPress,
   style,
@@ -48,7 +52,7 @@ export function ScreenHeader({
         style,
       ]}
     >
-      {/* Left — back button or placeholder */}
+      {/* Left — back button, custom icon, or placeholder */}
       <View style={styles.side}>
         {onBack ? (
           <Pressable
@@ -66,6 +70,16 @@ export function ScreenHeader({
             ]}
           >
             <ChevronLeft size={20} color={theme.text} strokeWidth={2.5} />
+          </Pressable>
+        ) : LeftIcon && onLeftPress ? (
+          <Pressable
+            onPress={onLeftPress}
+            accessibilityRole="button"
+            accessibilityLabel="Switch squad"
+            hitSlop={8}
+            style={styles.leftIconBtn}
+          >
+            <LeftIcon size={18} color={theme.textSecondary} strokeWidth={2} />
           </Pressable>
         ) : null}
       </View>
@@ -140,5 +154,12 @@ const styles = StyleSheet.create({
   },
   iconBtnPressed: {
     transform: [{ translateX: 1 }, { translateY: 1 }],
+  },
+  leftIconBtn: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    opacity: 0.75,
   },
 });

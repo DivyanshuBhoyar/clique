@@ -1,6 +1,6 @@
 import { useMutation, usePaginatedQuery, useQuery } from 'convex/react';
 import { useGlobalSearchParams, useRouter } from 'expo-router';
-import { Plus } from 'lucide-react-native';
+import { Globe, Plus } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -64,6 +64,8 @@ export default function MemoriesScreen() {
             <SafeAreaView style={styles.safeArea} edges={[]}>
                 <ScreenHeader
                     title="Memories 🧠"
+                    leftIcon={Globe}
+                    onLeftPress={() => router.navigate('/?switcher=1' as any)}
                     rightIcon={Plus}
                     onRightPress={() =>
                         router.push(`/squad/${squadId}/memories/new?type=${fabType}` as any)

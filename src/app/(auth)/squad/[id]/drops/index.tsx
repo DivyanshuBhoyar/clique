@@ -1,6 +1,6 @@
 import { useMutation, usePaginatedQuery, useQuery } from 'convex/react';
 import { Link, useGlobalSearchParams, useRouter } from 'expo-router';
-import { Plus } from 'lucide-react-native';
+import { Globe, Plus } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -93,6 +93,8 @@ export default function DropsScreen() {
       <SafeAreaView style={styles.safeArea} edges={[]}>
         <ScreenHeader
           title="Drops 🎁"
+          leftIcon={Globe}
+          onLeftPress={() => router.navigate('/?switcher=1' as any)}
           rightIcon={Plus}
           onRightPress={() => router.push(`/squad/${squadId}/drops/new` as any)}
         />

@@ -24,6 +24,15 @@ export const sendMessage = mutation({
             throw new Error("Invalid channel");
         }
 
+        // Private channel membership guard
+        if (channel.type === "private") {
+            const chMembership = await ctx.db
+                .query("channelMemberships")
+                .withIndex("by_user_channel", (q) => q.eq("userId", userId).eq("channelId", args.channelId))
+                .first();
+            if (!chMembership) throw new Error("Not a member of this channel");
+        }
+
         // Ephemeral channel expiry guard
         if (channel.type === "ephemeral" && channel.expiresAt && Date.now() > channel.expiresAt) {
             throw new Error("This room has expired");
@@ -66,6 +75,15 @@ export const sendImageMessage = mutation({
         const channel = await ctx.db.get(args.channelId);
         if (!channel || channel.squadId !== args.squadId) {
             throw new Error("Invalid channel");
+        }
+
+        // Private channel membership guard
+        if (channel.type === "private") {
+            const chMembership = await ctx.db
+                .query("channelMemberships")
+                .withIndex("by_user_channel", (q) => q.eq("userId", userId).eq("channelId", args.channelId))
+                .first();
+            if (!chMembership) throw new Error("Not a member of this channel");
         }
 
         if (channel.type === "ephemeral" && channel.expiresAt && Date.now() > channel.expiresAt) {

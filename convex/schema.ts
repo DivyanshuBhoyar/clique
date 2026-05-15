@@ -42,6 +42,7 @@ export default defineSchema({
             v.literal("mood"),
             v.literal("thread"),
             v.literal("ephemeral"),
+            v.literal("private"),
         ),
         parentChannelId: v.optional(v.id("channels")),
         expiresAt: v.optional(v.number()),
@@ -325,6 +326,15 @@ export default defineSchema({
         createdAt: v.number(),
     })
         .index("by_item", ["itemId", "createdAt"]),
+
+    channelMemberships: defineTable({
+        channelId: v.id("channels"),
+        userId: v.id("users"),
+        addedAt: v.number(),
+    })
+        .index("by_channel", ["channelId"])
+        .index("by_user", ["userId"])
+        .index("by_user_channel", ["userId", "channelId"]),
 
     bookmarks: defineTable({
         userId: v.id("users"),

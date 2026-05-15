@@ -1,5 +1,8 @@
 # Changelog
 
+- 2026-05-15: Added private channels with creator-managed memberships, system welcome messages, channel renaming, and settings modal.
+- 2026-05-15: Added persistent globe icon squad switcher across all tab headers; home screen now shows a dedicated squad picker view with prominent squad cards and unified recent activity.
+- 2026-05-15: Removed Jump In Grid from home screen (redundant with tabs); fixed web channel loading (useGlobalSearchParams), ChatHeader back navigation (canGoBack fallback).
 - 2026-05-14: Added shared frontend link previews and tappable inline URLs across Drops, Chat, Memories, and Confessions.
 - 2026-05-14: Fixed squad vibe loading so saved vibes persist, legacy vibe records render, and join-squad vibes get timestamps.
 - 2026-05-14: Revisited squad management UX: Chat opens Members, Members opens Settings, and utility routes stay off the bottom tab bar.

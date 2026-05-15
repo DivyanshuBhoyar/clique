@@ -26,30 +26,32 @@
 import { useAuthActions } from '@convex-dev/auth/react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useMutation, useQuery } from 'convex/react';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { HomeMiniHeader } from '@/components/home/home-mini-header';
 import { HomeSettingsSheet } from '@/components/home/home-settings-sheet';
-import { JumpInGrid } from '@/components/home/jump-in-grid';
 import { NoSquadsLanding } from '@/components/home/no-squads-landing';
 import { RecentActivitySection } from '@/components/home/recent-activity-section';
 import { SquadHero } from '@/components/home/squad-hero';
+import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { DashedSeparator } from '@/components/ui/dashed-separator';
 import { Fab } from '@/components/ui/fab';
 import { LoadingState } from '@/components/ui/loading-state';
-import { Spacing } from '@/constants/theme';
+import { Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
+import { useTheme } from '@/hooks/use-theme';
 import { useToast } from '@/hooks/use-toast';
 import { heavyImpact } from '@/utils/haptics';
 
 export default function HomeScreen() {
     const router = useRouter();
+    const { switcher } = useLocalSearchParams<{ switcher?: string }>();
     const { signOut } = useAuthActions();
     const toast = useToast();
 
@@ -68,6 +70,7 @@ export default function HomeScreen() {
 
     useEffect(() => {
         if (hasRedirected) return;
+        if (switcher) return; // Skip auto-redirect when coming from squad switcher
         if (!userSquads) return;
         // Only auto-redirect if last remembered squad exists
         const redirect = async () => {
@@ -78,7 +81,7 @@ export default function HomeScreen() {
             }
         };
         redirect();
-    }, [userSquads, hasRedirected, router]);
+    }, [userSquads, hasRedirected, router, switcher]);
 
     const submitJoinSquad = async () => {
         if (!squadName || !password || !nickname) return;
@@ -149,40 +152,55 @@ export default function HomeScreen() {
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}
                 >
-                    {/* Squad hero */}
-                    <SquadHero
-                        squadName={activeSquad?.name ?? 'Your Squad'}
-                        memberCount={memberCount}
-                        squadMembers={squadMembers}
-                        userSquads={userSquads}
-                        activeSquadIndex={activeSquadIndex}
-                        onSwitchSquad={(squadId) => {
-                            const idx = userSquads.findIndex(e => e.squad?._id === squadId);
-                            if (idx >= 0) setActiveSquadIndex(idx);
-                            router.push(`/squad/${squadId}/chat` as any);
-                        }}
-                    />
+                    {switcher ? (
+                        <>
+                            <SquadPickerList
+                                userSquads={userSquads}
+                                onSelect={(squadId) => router.push(`/squad/${squadId}/chat` as any)}
+                                onCreate={() => router.push('/create-squad')}
+                            />
 
-                    <DashedSeparator />
+                            <DashedSeparator />
 
-                    <RecentActivitySection
-                        items={recentActivity ?? []}
-                        onOpenActivity={(item) => {
-                            if (!activeSquad) return;
-                            const base = `/squad/${activeSquad._id}/${item.route}`;
-                            const route = item.routeId ? `${base}/${item.routeId}` : base;
-                            router.push(route as any);
-                        }}
-                    />
+                            <RecentActivitySection
+                                items={recentActivity ?? []}
+                                onOpenActivity={(item) => {
+                                    if (!activeSquad) return;
+                                    const base = `/squad/${activeSquad._id}/${item.route}`;
+                                    const route = item.routeId ? `${base}/${item.routeId}` : base;
+                                    router.push(route as any);
+                                }}
+                            />
+                        </>
+                    ) : (
+                        <>
+                            {/* Squad hero */}
+                            <SquadHero
+                                squadName={activeSquad?.name ?? 'Your Squad'}
+                                memberCount={memberCount}
+                                squadMembers={squadMembers}
+                                userSquads={userSquads}
+                                activeSquadIndex={activeSquadIndex}
+                                onSwitchSquad={(squadId) => {
+                                    const idx = userSquads.findIndex(e => e.squad?._id === squadId);
+                                    if (idx >= 0) setActiveSquadIndex(idx);
+                                    router.push(`/squad/${squadId}/chat` as any);
+                                }}
+                            />
 
-                    <DashedSeparator />
+                            <DashedSeparator />
 
-                    <JumpInGrid
-                        onOpenRoute={(route) => {
-                            if (!activeSquad) return;
-                            router.push(`/squad/${activeSquad._id}/${route}` as any);
-                        }}
-                    />
+                            <RecentActivitySection
+                                items={recentActivity ?? []}
+                                onOpenActivity={(item) => {
+                                    if (!activeSquad) return;
+                                    const base = `/squad/${activeSquad._id}/${item.route}`;
+                                    const route = item.routeId ? `${base}/${item.routeId}` : base;
+                                    router.push(route as any);
+                                }}
+                            />
+                        </>
+                    )}
                 </ScrollView>
 
                 <Fab
@@ -222,6 +240,113 @@ export default function HomeScreen() {
         </ThemedView>
     );
 }
+
+function SquadPickerList({ userSquads, onSelect, onCreate }: {
+    userSquads: { squad: { _id: string; name: string } | null }[];
+    onSelect: (squadId: string) => void;
+    onCreate: () => void;
+}) {
+    const theme = useTheme();
+    return (
+        <View style={switcherStyles.container}>
+            <ThemedText type="title" style={switcherStyles.heading}>Your Squads</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary" style={switcherStyles.subtitle}>
+                Pick a squad to jump into
+            </ThemedText>
+
+            <View style={switcherStyles.list}>
+                {userSquads.map((entry) => {
+                    if (!entry.squad) return null;
+                    return (
+                        <Pressable
+                            key={entry.squad._id}
+                            onPress={() => onSelect(entry.squad!._id)}
+                            style={[
+                                switcherStyles.card,
+                                {
+                                    backgroundColor: theme.surface,
+                                    borderColor: theme.outline,
+                                    shadowColor: theme.shadow,
+                                },
+                            ]}
+                        >
+                            <View style={[switcherStyles.cardIcon, { backgroundColor: theme.accent, borderColor: theme.outline }]}>
+                                <ThemedText style={{ fontSize: Typography.title }}>🏠</ThemedText>
+                            </View>
+                            <ThemedText type="bodyBold" style={{ flex: 1 }}>{entry.squad.name}</ThemedText>
+                            <ThemedText themeColor="textTertiary">→</ThemedText>
+                        </Pressable>
+                    );
+                })}
+
+                <Pressable
+                    onPress={onCreate}
+                    style={[
+                        switcherStyles.createCard,
+                        { backgroundColor: theme.accent, borderColor: theme.outline, shadowColor: theme.shadow },
+                    ]}
+                >
+                    <ThemedText style={{ fontSize: Typography.title }}>🚀</ThemedText>
+                    <View style={{ flex: 1 }}>
+                        <ThemedText type="smallBold">Start something new</ThemedText>
+                        <ThemedText type="caption" themeColor="textSecondary">Create or join a squad</ThemedText>
+                    </View>
+                    <ThemedText style={{ fontSize: Typography.body }}>→</ThemedText>
+                </Pressable>
+            </View>
+        </View>
+    );
+}
+
+const switcherStyles = StyleSheet.create({
+    container: {
+        paddingHorizontal: Spacing.lg,
+        paddingTop: Spacing.xxxl,
+    },
+    heading: {
+        textAlign: 'center',
+        marginBottom: Spacing.xs,
+    },
+    subtitle: {
+        textAlign: 'center',
+        marginBottom: Spacing.xl,
+    },
+    list: {
+        gap: Spacing.md,
+    },
+    card: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: Spacing.lg,
+        borderWidth: 2,
+        borderRadius: Radius.lg,
+        gap: Spacing.md,
+        shadowOffset: Shadows.md.offset,
+        shadowOpacity: Shadows.md.opacity,
+        shadowRadius: Shadows.md.radius,
+        elevation: 3,
+    },
+    cardIcon: {
+        width: 44,
+        height: 44,
+        borderRadius: Radius.md,
+        borderWidth: 2,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    createCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: Spacing.lg,
+        borderWidth: 2,
+        borderRadius: Radius.lg,
+        gap: Spacing.md,
+        shadowOffset: Shadows.sm.offset,
+        shadowOpacity: Shadows.sm.opacity,
+        shadowRadius: Shadows.sm.radius,
+        elevation: 2,
+    },
+});
 
 const styles = StyleSheet.create({
     container: { flex: 1 },

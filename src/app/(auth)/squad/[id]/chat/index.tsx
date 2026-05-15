@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from 'convex/react';
-import { Link, useLocalSearchParams, useRouter } from 'expo-router';
-import { Users } from 'lucide-react-native';
+import { Link, useGlobalSearchParams, useRouter } from 'expo-router';
+import { Globe, Users } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,12 +20,12 @@ import { Id } from '@/convex/_generated/dataModel';
 import { useTheme } from '@/hooks/use-theme';
 import { useToast } from '@/hooks/use-toast';
 
-type ChannelType = 'topic' | 'mood' | 'ephemeral';
+type ChannelType = 'topic' | 'mood' | 'ephemeral' | 'private';
 
 export default function ChatScreen() {
     const router = useRouter();
     const theme = useTheme();
-    const { id } = useLocalSearchParams<{ id: string }>();
+    const { id } = useGlobalSearchParams<{ id: string }>();
     const squadId = id as Id<"squads">;
 
     const channels = useQuery(api.channel.getChannelsWithUnread, squadId ? { squadId } : "skip");
@@ -39,9 +39,9 @@ export default function ChatScreen() {
     const [search, setSearch] = useState('');
     const toast = useToast();
 
-    const handleCreate = async (args: { name: string; type: ChannelType; expiresAt?: number }) => {
+    const handleCreate = async (args: { name: string; type: ChannelType; expiresAt?: number; memberIds?: any[] }) => {
         try {
-            await createChannel({ squadId, name: args.name, type: args.type, expiresAt: args.expiresAt });
+            await createChannel({ squadId, name: args.name, type: args.type, expiresAt: args.expiresAt, memberIds: args.memberIds });
             toast.success('Channel created');
         } catch (err: any) {
             toast.error(err.message ?? 'Failed to create channel');
@@ -67,16 +67,19 @@ export default function ChatScreen() {
     const mainChannels = channels.filter(c => c.type === 'main' && matchesSearch(c.name));
     const topicChannels = channels.filter(c => c.type === 'topic' && matchesSearch(c.name));
     const moodChannels = channels.filter(c => c.type === 'mood' && matchesSearch(c.name));
+    const privateChannels = channels.filter(c => c.type === 'private' && matchesSearch(c.name));
     const ephemeralChannels = channels.filter(c => c.type === 'ephemeral' && matchesSearch(c.name));
 
     const hasResults = mainChannels.length > 0 || topicChannels.length > 0
-        || moodChannels.length > 0 || ephemeralChannels.length > 0;
+        || moodChannels.length > 0 || ephemeralChannels.length > 0 || privateChannels.length > 0;
 
     return (
         <ThemedView style={styles.container}>
             <SafeAreaView style={styles.safeArea} edges={[]}>
                 <ScreenHeader
                     title={squad ? `🏠 ${squad.name}` : 'Squad Name'}
+                    leftIcon={Globe}
+                    onLeftPress={() => router.navigate('/?switcher=1' as any)}
                     rightIcon={Users}
                     onRightPress={() => router.push(`/squad/${squadId}/members` as any)}
                 />
@@ -140,6 +143,8 @@ export default function ChatScreen() {
                         />
                     )}
 
+
+
                     {topicChannels.length > 0 && (
                         <ChannelSection
                             emoji="💭" label="TOPIC THREADS"
@@ -147,6 +152,15 @@ export default function ChatScreen() {
                             squadId={squadId}
                             type="topic"
                             onCreate={() => { setDefaultType('topic'); setShowCreate(true); }}
+                        />
+                    )}
+                    {privateChannels.length > 0 && (
+                        <ChannelSection
+                            emoji="🔒" label="PRIVATE"
+                            channels={privateChannels}
+                            squadId={squadId}
+                            type="private"
+                            onCreate={() => { setDefaultType('private'); setShowCreate(true); }}
                         />
                     )}
 
@@ -201,6 +215,7 @@ export default function ChatScreen() {
             <CreateChannelModal
                 visible={showCreate}
                 defaultType={defaultType}
+                squadId={squadId}
                 onClose={() => setShowCreate(false)}
                 onCreate={handleCreate}
             />

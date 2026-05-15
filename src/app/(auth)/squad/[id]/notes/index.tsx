@@ -1,6 +1,6 @@
 import { useMutation, usePaginatedQuery, useQuery } from 'convex/react';
 import { Link, useGlobalSearchParams, useRouter } from 'expo-router';
-import { Plus, SlidersHorizontal } from 'lucide-react-native';
+import { Globe, Plus, SlidersHorizontal } from 'lucide-react-native';
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -121,6 +121,8 @@ export default function NotesScreen() {
             <SafeAreaView style={styles.safeArea} edges={[]}>
                 <ScreenHeader
                     title="Notes 📝"
+                    leftIcon={Globe}
+                    onLeftPress={() => router.navigate('/?switcher=1' as any)}
                     rightIcon={Plus}
                     onRightPress={() => {
                         if (!squadId) return;
