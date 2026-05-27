@@ -164,7 +164,7 @@ export default function SquadTabsLayout() {
 
             {/* Utility screens — reachable from in-flow buttons, never shown as bottom tabs */}
             <Tabs.Screen
-                name="members"
+                name="members/index"
                 options={{
                     href: null,
                     tabBarStyle: { display: 'none' },

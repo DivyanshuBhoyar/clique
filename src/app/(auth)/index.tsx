@@ -146,7 +146,7 @@ export default function HomeScreen() {
     return (
         <ThemedView style={styles.container}>
             <SafeAreaView style={styles.safeArea} edges={['top']}>
-                <HomeMiniHeader onSettingsPress={() => setShowSettings(true)} />
+                <HomeMiniHeader onSettingsPress={() => setShowSettings(true)} onMessagesPress={() => router.push('/(auth)/dm' as any)} />
 
                 <ScrollView
                     contentContainerStyle={styles.scrollContent}

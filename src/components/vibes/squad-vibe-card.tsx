@@ -2,7 +2,8 @@ import { ThemedText } from '@/components/themed-text';
 import { UserAvatar } from '@/components/user-avatar';
 import { Radius, Shadows, Spacing, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { StyleSheet, View } from 'react-native';
+import { MessageCircle } from 'lucide-react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 interface SquadVibeMember {
     userId: string;
@@ -15,6 +16,7 @@ interface SquadVibeMember {
 
 interface SquadVibeCardProps {
     member: SquadVibeMember;
+    onChat?: () => void;
 }
 
 function timeAgo(timestamp: number): string {
@@ -27,7 +29,7 @@ function timeAgo(timestamp: number): string {
     return '1d';
 }
 
-export function SquadVibeCard({ member }: SquadVibeCardProps) {
+export function SquadVibeCard({ member, onChat }: SquadVibeCardProps) {
     const theme = useTheme();
 
     return (
@@ -63,6 +65,22 @@ export function SquadVibeCard({ member }: SquadVibeCardProps) {
                 </ThemedText>
             </View>
 
+            {onChat && (
+                <Pressable
+                    onPress={onChat}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Message ${member.nickname}`}
+                    style={({ pressed }) => [
+                        styles.chatBtn,
+                        { borderColor: theme.outline, backgroundColor: theme.background },
+                        pressed && { transform: [{ scale: 0.92 }] },
+                    ]}
+                >
+                    <MessageCircle size={16} color={theme.text} strokeWidth={2} />
+                </Pressable>
+            )}
+
             <ThemedText
                 type="small"
                 themeColor="textSecondary"
@@ -91,5 +109,13 @@ const styles = StyleSheet.create({
     },
     timestamp: {
         flexShrink: 0,
+    },
+    chatBtn: {
+        width: 32,
+        height: 32,
+        borderRadius: Radius.sm,
+        borderWidth: 1.5,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
 });

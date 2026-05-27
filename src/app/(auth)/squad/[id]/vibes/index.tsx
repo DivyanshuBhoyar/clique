@@ -59,6 +59,7 @@ export default function VibesScreen() {
     const toggleConfessionReaction = useMutation(api.confessions.toggleConfessionReaction);
     const createPoll = useMutation(api.polls.createPoll);
     const votePoll = useMutation(api.polls.votePoll);
+    const getOrCreateDm = useMutation(api.dm.getOrCreateConversation);
 
     if (!squadId) {
         return (
@@ -114,7 +115,16 @@ export default function VibesScreen() {
                     ) : (
                         <View style={styles.cardList}>
                             {squadVibes.map((member) => (
-                                <SquadVibeCard key={member.userId} member={member} />
+                                <SquadVibeCard
+                                    key={member.userId}
+                                    member={member}
+                                    onChat={async () => {
+                                        const convId = await getOrCreateDm({
+                                            otherUserId: member.userId as Id<'users'>,
+                                        });
+                                        router.push(`/(auth)/dm/${convId}` as any);
+                                    }}
+                                />
                             ))}
                         </View>
                     )}

@@ -1,6 +1,6 @@
-import { useQuery } from 'convex/react';
+import { useMutation, useQuery } from 'convex/react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Crown, Settings, UserMinus, UserRound } from 'lucide-react-native';
+import { Crown, MessageCircle, Settings, UserMinus } from 'lucide-react-native';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -22,6 +22,7 @@ export default function MembersScreen() {
     const squadId = id as Id<'squads'>;
 
     const members = useQuery(api.squad.getSquadMembers, squadId ? { squadId } : 'skip');
+    const getOrCreateDm = useMutation(api.dm.getOrCreateConversation);
     const onlineCount = members?.filter((member) => member.isOnline).length ?? 0;
     const canManageMembers = members?.some((member) => member.isMe && member.isOwner) ?? false;
 
@@ -94,9 +95,26 @@ export default function MembersScreen() {
                                 <View style={[styles.managePill, { backgroundColor: theme.errorSoft, borderColor: theme.error }]}>
                                     <ThemedText type="caption" style={{ color: theme.error, fontWeight: Weight.bold }}>Manage</ThemedText>
                                 </View>
-                            ) : (
-                                <UserRound size={18} color={theme.textTertiary} strokeWidth={2} />
-                            )}
+                            ) : !member.isMe ? (
+                                <Pressable
+                                    hitSlop={8}
+                                    accessibilityLabel={`Message ${member.nickname}`}
+                                    onPress={async (e) => {
+                                        e.stopPropagation?.();
+                                        const convId = await getOrCreateDm({
+                                            otherUserId: member.userId as Id<'users'>,
+                                        });
+                                        router.push(`/(auth)/dm/${convId}` as any);
+                                    }}
+                                    style={({ pressed }) => [
+                                        styles.chatBtn,
+                                        { borderColor: theme.outline, backgroundColor: theme.background },
+                                        pressed && { transform: [{ scale: 0.9 }] },
+                                    ]}
+                                >
+                                    <MessageCircle size={16} color={theme.text} strokeWidth={2} />
+                                </Pressable>
+                            ) : null}
                         </Pressable>
                     ))}
                 </ScrollView>
@@ -170,5 +188,13 @@ const styles = StyleSheet.create({
         borderRadius: Radius.full,
         paddingHorizontal: Spacing.sm,
         paddingVertical: 3,
+    },
+    chatBtn: {
+        width: 32,
+        height: 32,
+        borderRadius: Radius.sm,
+        borderWidth: 1.5,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
 });
