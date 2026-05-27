@@ -1,5 +1,13 @@
 # Changelog
 
+- 2026-05-27: Polished private DM UI with tighter readable bubbles, aligned avatars, reaction pills above timestamps, date separators, full emoji picker parity, and cozy inbox/new-DM helper copy.
+- 2026-05-26: Stabilized E2EE DM ordering, reused shared typing indicator with mobile-safe expiry, and disabled fragile DM read receipts for the current version.
+- 2026-05-26: Hardened native E2EE nonce generation to use `secureRandomBytes()` directly instead of `nacl.randomBytes()`.
+- 2026-05-26: Fixed E2EE DM `no PRNG` crash by centralizing TweetNaCl PRNG setup; also cleaned stale `members`/`devices` route definitions.
+- 2026-05-26: Enabled E2EE web device registration through IndexedDB-backed key storage and idempotent authenticated registration.
+- 2026-05-26: Guarded E2EE device initialization so web avoids native SecureStore calls and logged-out sessions do not call `registerDevice`.
+- 2026-05-26: Added Expo SQLite documented web setup: Metro WASM asset support plus COEP/COOP headers in Metro and Expo Router hosting config.
+- 2026-05-18: Updated E2EE DM implementation docs to require channel-chat parity: local pagination, autoscroll, encrypted receipts/control payloads, typing, message actions, and native UX/accessibility standards.
 - 2026-05-15: Added private channels with creator-managed memberships, system welcome messages, channel renaming, and settings modal.
 - 2026-05-15: Added persistent globe icon squad switcher across all tab headers; home screen now shows a dedicated squad picker view with prominent squad cards and unified recent activity.
 - 2026-05-15: Removed Jump In Grid from home screen (redundant with tabs); fixed web channel loading (useGlobalSearchParams), ChatHeader back navigation (canGoBack fallback).

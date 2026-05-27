@@ -1,7 +1,7 @@
 # Progress
 
-- Done: broken-flow fixes, core UX polish, image/chat/comment/reaction/bookmark basics, input validation, auth cleanup, drop detail UX cleanup, compact Drops card reactions/votes, Vibes archive, low-complexity polish pass, custom Vibes, note pin/markdown, playful loading, member list/profiles, squad settings, member removal, real recent activity, read receipts, message editing, memory editing/gallery, swipe-to-reply, ConfirmDialog destructive prompts, shared link previews, private channels with membership management, squad switcher globe nav, squad picker home view.
-- Next: edit drops, delete memory items, channel delete, message search, threaded reply view, ownership transfer.
+- Done: broken-flow fixes, core UX polish, image/chat/comment/reaction/bookmark basics, input validation, auth cleanup, drop detail UX cleanup, compact Drops card reactions/votes, Vibes archive, low-complexity polish pass, custom Vibes, note pin/markdown, playful loading, member list/profiles, squad settings, member removal, real recent activity, read receipts, message editing, memory editing/gallery, swipe-to-reply, ConfirmDialog destructive prompts, shared link previews, private channels with membership management, squad switcher globe nav, squad picker home view, E2EE DM plan updated, Expo SQLite web setup, E2EE web keys, E2EE DM PRNG/order/typing stabilization, private DM UI/reaction polish.
+- Next: edit drops, delete memory items, channel delete, message search, threaded reply view, ownership transfer, harden E2EE DM receipts after core DM stability.
 - Quality bar: Notes feature polish; preserve native UX/accessibility and neo-brutalist tokens.
 - Verify code with `bunx tsc --noEmit`, `bunx convex typecheck`, `bun run lint`.
 - Constraints: root `AGENTS.md` is canonical; read Convex generated guidelines before Convex edits; keep `.context/` under 250 total lines.
