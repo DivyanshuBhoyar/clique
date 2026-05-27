@@ -66,6 +66,7 @@ export const getTypingUsers = query({
                 return {
                     userId: e.userId,
                     nickname: membership?.nickname ?? "Someone",
+                    lastTypingAt: e.lastTypingAt,
                 };
             })
         );

@@ -360,4 +360,80 @@ export default defineSchema({
         .index("by_drop", ["dropId"])
         .index("by_note", ["noteId"])
         .index("by_memory", ["memoryId"]),
+
+    deviceKeys: defineTable({
+        userId:     v.id("users"),     
+        deviceId:   v.string(),        //  once per app install
+        publicKey:  v.string(),        
+        deviceName: v.string(),        
+        createdAt:  v.number(),
+        lastSeen:   v.number(),        
+    })
+        .index("by_user", ["userId"])      
+        .index("by_device", ["deviceId"]),
+
+   dmConversations: defineTable({
+        participantA: v.id("users"),   
+        participantB: v.id("users"),   
+        lastSeq:      v.number(),      
+        lastEnvelopeAt: v.optional(v.number()),
+        createdAt:    v.number(),
+    })
+        .index("by_participants", ["participantA", "participantB"])
+        .index("by_user_a", ["participantA"])
+        .index("by_user_b", ["participantB"]),
+    
+   messageEnvelopes: defineTable({
+        messageId:         v.string(),             
+        conversationId:    v.id("dmConversations"),
+        payloadType:       v.union(
+            v.literal("message"),
+            v.literal("receipt"),
+            v.literal("edit"),
+            v.literal("delete"),
+            v.literal("reaction")
+        ),
+        senderId:          v.id("users"),
+        senderDeviceId:    v.string(),
+        senderPublicKey:   v.string(),          
+        recipientId:       v.id("users"),
+        recipientDeviceId: v.string(),
+        ciphertext:        v.string(),              
+        nonce:             v.string(),             // like random seed 
+        serverTimestamp:   v.number(),          
+        sequenceNumber:    v.number(),          
+        delivered:         v.boolean(),             // false until recipient confirms decrypt
+    })
+        .index("by_recipient_device", ["recipientId", "recipientDeviceId", "delivered"])
+        .index("by_conversation", ["conversationId", "sequenceNumber"]),
+    
+   dmSystemEvents: defineTable({
+        userId:     v.id("users"),
+        type:       v.string(),        // "NEW_DEVICE" | "DEVICE_REMOVED"
+        deviceId:   v.string(),
+        deviceName: v.string(),
+        timestamp:  v.number(),
+    }).index("by_user", ["userId"]),
+
+    dmTyping: defineTable({
+        conversationId: v.id("dmConversations"),
+        userId:         v.id("users"),
+        lastTypingAt:   v.number(),
+    })
+        .index("by_conversation", ["conversationId"])
+        .index("by_user_conversation", ["userId", "conversationId"]),
+
+    // DM reactions — stored in plain Convex (no encryption needed)
+    // Single reaction per user per message: toggling replaces any existing reaction
+    dmReactions: defineTable({
+        messageId:      v.string(),                // DM message UUID (string, not a Convex doc ID)
+        conversationId: v.id("dmConversations"),
+        userId:         v.id("users"),
+        emoji:          v.string(),
+        createdAt:      v.number(),
+    })
+        .index("by_conversation", ["conversationId"])
+        .index("by_message", ["messageId"])
+        .index("by_user_and_message", ["userId", "messageId"]),
+
 });

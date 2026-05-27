@@ -6,16 +6,17 @@
  *
  * Example: "maya is typing…" | "maya and leo are typing…"
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { useTheme } from '@/hooks/use-theme';
 import { Radius, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 
 interface TypingUser {
   userId: string;
   nickname: string;
+  lastTypingAt?: number;
 }
 
 interface TypingIndicatorProps {
@@ -27,26 +28,92 @@ const TYPING_TIMEOUT = 4000;
 
 export function TypingIndicator({ typingUsers, currentUserId }: TypingIndicatorProps) {
   const theme = useTheme();
-  const [visible, setVisible] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [visibleUntilByUser, setVisibleUntilByUser] = useState<Record<string, {
+    nickname: string;
+    lastTypingAt: number;
+    visibleUntil: number;
+  }>>({});
+  const seenTypingVersionRef = useRef<Record<string, number>>({});
   const dot1 = useRef(new Animated.Value(0)).current;
   const dot2 = useRef(new Animated.Value(0)).current;
   const dot3 = useRef(new Animated.Value(0)).current;
 
-  const others = typingUsers.filter((u) => u.userId !== currentUserId);
+  const others = useMemo(
+    () => typingUsers.filter((u) => u.userId !== currentUserId),
+    [currentUserId, typingUsers],
+  );
 
   useEffect(() => {
-    if (others.length > 0) {
-      setVisible(true);
-      if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => setVisible(false), TYPING_TIMEOUT);
-    }
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [others.length, typingUsers]);
+    const now = Date.now();
+    const activeUserIds = new Set(others.map((user) => user.userId));
+
+    setVisibleUntilByUser((current) => {
+      let changed = false;
+      const next = { ...current };
+
+      for (const user of others) {
+        const lastTypingAt = user.lastTypingAt ?? 0;
+        const existing = next[user.userId];
+        const seenVersion = seenTypingVersionRef.current[user.userId];
+
+        if (seenVersion !== lastTypingAt) {
+          seenTypingVersionRef.current[user.userId] = lastTypingAt;
+          next[user.userId] = {
+            nickname: user.nickname,
+            lastTypingAt,
+            visibleUntil: now + TYPING_TIMEOUT,
+          };
+          changed = true;
+        } else if (existing && existing.nickname !== user.nickname) {
+          next[user.userId] = { ...existing, nickname: user.nickname };
+          changed = true;
+        }
+      }
+
+      for (const userId of Object.keys(next)) {
+        if (!activeUserIds.has(userId)) {
+          delete next[userId];
+          delete seenTypingVersionRef.current[userId];
+          changed = true;
+        }
+      }
+
+      return changed ? next : current;
+    });
+  }, [others]);
+
+  useEffect(() => {
+    const clearExpired = () => {
+      const now = Date.now();
+      setVisibleUntilByUser((current) => {
+        let changed = false;
+        const next = { ...current };
+        for (const [userId, entry] of Object.entries(next)) {
+          if (entry.visibleUntil <= now) {
+            delete next[userId];
+            changed = true;
+          }
+        }
+        return changed ? next : current;
+      });
+    };
+
+    const nextExpiry = Math.min(
+      ...Object.values(visibleUntilByUser).map((entry) => entry.visibleUntil),
+    );
+    if (!Number.isFinite(nextExpiry)) return;
+
+    const timer = setTimeout(clearExpired, Math.max(0, nextExpiry - Date.now() + 50));
+    return () => clearTimeout(timer);
+  }, [visibleUntilByUser]);
+
+  const visibleUsers = Object.values(visibleUntilByUser).filter(
+    (entry) => entry.visibleUntil > Date.now(),
+  );
 
   // Animate dots in sequence
   useEffect(() => {
-    if (!visible) return;
+    if (visibleUsers.length === 0) return;
     const anim = Animated.loop(
       Animated.stagger(200, [
         Animated.sequence([
@@ -65,11 +132,11 @@ export function TypingIndicator({ typingUsers, currentUserId }: TypingIndicatorP
     );
     anim.start();
     return () => anim.stop();
-  }, [visible, dot1, dot2, dot3]);
+  }, [visibleUsers.length, dot1, dot2, dot3]);
 
-  if (!visible || others.length === 0) return null;
+  if (visibleUsers.length === 0) return null;
 
-  const label = formatTypingText(others);
+  const label = formatTypingText(visibleUsers);
 
   return (
     <View style={[styles.container, { paddingHorizontal: Spacing.md }]}>
