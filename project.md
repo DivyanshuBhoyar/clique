@@ -114,6 +114,7 @@ The neo-brutalist visual language (hard shadows, warm cream #F5F0E8, golden acce
 5. Read receipts
 
 **Phase 4 — New Features:**
+- **E2EE Direct Messages** — Private 1-on-1 messaging between users, NOT tied to squads. NaCl box encryption (tweetnacl); server stores only ciphertext. Multi-device fan-out (up to 5 devices). Local SQLite for decrypted messages. See `tasks/e2ee.dm-feature.html` for full spec.
 - Threaded replies in chat
 - Rich text editor for notes
 - Memory timeline view
