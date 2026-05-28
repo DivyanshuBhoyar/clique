@@ -2,8 +2,9 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { SECURITY_LIMITS, assertPaginationLimit, assertRateLimit } from "./security";
 import { enrichUser, requireMembership } from "./users";
-import { assertLength } from "./validators";
+import { assertLength, assertNonEmpty } from "./validators";
 
 
 export const createMemory = mutation({
@@ -17,8 +18,18 @@ export const createMemory = mutation({
     handler: async (ctx, args) => {
         const { userId } = await requireMembership(ctx, args.squadId);
 
+        await assertRateLimit(ctx, ["createMemory", args.squadId, userId], SECURITY_LIMITS.rate.contentCreate);
+
         if (args.title) assertLength("Title", args.title, 100);
         if (args.content) assertLength("Content", args.content, 2000);
+
+        const existingMemories = await ctx.db
+            .query("memories")
+            .withIndex("by_squad", (q) => q.eq("squadId", args.squadId))
+            .take(SECURITY_LIMITS.content.maxMemoriesPerSquad);
+        if (existingMemories.length >= SECURITY_LIMITS.content.maxMemoriesPerSquad) {
+            throw new Error(`A squad can have up to ${SECURITY_LIMITS.content.maxMemoriesPerSquad} memories`);
+        }
 
         if (args.type === "wall" && !args.content?.trim()) {
             throw new Error("Wall memory requires content");
@@ -29,8 +40,8 @@ export const createMemory = mutation({
 
         return await ctx.db.insert("memories", {
             squadId: args.squadId,
-            title: args.title,
-            content: args.content,
+            title: args.title?.trim(),
+            content: args.content?.trim(),
             coverStorageId: args.coverStorageId,
             type: args.type,
             createdBy: userId,
@@ -53,7 +64,7 @@ export const deleteMemory = mutation({
         const bookmarks = await ctx.db
             .query("bookmarks")
             .withIndex("by_memory", (q) => q.eq("memoryId", args.memoryId))
-            .collect();
+            .take(SECURITY_LIMITS.query.maxReactionRead);
         for (const b of bookmarks) await ctx.db.delete(b._id);
 
         await ctx.db.delete(args.memoryId);
@@ -116,6 +127,7 @@ export const generateUploadUrl = mutation({
     handler: async (ctx) => {
         const userId = await getAuthUserId(ctx);
         if (!userId) throw new Error("Unauthenticated");
+        await assertRateLimit(ctx, ["uploadUrl", userId], SECURITY_LIMITS.rate.uploadUrl);
         return await ctx.storage.generateUploadUrl();
     },
 });
@@ -128,6 +140,7 @@ export const getWallMemories = query({
     },
     handler: async (ctx, args) => {
         const { userId } = await requireMembership(ctx, args.squadId);
+        assertPaginationLimit("Wall memories", args.paginationOpts);
 
         const result = await ctx.db
             .query("memories")
@@ -143,12 +156,12 @@ export const getWallMemories = query({
                 ctx.db
                     .query("memoryReactions")
                     .withIndex("by_memory", (q) => q.eq("memoryId", memory._id))
-                    .collect(),
+                    .take(SECURITY_LIMITS.query.maxReactionRead),
                 enrichUser(ctx, memory.createdBy, memory.squadId),
                 ctx.db
                     .query("memoryComments")
                     .withIndex("by_memory", (q) => q.eq("memoryId", memory._id))
-                    .collect(),
+                    .take(SECURITY_LIMITS.content.maxCommentsPerMemory),
                 ctx.db
                     .query("bookmarks")
                     .withIndex("by_user_memory", (q) => q.eq("userId", userId).eq("memoryId", memory._id))
@@ -177,6 +190,7 @@ export const getEventMemories = query({
     },
     handler: async (ctx, args) => {
         const { userId } = await requireMembership(ctx, args.squadId);
+        assertPaginationLimit("Event memories", args.paginationOpts);
 
         const result = await ctx.db
             .query("memories")
@@ -192,12 +206,12 @@ export const getEventMemories = query({
                 ctx.db
                     .query("memoryReactions")
                     .withIndex("by_memory", (q) => q.eq("memoryId", memory._id))
-                    .collect(),
+                    .take(SECURITY_LIMITS.query.maxReactionRead),
                 enrichUser(ctx, memory.createdBy, memory.squadId),
                 ctx.db
                     .query("memoryItems")
                     .withIndex("by_memory", (q) => q.eq("memoryId", memory._id))
-                    .collect(),
+                    .take(SECURITY_LIMITS.content.maxMemoryItemsPerMemory),
                 memory.coverStorageId
                     ? ctx.storage.getUrl(memory.coverStorageId)
                     : Promise.resolve(null),
@@ -237,14 +251,14 @@ export const getMemoryDetail = query({
             ctx.db
                 .query("memoryReactions")
                 .withIndex("by_memory", (q) => q.eq("memoryId", memory._id))
-                .collect(),
+                .take(SECURITY_LIMITS.query.maxReactionRead),
             enrichUser(ctx, memory.createdBy, memory.squadId),
             memory.type === "wall"
                 ? ctx.db
                     .query("memoryComments")
                     .withIndex("by_memory", (q) => q.eq("memoryId", memory._id))
                     .order("asc")
-                    .collect()
+                    .take(SECURITY_LIMITS.content.maxCommentsPerMemory)
                 : Promise.resolve([]),
             memory.coverStorageId
                 ? ctx.storage.getUrl(memory.coverStorageId)
@@ -266,7 +280,7 @@ export const getMemoryDetail = query({
                 .query("memoryItems")
                 .withIndex("by_memory", (q) => q.eq("memoryId", args.memoryId))
                 .order("asc")
-                .collect()
+                .take(SECURITY_LIMITS.content.maxMemoryItemsPerMemory)
             : [];
 
         const enrichedItems = [];
@@ -276,11 +290,11 @@ export const getMemoryDetail = query({
                 ctx.db
                     .query("memoryItemReactions")
                     .withIndex("by_item", (q) => q.eq("itemId", item._id))
-                    .collect(),
+                    .take(SECURITY_LIMITS.query.maxReactionRead),
                 ctx.db
                     .query("memoryItemComments")
                     .withIndex("by_item", (q) => q.eq("itemId", item._id))
-                    .collect(),
+                    .take(SECURITY_LIMITS.content.maxCommentsPerMemoryItem),
                 item.storageId
                     ? ctx.storage.getUrl(item.storageId)
                     : Promise.resolve(null),
@@ -323,6 +337,9 @@ export const toggleMemoryReaction = mutation({
         if (!memory) throw new Error("Memory not found");
 
         await requireMembership(ctx, memory.squadId);
+
+        await assertRateLimit(ctx, ["memoryReaction", args.memoryId, userId], SECURITY_LIMITS.rate.reaction);
+        assertLength("Emoji", args.emoji, 10);
 
         const existing = await ctx.db
             .query("memoryReactions")
@@ -370,6 +387,9 @@ export const toggleMemoryItemReaction = mutation({
 
         await requireMembership(ctx, memory.squadId);
 
+        await assertRateLimit(ctx, ["memoryItemReaction", args.itemId, userId], SECURITY_LIMITS.rate.reaction);
+        assertLength("Emoji", args.emoji, 10);
+
         const existing = await ctx.db
             .query("memoryItemReactions")
             .withIndex("by_user_item", (q) =>
@@ -414,15 +434,25 @@ export const addMemoryItem = mutation({
 
         const { userId } = await requireMembership(ctx, memory.squadId);
 
+        await assertRateLimit(ctx, ["memoryItem", args.memoryId, userId], SECURITY_LIMITS.rate.contentCreate);
+        assertNonEmpty("Content", args.content);
         assertLength("Content", args.content, 1000);
         if (args.caption) assertLength("Caption", args.caption, 200);
+
+        const existingItems = await ctx.db
+            .query("memoryItems")
+            .withIndex("by_memory", (q) => q.eq("memoryId", args.memoryId))
+            .take(SECURITY_LIMITS.content.maxMemoryItemsPerMemory);
+        if (existingItems.length >= SECURITY_LIMITS.content.maxMemoryItemsPerMemory) {
+            throw new Error("This memory has reached the item limit");
+        }
 
         return await ctx.db.insert("memoryItems", {
             memoryId: args.memoryId,
             userId,
             type: args.type,
-            content: args.content,
-            caption: args.caption,
+            content: args.content.trim(),
+            caption: args.caption?.trim(),
             storageId: args.storageId,
             createdAt: Date.now(),
         });
@@ -430,10 +460,25 @@ export const addMemoryItem = mutation({
 });
 
 
+const GIPHY_CDN_HOSTS = [
+    "media.giphy.com", "media0.giphy.com", "media1.giphy.com",
+    "media2.giphy.com", "media3.giphy.com", "media4.giphy.com", "i.giphy.com",
+];
+
+function validateGiphyUrl(url: string): void {
+    let hostname: string;
+    try { ({ hostname } = new URL(url)); } catch { throw new Error("Invalid GIF URL"); }
+    if (!GIPHY_CDN_HOSTS.includes(hostname)) throw new Error("Invalid GIF URL");
+}
+
 export const addMemoryComment = mutation({
     args: {
         memoryId: v.id("memories"),
         content: v.string(),
+        gifUrl: v.optional(v.string()),
+        gifPreviewUrl: v.optional(v.string()),
+        gifId: v.optional(v.string()),
+        gifTitle: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
         const userId = await getAuthUserId(ctx);
@@ -444,12 +489,34 @@ export const addMemoryComment = mutation({
 
         await requireMembership(ctx, memory.squadId);
 
+        await assertRateLimit(ctx, ["memoryComment", args.memoryId, userId], SECURITY_LIMITS.rate.comment);
         assertLength("Comment", args.content, 500);
+
+        if (!args.content.trim() && !args.gifUrl) {
+            throw new Error("Comment must have content or a GIF");
+        }
+
+        if (args.gifUrl) validateGiphyUrl(args.gifUrl);
+        if (args.gifPreviewUrl) validateGiphyUrl(args.gifPreviewUrl);
+        if (args.gifId) assertLength("GIF ID", args.gifId, 64);
+        if (args.gifTitle) assertLength("GIF title", args.gifTitle, 200);
+
+        const comments = await ctx.db
+            .query("memoryComments")
+            .withIndex("by_memory", (q) => q.eq("memoryId", args.memoryId))
+            .take(SECURITY_LIMITS.content.maxCommentsPerMemory);
+        if (comments.length >= SECURITY_LIMITS.content.maxCommentsPerMemory) {
+            throw new Error("This memory has reached the comment limit");
+        }
 
         return await ctx.db.insert("memoryComments", {
             memoryId: args.memoryId,
             userId,
-            content: args.content,
+            content: args.content.trim(),
+            gifUrl: args.gifUrl,
+            gifPreviewUrl: args.gifPreviewUrl,
+            gifId: args.gifId,
+            gifTitle: args.gifTitle,
             createdAt: Date.now(),
         });
     },
@@ -460,6 +527,10 @@ export const addMemoryItemComment = mutation({
     args: {
         itemId: v.id("memoryItems"),
         content: v.string(),
+        gifUrl: v.optional(v.string()),
+        gifPreviewUrl: v.optional(v.string()),
+        gifId: v.optional(v.string()),
+        gifTitle: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
         const userId = await getAuthUserId(ctx);
@@ -473,12 +544,34 @@ export const addMemoryItemComment = mutation({
 
         await requireMembership(ctx, memory.squadId);
 
+        await assertRateLimit(ctx, ["memoryItemComment", args.itemId, userId], SECURITY_LIMITS.rate.comment);
         assertLength("Comment", args.content, 500);
+
+        if (!args.content.trim() && !args.gifUrl) {
+            throw new Error("Comment must have content or a GIF");
+        }
+
+        if (args.gifUrl) validateGiphyUrl(args.gifUrl);
+        if (args.gifPreviewUrl) validateGiphyUrl(args.gifPreviewUrl);
+        if (args.gifId) assertLength("GIF ID", args.gifId, 64);
+        if (args.gifTitle) assertLength("GIF title", args.gifTitle, 200);
+
+        const comments = await ctx.db
+            .query("memoryItemComments")
+            .withIndex("by_item", (q) => q.eq("itemId", args.itemId))
+            .take(SECURITY_LIMITS.content.maxCommentsPerMemoryItem);
+        if (comments.length >= SECURITY_LIMITS.content.maxCommentsPerMemoryItem) {
+            throw new Error("This memory item has reached the comment limit");
+        }
 
         return await ctx.db.insert("memoryItemComments", {
             itemId: args.itemId,
             userId,
-            content: args.content,
+            content: args.content.trim(),
+            gifUrl: args.gifUrl,
+            gifPreviewUrl: args.gifPreviewUrl,
+            gifId: args.gifId,
+            gifTitle: args.gifTitle,
             createdAt: Date.now(),
         });
     },
@@ -495,6 +588,7 @@ export const getMemoryComments = query({
         if (!memory) throw new Error("Memory not found");
 
         await requireMembership(ctx, memory.squadId);
+        assertPaginationLimit("Memory comments", args.paginationOpts);
 
         const result = await ctx.db
             .query("memoryComments")
@@ -531,6 +625,7 @@ export const getMemoryItemComments = query({
         if (!memory) throw new Error("Memory not found");
 
         await requireMembership(ctx, memory.squadId);
+        assertPaginationLimit("Memory item comments", args.paginationOpts);
 
         const result = await ctx.db
             .query("memoryItemComments")
@@ -567,14 +662,14 @@ export const deleteMemoryItem = mutation({
         const reactions = await ctx.db
             .query("memoryItemReactions")
             .withIndex("by_item", (q) => q.eq("itemId", args.itemId))
-            .collect();
+            .take(SECURITY_LIMITS.query.maxReactionRead);
         for (const r of reactions) await ctx.db.delete(r._id);
 
         // Cascade: item comments
         const comments = await ctx.db
             .query("memoryItemComments")
             .withIndex("by_item", (q) => q.eq("itemId", args.itemId))
-            .collect();
+            .take(SECURITY_LIMITS.content.maxCommentsPerMemoryItem);
         for (const c of comments) await ctx.db.delete(c._id);
 
         await ctx.db.delete(args.itemId);
