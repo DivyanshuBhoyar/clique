@@ -34,6 +34,7 @@ export default function ChannelChatScreen() {
 
     const sendMessage = useMutation(api.message.sendMessage);
     const sendImageMessage = useMutation(api.message.sendImageMessage);
+    const sendGifMessage = useMutation(api.message.sendGifMessage);
     const editMessage = useMutation(api.message.editMessage);
     const deleteMessage = useMutation(api.message.deleteMessage);
     const toggleReaction = useMutation(api.reaction.toggleReaction);
@@ -173,6 +174,22 @@ export default function ChannelChatScreen() {
         clearReplyTarget();
     }, [channelId, clearReplyTarget, sendImageMessage, squadId]);
 
+    const handleSendGifMessage = useCallback(async (
+        gif: { id: string; url: string; previewUrl: string; title: string },
+        parentMessageId?: Id<"messages">,
+    ) => {
+        await sendGifMessage({
+            squadId: squadId as Id<"squads">,
+            channelId: channelId as Id<"channels">,
+            gifUrl: gif.url,
+            gifPreviewUrl: gif.previewUrl,
+            gifId: gif.id,
+            gifTitle: gif.title || undefined,
+            parentMessageId,
+        });
+        clearReplyTarget();
+    }, [channelId, clearReplyTarget, sendGifMessage, squadId]);
+
     const handleEditMessage = useCallback(async (content: string) => {
         if (!editTarget) return;
         await editMessage({ messageId: editTarget.id, content });
@@ -187,6 +204,7 @@ export default function ChannelChatScreen() {
         <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={[]}>
             <ChatHeader
                 channelName={currentChannel?.name ?? 'Chat'}
+                channelEmoji={currentChannel?.emoji}
                 onlineCount={onlineCount}
                 otherUnreadCount={otherUnreadSummary?.totalUnread ?? 0}
                 onTitlePress={() => setShowSwitcher(true)}
@@ -236,6 +254,7 @@ export default function ChannelChatScreen() {
                         onCancelEdit={() => setEditTarget(null)}
                         onSend={handleSendMessage}
                         onSendImage={handleSendImageMessage}
+                        onSendGif={handleSendGifMessage}
                         onEdit={handleEditMessage}
                     />
 
