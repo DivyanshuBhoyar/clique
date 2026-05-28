@@ -5,6 +5,7 @@ import { prepareEnvelopes } from "@/lib/messaging";
 import { successNotification } from "@/utils/haptics";
 import { useConvex, useMutation } from "convex/react";
 import { useCallback, useState } from "react";
+import { v4 as uuid } from "uuid";
 
 interface UseDmSendOptions {
     conversationId: string;
@@ -15,7 +16,7 @@ interface UseDmSendOptions {
 
 /**
  * Encapsulates the E2EE send flow:
- * fetch device keys → encrypt → fan-out → persist locally → refresh UI
+ * persist local pending row → fetch device keys → encrypt → fan-out → ack local row
  */
 export function useDmSend({ conversationId, otherUserId, currentUserId, refresh }: UseDmSendOptions) {
     const convex = useConvex();
@@ -38,23 +39,35 @@ export function useDmSend({ conversationId, otherUserId, currentUserId, refresh 
     const sendMessage = useCallback(async (text: string) => {
         if (sending || !currentUserId) return;
         setSending(true);
+        const messageId = uuid();
         try {
-            const { recipientDevices, myDevices } = await getDeviceLists();
-            const { messageId, envelopes } = await prepareEnvelopes(text, recipientDevices, myDevices);
-            const sent = await sendFanOut({ conversationId: conversationId as Id<"dmConversations">, envelopes: envelopes as any });
-
             await localDb.insertMessage({
                 messageId,
                 conversationId,
                 senderId: currentUserId,
                 text,
-                serverTimestamp: sent.serverTimestamp,
-                sequenceNumber: sent.sequenceNumber,
-                status: "sent",
+                serverTimestamp: Date.now(),
+                sequenceNumber: 0,
+                status: "sending",
             });
+            refresh();
+
+            const { recipientDevices, myDevices } = await getDeviceLists();
+            const { envelopes } = await prepareEnvelopes(text, recipientDevices, myDevices, "message", messageId);
+            const sent = await sendFanOut({ conversationId: conversationId as Id<"dmConversations">, envelopes: envelopes as any });
+
+            await localDb.ackSentMessage(
+                messageId,
+                sent.serverTimestamp,
+                sent.sequenceNumber,
+            );
 
             successNotification();
             refresh();
+        } catch (error) {
+            await localDb.updateMessageStatus(messageId, "failed");
+            refresh();
+            console.warn("Failed to send DM", error);
         } finally {
             setSending(false);
         }

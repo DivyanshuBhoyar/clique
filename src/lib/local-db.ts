@@ -2,10 +2,15 @@
 import * as SQLite from "expo-sqlite";
 
 let db: SQLite.SQLiteDatabase | null = null;
+let initPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
-export async function initLocalDb() {
-    db = await SQLite.openDatabaseAsync("homie_dm.db");
-    await db.execAsync(`
+export async function initLocalDb(): Promise<SQLite.SQLiteDatabase> {
+    if (db) return db;
+    if (initPromise) return initPromise;
+
+    initPromise = (async () => {
+        const database = await SQLite.openDatabaseAsync("homie_dm.db");
+        await database.execAsync(`
         CREATE TABLE IF NOT EXISTS dm_messages (
             messageId       TEXT PRIMARY KEY,
             conversationId  TEXT NOT NULL,
@@ -28,11 +33,22 @@ export async function initLocalDb() {
             lastReadSeq    INTEGER NOT NULL DEFAULT 0
         );
     `);
+        db = database;
+        return database;
+    })().finally(() => {
+        initPromise = null;
+    });
+
+    return initPromise;
+}
+
+async function getDb(): Promise<SQLite.SQLiteDatabase> {
+    return db ?? initLocalDb();
 }
 
 export async function hasMessage(messageId: string): Promise<boolean> {
-    if (!db) throw new Error("DB not initialized");
-    const row = await db.getFirstAsync<{ c: number }>(
+    const database = await getDb();
+    const row = await database.getFirstAsync<{ c: number }>(
         "SELECT COUNT(*) as c FROM dm_messages WHERE messageId = ?", [messageId]
     );
     return (row?.c ?? 0) > 0;
@@ -42,8 +58,8 @@ export async function insertMessage(msg: {
     messageId: string; conversationId: string; senderId: string;
     text: string; serverTimestamp: number; sequenceNumber: number; status?: string;
 }) {
-    if (!db) throw new Error("DB not initialized");
-    await db.runAsync(
+    const database = await getDb();
+    await database.runAsync(
         `INSERT INTO dm_messages
             (messageId, conversationId, senderId, text, serverTimestamp, sequenceNumber, status)
          VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -69,8 +85,8 @@ export async function getMessagesPage(
     conversationId: string,
     opts: { beforeSeq?: number; beforeTimestamp?: number; limit?: number } = {},
 ) {
-    if (!db) throw new Error("DB not initialized");
-    return db.getAllAsync<{
+    const database = await getDb();
+    return database.getAllAsync<{
         messageId: string; conversationId: string; senderId: string;
         text: string; serverTimestamp: number; sequenceNumber: number; status: string;
     }>(
@@ -95,29 +111,39 @@ export async function getMessagesPage(
 }
 
 export async function updateMessageStatus(messageId: string, status: string) {
-    if (!db) throw new Error("DB not initialized");
-    await db.runAsync("UPDATE dm_messages SET status = ? WHERE messageId = ?", [status, messageId]);
+    const database = await getDb();
+    await database.runAsync("UPDATE dm_messages SET status = ? WHERE messageId = ?", [status, messageId]);
+}
+
+export async function ackSentMessage(messageId: string, serverTimestamp: number, sequenceNumber: number) {
+    const database = await getDb();
+    await database.runAsync(
+        `UPDATE dm_messages
+         SET serverTimestamp = ?, sequenceNumber = ?, status = 'sent'
+         WHERE messageId = ? AND status != 'deleted'`,
+        [serverTimestamp, sequenceNumber, messageId]
+    );
 }
 
 export async function editMessage(messageId: string, newText: string) {
-    if (!db) throw new Error("DB not initialized");
-    await db.runAsync(
+    const database = await getDb();
+    await database.runAsync(
         "UPDATE dm_messages SET text = ?, editedAt = ? WHERE messageId = ?",
         [newText, Date.now(), messageId]
     );
 }
 
 export async function deleteMessage(messageId: string) {
-    if (!db) throw new Error("DB not initialized");
-    await db.runAsync(
+    const database = await getDb();
+    await database.runAsync(
         "UPDATE dm_messages SET text = '', deletedAt = ?, status = 'deleted' WHERE messageId = ?",
         [Date.now(), messageId]
     );
 }
 
 export async function markConversationRead(conversationId: string, lastReadSeq: number) {
-    if (!db) throw new Error("DB not initialized");
-    await db.runAsync(
+    const database = await getDb();
+    await database.runAsync(
         `INSERT INTO dm_read_state (conversationId, lastReadSeq)
          VALUES (?, ?)
          ON CONFLICT(conversationId) DO UPDATE SET lastReadSeq = excluded.lastReadSeq`,
@@ -130,8 +156,8 @@ export async function markConversationRead(conversationId: string, lastReadSeq: 
  * Called when a read receipt is received from the other user.
  */
 export async function markMessagesReadUpTo(conversationId: string, sequenceNumber: number) {
-    if (!db) throw new Error("DB not initialized");
-    await db.runAsync(
+    const database = await getDb();
+    await database.runAsync(
         `UPDATE dm_messages SET status = 'read'
          WHERE conversationId = ? AND sequenceNumber <= ? AND status != 'read'`,
         [conversationId, sequenceNumber]

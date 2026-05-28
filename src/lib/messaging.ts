@@ -38,10 +38,11 @@ export async function prepareEnvelopes(
     recipientDevices: Array<{ userId: string; deviceId: string; publicKey: string }>,
     myOtherDevices: Array<{ userId: string; deviceId: string; publicKey: string }>,
     payloadType: "message" | "receipt" | "edit" | "delete" | "reaction" = "message",
+    existingMessageId?: string,
 ) {
     const myKeyPair = await getMyKeyPair();
     const myDeviceId = await getMyDeviceId();
-    const messageId = uuid();
+    const messageId = existingMessageId ?? uuid();
     const encoded = new TextEncoder().encode(plaintext);
 
     // All devices that need a copy: recipient's + my other devices

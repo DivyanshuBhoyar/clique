@@ -82,6 +82,13 @@ export const DmMessageItem = memo(function DmMessageItem({
 
     const time = new Date(message.status === "sending" ? Date.now() : message.serverTimestamp ?? Date.now())
         .toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const deliveryText = isOwn && !isDeleted
+        ? message.status === "sending"
+            ? "sending…"
+            : message.status === "failed"
+                ? "not sent"
+                : null
+        : null;
 
     return (
         <View style={[styles.row, isOwn ? styles.rowOwn : styles.rowOther]}>
@@ -159,11 +166,11 @@ export const DmMessageItem = memo(function DmMessageItem({
                         type="caption"
                         style={[
                             styles.timestamp,
-                            { color: theme.textTertiary },
+                            { color: message.status === "failed" ? theme.error : theme.textTertiary },
                             isOwn && styles.timestampOwn,
                         ]}
                     >
-                        {time}{message.editedAt ? " · edited" : ""}
+                        {time}{message.editedAt ? " · edited" : ""}{deliveryText ? ` · ${deliveryText}` : ""}
                     </ThemedText>
                 )}
             </Animated.View>

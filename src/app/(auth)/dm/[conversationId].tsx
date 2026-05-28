@@ -20,6 +20,7 @@ import { useDmTypingThrottle } from "@/hooks/use-dm-typing-throttle";
 import { useTheme } from "@/hooks/use-theme";
 import { useToast } from "@/hooks/use-toast";
 import { copyToClipboard } from "@/utils/clipboard";
+import { backOrReplace } from "@/utils/navigation";
 import { useMutation, useQuery } from "convex/react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -54,6 +55,7 @@ export default function DmChatScreen() {
     const currentUser = useQuery(api.users.current);
     const conversations = useQuery(api.dm.listConversations);
     const conversation = conversations?.find((c) => c._id === convId);
+    const headerName = conversation?.otherUserRealName ?? conversation?.otherUserName ?? "Message";
 
     // Typing indicator
     const typingUsers = useQuery(api.dmTyping.getDmTypingUser, { conversationId: convId });
@@ -124,9 +126,9 @@ export default function DmChatScreen() {
         if (!selectedMsg || !conversation) return;
         const senderName = selectedMsg.senderId === currentUser?._id
             ? "You"
-            : conversation.otherUserName;
+            : headerName;
         setReplyTarget({ messageId: selectedMsg.messageId, text: selectedMsg.text, senderName });
-    }, [selectedMsg, currentUser, conversation]);
+    }, [selectedMsg, currentUser, conversation, headerName]);
 
     const handleDelete = useCallback(async () => {
         if (!selectedMsg) return;
@@ -167,7 +169,7 @@ export default function DmChatScreen() {
     if (!conversation) {
         return (
             <ThemedView style={styles.container}>
-                <ScreenHeader title="Message" onBack={() => router.back()} />
+                <ScreenHeader title="Message" onBack={() => backOrReplace(router, "/(auth)/dm")} />
                 <View style={styles.centerWrap}>
                     <ThemedText themeColor="textSecondary">Conversation not found</ThemedText>
                 </View>
@@ -178,8 +180,8 @@ export default function DmChatScreen() {
     return (
         <ThemedView style={styles.container}>
             <ScreenHeader
-                title={conversation.otherUserName}
-                onBack={() => router.back()}
+                title={headerName}
+                onBack={() => backOrReplace(router, "/(auth)/dm")}
                 subtitle="🔒 end-to-end encrypted"
             />
 
