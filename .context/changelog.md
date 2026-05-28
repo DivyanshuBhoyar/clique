@@ -1,5 +1,17 @@
 # Changelog
 
+- 2026-05-27: Planned low-maintenance GIPHY GIF support via REST + `expo-image`, covering channel chat and comment surfaces while deferring native keyboard ingestion and E2EE DM GIFs.
+- 2026-05-27: Added Convex security hardening: centralized limits, transactional rate limits, squad resource caps, pagination caps, private-read guards, and safer E2EE device key lookup.
+- 2026-05-27: Reworked the wide Lounge hero into explicit left identity/presence and right preview/action columns to avoid floating, unaligned content.
+- 2026-05-27: Applied mature cozy/playful tweaks to the chat message screen: softer header controls, message bubbles, list spacing, and composer controls.
+- 2026-05-27: Adjusted Lounge hero previews to last 2 messages with avatar-only sloped row pills instead of a username column.
+- 2026-05-27: Fixed wider-screen Lounge hero alignment, removed the redundant primary-room label, and now shows up to 3 recent main-channel messages.
+- 2026-05-27: Compacted the chat Lounge hero further and softened index search, section headers, channel cards, unread badges, and ephemeral cards for a mature cozy/playful pass.
+- 2026-05-27: Tightened the chat Lounge hero after mobile feedback: normal-flow layout, clearer card surface, readable latest-message panel, and full-width CTA on narrow screens.
+- 2026-05-27: Added a cozy playful chat Lounge hero card with preview bubbles, member stack, presence label, unread chip, and CTA.
+- 2026-05-27: Fixed unsafe back navigation across DM and deep-linkable squad screens; E2EE DM headers now prefer account real names over squad nicknames.
+- 2026-05-27: Fixed DM local SQLite initialization race by making all DB operations await shared lazy init.
+- 2026-05-27: Added optimistic DM sends: local pending row first, server ack reconciliation, and subtle sending/failed bubble states.
 - 2026-05-27: Polished private DM UI with tighter readable bubbles, aligned avatars, reaction pills above timestamps, date separators, full emoji picker parity, and cozy inbox/new-DM helper copy.
 - 2026-05-26: Stabilized E2EE DM ordering, reused shared typing indicator with mobile-safe expiry, and disabled fragile DM read receipts for the current version.
 - 2026-05-26: Hardened native E2EE nonce generation to use `secureRandomBytes()` directly instead of `nacl.randomBytes()`.
