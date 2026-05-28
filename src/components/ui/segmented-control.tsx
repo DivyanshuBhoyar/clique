@@ -13,8 +13,8 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { BorderWidth, Radius, Spacing, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { Radius, Spacing, Weight } from '@/constants/theme';
 
 interface SegmentedControlProps {
   tabs: string[];
@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
     marginHorizontal: Spacing.lg,
     marginTop: Spacing.lg,
     marginBottom: Spacing.sm,
-    borderWidth: 2,
+    borderWidth: BorderWidth.thin,
     overflow: 'hidden',
   },
   filledSegment: {

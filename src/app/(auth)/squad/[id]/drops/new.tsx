@@ -10,7 +10,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { type DropCategoryKey } from '@/constants/drops';
-import { LineHeight, Spacing, Typography, Weight } from '@/constants/theme';
+import { BorderWidth, LineHeight, Spacing, Typography, Weight } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { useTheme } from '@/hooks/use-theme';
@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: Typography.body,
     lineHeight: LineHeight.body,
-    borderWidth: 2,
+    borderWidth: BorderWidth.medium,
     borderRadius: 12,
     textAlignVertical: 'top',
   },

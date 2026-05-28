@@ -1,11 +1,11 @@
 import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
 
 import {
-  Fonts,
-  LineHeight,
-  ThemeColor,
-  Typography,
-  Weight,
+    Fonts,
+    LineHeight,
+    ThemeColor,
+    Typography,
+    Weight,
 } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 

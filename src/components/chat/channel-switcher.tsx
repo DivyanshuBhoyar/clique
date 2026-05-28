@@ -24,7 +24,7 @@ export function ChannelSwitcher({ visible, squadId, currentChannelId, onClose, o
     return (
         <Modal transparent animationType="slide" onRequestClose={onClose}>
             <Pressable style={styles.overlay} onPress={onClose}>
-                <View style={[styles.sheet, { backgroundColor: theme.surface, borderColor: theme.outline, borderTopWidth: 2 }]}>
+                <View style={[styles.sheet, { backgroundColor: theme.surface, borderColor: theme.cardBorder, borderTopWidth: 1 }]}>
                     <ThemedText type="bodyBold" style={styles.title}>Switch Channel</ThemedText>
 
                     {channels === undefined ? (

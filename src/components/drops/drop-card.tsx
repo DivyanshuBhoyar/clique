@@ -22,7 +22,7 @@ import { EmojiReactionStack, EmojiReactionStrip } from '@/components/ui/emoji-re
 import { LinkPreviewCard } from '@/components/ui/link-preview-card';
 import { LinkifiedText } from '@/components/ui/linkified-text';
 import { UserAvatar } from '@/components/user-avatar';
-import { LineHeight, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
+import { BorderWidth, LineHeight, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { extractUrls } from '@/utils/links';
 import { formatRelativeTime } from '@/utils/time';
@@ -95,8 +95,8 @@ export function DropCard({
             style={[
                 styles.card,
                 {
-                    backgroundColor: theme.surface,
-                    borderColor: theme.outline,
+                    backgroundColor: theme.surfaceWarm,
+                    borderColor: theme.accent,
                     shadowColor: theme.shadow,
                     shadowOffset: Shadows.sm.offset,
                     shadowOpacity: Shadows.sm.opacity,
@@ -145,7 +145,7 @@ export function DropCard({
                 <View style={styles.authorRow}>
                     <UserAvatar uri={avatarUrl} size={20} fallbackText={nickname} />
                     <ThemedText type="caption" themeColor="textSecondary" numberOfLines={1}>
-                        @{nickname}
+                        {nickname}
                     </ThemedText>
                 </View>
 
@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
     card: {
         width: '100%',
         padding: Spacing.lg,
-        borderWidth: 2,
+        borderWidth: BorderWidth.thin,
         borderRadius: Radius.lg,
     },
     header: {

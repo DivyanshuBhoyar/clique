@@ -1,9 +1,9 @@
+import { CheckCircle, Info, X, XCircle } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown, FadeOut } from 'react-native-reanimated';
-import { CheckCircle, XCircle, Info, X } from 'lucide-react-native';
 
-import { Colors, Radius, Spacing, Weight, LineHeight, Typography } from '@/constants/theme';
-import { useToastStore, ToastType } from './toast';
+import { BorderWidth, Colors, LineHeight, Radius, Shadows, Spacing, Typography, Weight } from '@/constants/theme';
+import { ToastType, useToastStore } from './toast';
 
 const ICON_CONFIG: Record<ToastType, { icon: typeof CheckCircle; color: string; bg: string }> = {
   success: { icon: CheckCircle, color: Colors.light.success, bg: Colors.light.successSoft },
@@ -59,11 +59,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm + 2,
     borderRadius: Radius.lg,
-    borderWidth: 1.5,
+    borderWidth: BorderWidth.thin,
     shadowColor: Colors.light.shadow,
-    shadowOffset: { width: 2, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 0,
+    shadowOffset: Shadows.sm.offset,
+    shadowOpacity: Shadows.sm.opacity,
+    shadowRadius: Shadows.sm.radius,
     elevation: 4,
   },
   message: {

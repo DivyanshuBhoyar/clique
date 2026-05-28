@@ -4,7 +4,7 @@ import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { UserAvatar } from '@/components/user-avatar';
-import { Radius, Spacing, Typography, Weight } from '@/constants/theme';
+import { BorderWidth, Radius, Shadows, Spacing, Typography, Weight } from '@/constants/theme';
 import { Id } from '@/convex/_generated/dataModel';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -12,6 +12,9 @@ type LoungeMessagePreview = {
   nickname: string;
   content: string;
 };
+
+// Playful pill colors for message previews (pink, cyan, lavender, mint)
+const PILL_COLORS = ['#FFD0DC', '#C8F0FF', '#E8E4FF', '#D4F5E0'];
 
 type LoungeMemberPreview = {
   userId: string;
@@ -107,14 +110,12 @@ export function LoungeHeroCard({ channel, squadId, members = [] }: LoungeHeroCar
             styles.messagePill,
             index === 1 && styles.messagePillLower,
             {
-              backgroundColor: index % 2 === 0
-                ? 'rgba(255, 255, 255, 0.54)'
-                : 'rgba(255, 241, 184, 0.76)',
+              backgroundColor: PILL_COLORS[index % PILL_COLORS.length],
             },
           ]}
         >
           <UserAvatar uri={null} size={24} fallbackText={message.nickname} />
-          <ThemedText type="caption" numberOfLines={1} style={{ color: theme.textSecondary }}>
+          <ThemedText type="caption" numberOfLines={1} style={{ color: theme.text }}>
             {message.content}
           </ThemedText>
         </View>
@@ -123,11 +124,11 @@ export function LoungeHeroCard({ channel, squadId, members = [] }: LoungeHeroCar
   );
 
   const cta = (
-    <View style={[styles.cta, { backgroundColor: '#7357E8' }]}> 
-      <ThemedText type="smallBold" style={{ color: theme.surface }}>
-        Open
+    <View style={[styles.cta, { backgroundColor: theme.featureAccent }]}>
+      <ThemedText type="smallBold" style={{ color: '#FFFFFF' }}>
+        Open Lounge
       </ThemedText>
-      <ArrowRight size={18} color={theme.surface} strokeWidth={2.6} />
+      <ArrowRight size={16} color="#FFFFFF" strokeWidth={2.6} />
     </View>
   );
 
@@ -140,7 +141,7 @@ export function LoungeHeroCard({ channel, squadId, members = [] }: LoungeHeroCar
         styles.card,
         {
           backgroundColor: '#FFDB63',
-          borderColor: 'rgba(224, 176, 53, 0.7)',
+          borderColor: 'rgba(210, 170, 50, 0.4)',
           shadowColor: theme.shadow,
         },
       ]}
@@ -159,8 +160,8 @@ export function LoungeHeroCard({ channel, squadId, members = [] }: LoungeHeroCar
                 <View style={styles.copyColumn}>
                   <View style={styles.nameRow}>
                     <ThemedText style={styles.title}>Lounge</ThemedText>
-                    <View style={[styles.pill, { backgroundColor: theme.surfaceAccent, borderColor: 'rgba(45,45,45,0.14)' }]}> 
-                      <ThemedText type="captionBold" style={{ color: '#7357E8' }}>
+                    <View style={[styles.pill, { backgroundColor: theme.surface, borderColor: 'rgba(0,0,0,0.06)' }]}> 
+                      <ThemedText type="captionBold" style={{ color: theme.featureAccent }}>
                         Main Chat
                       </ThemedText>
                     </View>
@@ -182,7 +183,7 @@ export function LoungeHeroCard({ channel, squadId, members = [] }: LoungeHeroCar
               <View style={styles.wideActionRow}>
                 {channel.unreadCount > 0 ? (
                   <View style={[styles.unreadBadge, { backgroundColor: theme.surface }]}> 
-                    <ThemedText type="captionBold" style={{ color: '#7357E8', fontVariant: ['tabular-nums'] }}>
+                    <ThemedText type="captionBold" style={{ color: theme.featureAccent, fontVariant: ['tabular-nums'] }}>
                       {channel.unreadCount} new
                     </ThemedText>
                   </View>
@@ -202,7 +203,7 @@ export function LoungeHeroCard({ channel, squadId, members = [] }: LoungeHeroCar
                 <View style={styles.nameRow}>
                   <ThemedText style={styles.title}>Lounge</ThemedText>
                   <View style={[styles.pill, { backgroundColor: theme.surfaceAccent, borderColor: 'rgba(45,45,45,0.14)' }]}> 
-                    <ThemedText type="captionBold" style={{ color: '#7357E8' }}>
+                    <ThemedText type="captionBold" style={{ color: theme.featureAccent }}>
                       Main Chat
                     </ThemedText>
                   </View>
@@ -239,13 +240,13 @@ export function LoungeHeroCard({ channel, squadId, members = [] }: LoungeHeroCar
 
 const styles = StyleSheet.create({
   card: {
-    borderWidth: 1.25,
+    borderWidth: BorderWidth.thin,
     borderRadius: Radius.xxl,
     marginBottom: Spacing.xl,
     overflow: 'hidden',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.1,
-    shadowRadius: 14,
+    shadowOffset: Shadows.md.offset,
+    shadowOpacity: Shadows.md.opacity,
+    shadowRadius: Shadows.md.radius,
     elevation: 3,
   },
   inner: {
@@ -281,10 +282,10 @@ const styles = StyleSheet.create({
     borderRadius: Radius.xl,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#8C6D13',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
+    shadowColor: undefined,
+    shadowOffset: Shadows.sm.offset,
+    shadowOpacity: Shadows.sm.opacity,
+    shadowRadius: Shadows.sm.radius,
     elevation: 2,
   },
   copyColumn: {
@@ -299,7 +300,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   title: {
-    color: '#111827',
+    color: '#1A1A1A',
     marginBottom: 4,
     fontSize: 32,
     lineHeight: 36,
@@ -312,7 +313,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   description: {
-    color: '#1F2937',
+    color: '#2D2D2D',
     fontSize: Typography.small,
     lineHeight: 19,
   },
@@ -327,7 +328,7 @@ const styles = StyleSheet.create({
   },
   avatarWrap: {
     position: 'absolute',
-    borderWidth: 2,
+    borderWidth: BorderWidth.medium,
     borderRadius: Radius.full,
     overflow: 'hidden',
   },
@@ -336,7 +337,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: Radius.full,
-    borderWidth: 2,
+    borderWidth: BorderWidth.medium,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -406,10 +407,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.xs,
-    shadowColor: '#4F35BA',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.22,
-    shadowRadius: 10,
+    shadowColor: undefined,
+    shadowOffset: Shadows.sm.offset,
+    shadowOpacity: Shadows.sm.opacity,
+    shadowRadius: Shadows.sm.radius,
     elevation: 3,
   },
   sparkleIcon: {

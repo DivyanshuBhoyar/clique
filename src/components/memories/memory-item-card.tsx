@@ -16,7 +16,7 @@ import { EmojiReactionStrip } from '@/components/ui/emoji-reaction-strip';
 import { LinkPreviewCard } from '@/components/ui/link-preview-card';
 import { LinkifiedText } from '@/components/ui/linkified-text';
 import { UserAvatar } from '@/components/user-avatar';
-import { LineHeight, Radius, Spacing, Typography, Weight } from '@/constants/theme';
+import { BorderWidth, LineHeight, Radius, Spacing, Typography, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { extractUrls } from '@/utils/links';
 import { formatRelativeTime } from '@/utils/time';
@@ -89,7 +89,7 @@ export function MemoryItemCard({
                 <View style={styles.authorRow}>
                     <UserAvatar uri={avatarUrl} size={16} fallbackText={nickname} />
                     <ThemedText type="caption" themeColor="textSecondary">
-                        @{nickname} · {formatRelativeTime(createdAt)}
+                        {nickname} · {formatRelativeTime(createdAt)}
                     </ThemedText>
                 </View>
             </View>
@@ -156,7 +156,7 @@ export function MemoryItemCard({
 const styles = StyleSheet.create({
     card: {
         padding: Spacing.md,
-        borderWidth: 1.5,
+        borderWidth: BorderWidth.thin,
         borderRadius: Radius.md,
         gap: Spacing.sm,
     },

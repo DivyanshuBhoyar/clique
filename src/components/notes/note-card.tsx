@@ -18,7 +18,7 @@ import { markdownToPlainText } from '@/components/notes/markdown-preview';
 import { ThemedText } from '@/components/themed-text';
 import { DashedSeparator } from '@/components/ui/dashed-separator';
 import { UserAvatar } from '@/components/user-avatar';
-import { LineHeight, Radius, Spacing, Typography, Weight } from '@/constants/theme';
+import { BorderWidth, LineHeight, Radius, Spacing, Typography, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { formatRelativeTime } from '@/utils/time';
 
@@ -96,7 +96,7 @@ export function NoteCard({
                 styles.card,
                 {
                     backgroundColor: isJournal ? theme.surfaceWarm : theme.surface,
-                    borderColor: theme.outline,
+                    borderColor: theme.cardBorder,
                 },
             ]}
         >
@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
         width: '100%',
         padding: Spacing.lg,
         paddingLeft: Spacing.xl,
-        borderWidth: 2,
+        borderWidth: BorderWidth.thin,
         borderRadius: Radius.lg,
         gap: Spacing.xs,
         overflow: 'hidden',

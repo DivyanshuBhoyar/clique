@@ -7,7 +7,7 @@
  *   <Button title="Cancel" variant="secondary" onPress={...} />
  *   <Button title="Continue with Google" variant="dark" onPress={...} />
  */
-import { Colors, Radius, Shadows, Spacing, Weight, Typography } from '@/constants/theme';
+import { BorderWidth, Colors, Radius, Shadows, Spacing, Typography, Weight } from '@/constants/theme';
 import React from 'react';
 import { Pressable, StyleSheet, Text, ViewStyle } from 'react-native';
 
@@ -28,21 +28,21 @@ const variantStyles: Record<ButtonVariant, { bg: string; text: string; borderCol
   primary: {
     bg: Colors.light.accent,
     text: Colors.light.text,
-    borderColor: Colors.light.outline,
+    borderColor: Colors.light.accentDark,
   },
   secondary: {
     bg: Colors.light.surface,
     text: Colors.light.text,
-    borderColor: Colors.light.outline,
+    borderColor: Colors.light.cardBorder,
   },
   dark: {
-    bg: Colors.light.text,
-    text: Colors.light.surface,
-    borderColor: Colors.light.text,
+    bg: Colors.light.featureAccent,
+    text: '#FFFFFF',
+    borderColor: Colors.light.featureAccent,
   },
   ghost: {
     bg: 'transparent',
-    text: Colors.light.accent,
+    text: Colors.light.featureAccent,
     borderColor: 'transparent',
   },
 };
@@ -69,7 +69,7 @@ export function Button({
         {
           backgroundColor: bgColor,
           borderColor: vStyle.borderColor,
-          borderWidth: variant === 'ghost' ? 0 : 2,
+          borderWidth: variant === 'ghost' ? 0 : BorderWidth.medium,
         },
         fullWidth && styles.fullWidth,
         pressed && styles.pressed,
@@ -95,22 +95,22 @@ const styles = StyleSheet.create({
     shadowColor: Colors.light.shadow,
     shadowOffset: Shadows.sm.offset,
     shadowOpacity: 0.15,
-    shadowRadius: 0,
+    shadowRadius: Shadows.sm.radius,
     elevation: 2,
   },
   fullWidth: {
     width: '100%',
   },
   pressed: {
-    transform: [{ translateX: 1 }, { translateY: 1 }],
-    shadowOffset: { width: 1, height: 1 },
+    transform: [{ scale: 0.97 }],
+    opacity: 0.9,
   },
   disabled: {
     opacity: 0.45,
   },
   text: {
     fontSize: Typography.body,
-    fontWeight: Weight.bold,
+    fontWeight: Weight.semibold,
     letterSpacing: 0.2,
   },
 });

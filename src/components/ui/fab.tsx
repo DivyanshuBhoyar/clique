@@ -1,8 +1,8 @@
 import { Pressable, type ViewStyle } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { BorderWidth, BottomTabInset, LineHeight, Radius, Shadows, Spacing, Typography, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { BottomTabInset, Radius, Shadows, Spacing, Weight, LineHeight, Typography } from '@/constants/theme';
 
 interface FabProps {
   onPress?: () => void;
@@ -26,11 +26,11 @@ export function Fab({ onPress, icon = '+', style, accessibilityLabel }: FabProps
           bottom: BottomTabInset + Spacing.lg,
           width: 56,
           height: 56,
-          borderRadius: Radius.xl,
+          borderRadius: Radius.full,
           backgroundColor: theme.fabBackground,
           alignItems: 'center',
           justifyContent: 'center',
-          borderWidth: 2,
+          borderWidth: BorderWidth.medium,
           borderColor: theme.outline,
           shadowColor: theme.shadow,
           shadowOffset: Shadows.md.offset,
@@ -38,7 +38,7 @@ export function Fab({ onPress, icon = '+', style, accessibilityLabel }: FabProps
           shadowRadius: Shadows.md.radius,
           elevation: 5,
         },
-        pressed && { transform: [{ translateX: 2 }, { translateY: 2 }] },
+        pressed && { transform: [{ scale: 0.93 }] },
         style,
       ]}
     >

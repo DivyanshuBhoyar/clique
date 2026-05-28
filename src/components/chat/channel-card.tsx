@@ -2,7 +2,7 @@ import { Link } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Radius, Spacing, Typography, Weight } from '@/constants/theme';
+import { BorderWidth, Radius, Shadows, Spacing, Typography, Weight } from '@/constants/theme';
 import { Id } from '@/convex/_generated/dataModel';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -40,11 +40,11 @@ export function ChannelCard({ channel, squadId, type }: ChannelCardProps) {
       styles.card,
       {
         backgroundColor: theme.surface,
-        borderColor: theme.outlineLight,
+        borderColor: theme.cardBorder,
         shadowColor: theme.shadow,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 10,
+        shadowOffset: Shadows.sm.offset,
+        shadowOpacity: Shadows.sm.opacity,
+        shadowRadius: Shadows.sm.radius,
         elevation: 1,
       },
     ]}>
@@ -56,7 +56,7 @@ export function ChannelCard({ channel, squadId, type }: ChannelCardProps) {
           <View style={styles.row}>
             <ThemedText type="smallBold">{channel.name}</ThemedText>
             {channel.unreadCount > 0 && (
-              <View style={[styles.unreadDot, { backgroundColor: '#FFF1B8', borderColor: theme.accentDark }]}> 
+              <View style={[styles.unreadDot, { backgroundColor: theme.accentSoft, borderColor: theme.accentDark }]}> 
                 <ThemedText type="caption" style={{ color: theme.text, fontWeight: Weight.bold, fontVariant: ['tabular-nums'] }}>
                   {channel.unreadCount}
                 </ThemedText>
@@ -77,7 +77,7 @@ export function ChannelCard({ channel, squadId, type }: ChannelCardProps) {
 const styles = StyleSheet.create({
   card: {
     borderRadius: Radius.xl,
-    borderWidth: 1.25,
+    borderWidth: BorderWidth.thin,
     padding: Spacing.md,
     marginBottom: Spacing.md,
   },

@@ -1,7 +1,7 @@
 import { Pressable, View, type ViewStyle } from 'react-native';
 
 import type { ThemeColor } from '@/constants/theme';
-import { Radius, Shadows } from '@/constants/theme';
+import { BorderWidth, Radius, Shadows } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 type CardVariant = 'default' | 'warm' | 'accent' | 'outline';
@@ -42,8 +42,8 @@ export function Card({
 
   const cardStyle: ViewStyle = {
     backgroundColor: bg,
-    borderWidth: 2,
-    borderColor: theme.outline,
+    borderWidth: BorderWidth.thin,
+    borderColor: theme.cardBorder,
     borderRadius: Radius.lg,
     ...contentStyle,
   };
@@ -65,7 +65,7 @@ export function Card({
         testID={testID}
         style={({ pressed }) => [
           cardStyle,
-          pressed && { backgroundColor: theme.backgroundSelected, transform: [{ translateX: 2 }, { translateY: 2 }] },
+          pressed && { backgroundColor: theme.backgroundSelected, transform: [{ scale: 0.97 }] },
           style,
         ]}
       >

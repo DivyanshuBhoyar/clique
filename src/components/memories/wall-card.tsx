@@ -17,7 +17,7 @@ import { ThemedText } from '@/components/themed-text';
 import { DashedSeparator } from '@/components/ui/dashed-separator';
 import { EmojiReactionStrip } from '@/components/ui/emoji-reaction-strip';
 import { UserAvatar } from '@/components/user-avatar';
-import { LineHeight, Radius, Shadows, Spacing, Typography, Weight } from '@/constants/theme';
+import { BorderWidth, LineHeight, Radius, Shadows, Spacing, Typography, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { formatRelativeTime } from '@/utils/time';
 
@@ -76,7 +76,7 @@ export function WallCard({
                 styles.card,
                 {
                     backgroundColor: theme.surface,
-                    borderColor: theme.outline,
+                    borderColor: theme.cardBorder,
                     shadowColor: theme.shadow,
                     shadowOffset: Shadows.sm.offset,
                     shadowOpacity: Shadows.sm.opacity,
@@ -100,7 +100,7 @@ export function WallCard({
                 <View style={styles.metaRow}>
                     <UserAvatar uri={avatarUrl} size={18} fallbackText={nickname} />
                     <ThemedText type="caption" themeColor="textSecondary">
-                        @{nickname} · {formatRelativeTime(createdAt)}
+                        {nickname} · {formatRelativeTime(createdAt)}
                     </ThemedText>
                 </View>
 
@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
     card: {
         width: '100%',
         padding: Spacing.lg,
-        borderWidth: 2,
+        borderWidth: BorderWidth.thin,
         borderRadius: Radius.lg,
     },
     quoteMark: {

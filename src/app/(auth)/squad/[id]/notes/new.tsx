@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ScreenHeader } from '@/components/ui/screen-header';
-import { LineHeight, Radius, Spacing, Typography, Weight } from '@/constants/theme';
+import { BorderWidth, LineHeight, Radius, Spacing, Typography, Weight } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { useKeyboardHeight } from '@/hooks/use-keyboard-height';
@@ -111,8 +111,8 @@ export default function NewNoteScreen() {
                     style={[styles.createButton, {
                         backgroundColor: canCreate ? theme.accent : theme.backgroundElement,
                         borderRadius: Radius.full,
-                        borderWidth: 2,
-                        borderColor: canCreate ? theme.outline : theme.outlineLight,
+                        borderWidth: BorderWidth.medium,
+                        borderColor: canCreate ? theme.cardBorder : theme.outlineLight,
                     }, !canCreate && styles.createButtonDisabled]}
                     disabled={!canCreate}
                 >
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
         alignSelf: 'flex-start',
         paddingHorizontal: Spacing.md,
         paddingVertical: 4,
-        borderWidth: 1.5,
+        borderWidth: BorderWidth.thin,
         marginBottom: Spacing.lg,
     },
     titleInput: {

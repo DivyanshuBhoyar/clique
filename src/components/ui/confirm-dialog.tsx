@@ -1,6 +1,6 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Colors, Radius, Shadows, Spacing, Weight, LineHeight, Typography } from '@/constants/theme';
+import { BorderWidth, Colors, LineHeight, Radius, Shadows, Spacing, Typography, Weight } from '@/constants/theme';
 
 interface ConfirmDialogProps {
   visible: boolean;
@@ -59,14 +59,14 @@ const styles = StyleSheet.create({
     maxWidth: 340,
     backgroundColor: Colors.light.surface,
     borderRadius: Radius.xl,
-    borderWidth: 2,
-    borderColor: Colors.light.outline,
+    borderWidth: BorderWidth.thin,
+    borderColor: Colors.light.cardBorder,
     padding: Spacing.xl,
     gap: Spacing.md,
     shadowColor: Colors.light.shadow,
     shadowOffset: Shadows.lg.offset,
-    shadowOpacity: 0.15,
-    shadowRadius: 0,
+    shadowOpacity: Shadows.lg.opacity,
+    shadowRadius: Shadows.lg.radius,
     elevation: 8,
   },
   title: {
@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm + 2,
     borderRadius: Radius.md,
-    borderWidth: 1.5,
+    borderWidth: BorderWidth.thin,
   },
   cancelBtn: {
     backgroundColor: Colors.light.surface,

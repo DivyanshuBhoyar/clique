@@ -11,7 +11,7 @@
  *   <FilterChips chips={CHIPS} activeIndex={0} onSelect={setActiveIndex} />
  */
 import { ThemedText } from '@/components/themed-text';
-import { Radius, Spacing, Weight, LineHeight, Typography } from '@/constants/theme';
+import { BorderWidth, LineHeight, Radius, Spacing, Typography, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { Pressable, ScrollView, StyleSheet } from 'react-native';
 
@@ -48,8 +48,8 @@ export function FilterChips({ chips, activeIndex, onSelect }: FilterChipsProps) 
             style={({ pressed }) => [
               styles.chip,
               {
-                backgroundColor: isActive ? theme.text : theme.surface,
-                borderColor: theme.outline,
+                backgroundColor: isActive ? theme.featureAccent : theme.surface,
+                borderColor: isActive ? theme.featureAccent : theme.cardBorder,
               },
               pressed && styles.chipPressed,
             ]}
@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xs + 2,
     minHeight: 36,
     borderRadius: Radius.full,
-    borderWidth: 1.5,
+    borderWidth: BorderWidth.thin,
     gap: 4,
   },
   chipEmoji: {

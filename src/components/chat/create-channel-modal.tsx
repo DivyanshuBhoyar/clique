@@ -4,7 +4,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react
 
 import { ThemedText } from '@/components/themed-text';
 import { EmojiPickerModal } from '@/components/ui/emoji-picker-modal';
-import { Radius, Spacing, Typography, Weight } from '@/constants/theme';
+import { BorderWidth, Radius, Spacing, Typography, Weight } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { useTheme } from '@/hooks/use-theme';
@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
     typeButton: {
         paddingHorizontal: Spacing.lg,
         paddingVertical: Spacing.sm,
-        borderWidth: 2,
+        borderWidth: BorderWidth.medium,
         borderRadius: Radius.md,
         minHeight: 44,
         alignItems: 'center',
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
     durationButton: {
         paddingHorizontal: Spacing.sm,
         paddingVertical: Spacing.xs,
-        borderWidth: 1.5,
+        borderWidth: BorderWidth.thin,
         borderRadius: Radius.sm,
         minHeight: 36,
         alignItems: 'center',
@@ -293,14 +293,14 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: Spacing.md,
         paddingVertical: Spacing.sm,
-        borderWidth: 1.5,
+        borderWidth: BorderWidth.thin,
         borderRadius: Radius.sm,
         marginBottom: Spacing.xs,
         minHeight: 44,
     },
     input: {
         flex: 1,
-        borderWidth: 2,
+        borderWidth: BorderWidth.medium,
         borderRadius: Radius.md,
         paddingHorizontal: Spacing.lg,
         paddingVertical: Spacing.sm,
@@ -317,7 +317,7 @@ const styles = StyleSheet.create({
         width: 52,
         height: 52,
         borderRadius: Radius.md,
-        borderWidth: 2,
+        borderWidth: BorderWidth.medium,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -338,6 +338,6 @@ const styles = StyleSheet.create({
     },
     createBtn: {
         borderRadius: Radius.md,
-        borderWidth: 2,
+        borderWidth: BorderWidth.medium,
     },
 });

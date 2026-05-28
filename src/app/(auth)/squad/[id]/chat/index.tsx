@@ -15,7 +15,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { LoadingState } from '@/components/ui/loading-state';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { SearchBar } from '@/components/ui/search-bar';
-import { Radius, Spacing, Typography } from '@/constants/theme';
+import { BorderWidth, Radius, Spacing, Typography } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { useTheme } from '@/hooks/use-theme';
@@ -170,8 +170,8 @@ export default function ChatScreen() {
                                 onPress={() => { setDefaultType('topic'); setShowCreate(true); }}
                                 style={[styles.createBtn, {
                                     backgroundColor: theme.accent,
-                                    borderColor: theme.outline,
-                                    borderWidth: 2,
+                                    borderColor: theme.cardBorder,
+                                    borderWidth: BorderWidth.medium,
                                 }]}
                             >
                                 <ThemedText type="smallBold" style={{ color: theme.text }}>+ Create Channel</ThemedText>
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
     sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
     sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
     sectionEmoji: { width: 32, height: 32, borderRadius: Radius.full, alignItems: 'center', justifyContent: 'center' },
-    sectionTitle: { color: '#202124' },
+    sectionTitle: {},
     newButton: { minHeight: 36, borderRadius: Radius.full, paddingHorizontal: Spacing.md, alignItems: 'center', justifyContent: 'center' },
     emptySection: { alignItems: 'center', paddingVertical: Spacing.xxxl, gap: Spacing.sm },
     createBtn: { marginTop: Spacing.sm, paddingHorizontal: Spacing.xl, paddingVertical: Spacing.sm, borderRadius: Radius.md, minHeight: 44, alignItems: 'center', justifyContent: 'center' },

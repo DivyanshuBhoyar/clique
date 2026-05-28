@@ -115,7 +115,7 @@ export function EventCard({
                 <View style={styles.authorRow}>
                     <UserAvatar uri={avatarUrl} size={16} fallbackText={nickname} />
                     <ThemedText type="caption" themeColor="textSecondary">
-                        @{nickname} · {formatRelativeTime(createdAt)}
+                        {nickname} · {formatRelativeTime(createdAt)}
                     </ThemedText>
                 </View>
 

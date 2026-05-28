@@ -6,85 +6,89 @@
 
 import '@/global.css';
 
-import { Platform } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 
 // ---------------------------------------------------------------------------
 // Colours
 // ---------------------------------------------------------------------------
 
-// Light-only palette — warm cream with golden yellow accent
+// Light-only palette — warm, fresh, cozy with playful accents
 const palette = {
   // Core text
-  text: '#2D2D2D',
-  background: '#F5F0E8',          // warm cream (was cool grey #faf9f7)
-  backgroundElement: '#EDE8DF',   // slightly deeper cream for input bg etc.
-  backgroundSelected: '#E5DDD0',  // selected/hover state
-  textSecondary: '#6B6050',       // warm grey-brown
+  text: '#1A1A1A',                    // near-black for strong readability
+  background: '#FAF7F2',              // lighter warm cream — more breathable/fresh
+  backgroundElement: '#F2EDE5',       // slightly deeper for input bg etc.
+  backgroundSelected: '#EBE5DA',      // selected/hover state
+  textSecondary: '#5C5145',           // warm brown — readable
 
   // Surfaces
-  outline: '#4A4540',             // warm charcoal (softened)
-  outlineLight: '#C8C0B0',        // subtle dividers
-  surface: '#FFFFFF',             // card surface
-  surfaceWarm: '#FFF5E0',         // warm tinted surface
-  surfaceAccent: '#FFF8E1',       // very soft yellow surface
+  outline: '#3D3833',                 // rich warm charcoal — bold but not black
+  outlineLight: '#D9D2C7',            // softer dividers — less grey, more warm
+  surface: '#FFFFFF',                 // card surface
+  surfaceWarm: '#FFF8EC',             // creamy peach tint — cozy
+  surfaceAccent: '#FFF9E8',           // very light gold surface
 
-  // Accent — golden yellow
-  accent: '#E8B84B',              // warm golden accent
-  accentSoft: '#FFF8E1',          // soft yellow bg for hero cards
-  accentDark: '#D4A43E',          // pressed state
+  // Accent — bright playful yellow
+  accent: '#FFDB63',                  // bright warm yellow (hero yellow)
+  accentSoft: '#FFF9E8',             // soft gold bg
+  accentDark: '#F0C830',              // pressed state
 
-  // Semantic
-  success: '#3BB897',
-  successSoft: '#DFF5EE',
-  warning: '#E8A838',
-  warningSoft: '#FFF4DB',
-  error: '#E05555',
-  errorSoft: '#FDE8E8',
+  // Semantic — slightly more vivid for freshness
+  success: '#22B07A',                 // fresh green
+  successSoft: '#E5F9F0',
+  warning: '#F0960A',
+  warningSoft: '#FFF5D6',
+  error: '#E04444',
+  errorSoft: '#FFF0F0',
 
   // Text
-  textTertiary: '#A09080',        // warm tertiary text
+  textTertiary: '#9A8E80',            // warm tertiary — slightly lighter for fresh contrast
 
-  // Shadows — hard-edged neo-brutalist, dark shadow for punch
-  shadow: '#8B8070',              // warm mid-grey for soft shadows
+  // Shadows
+  shadow: '#7A6E60',
 
   // FAB
-  fabBackground: '#E8B84B',       // warm golden
-  fabText: '#2D2D2D',             // black text on yellow (was white)
+  fabBackground: '#6B4EE0',           // purple FAB — playful pop
+  fabText: '#FFFFFF',
 
   // Dashed borders inside cards
-  dashedBorder: '#C0BAB0',        // warm grey dashed separator
-  cardBorder: '#D4CFC6',          // subtle warm grey border
+  dashedBorder: '#D4CCC0',            // warm but lighter — airy
+  cardBorder: '#DDD6CC',              // soft warm border — visible but gentle
 
-  // Category tints — warmer versions matching designs
-  songBg: '#FFE8CC',    songText: '#8B5E3C',    // warm amber
-  movieBg: '#FFE0E8',   movieText: '#8B3C5E',   // warm pink
-  bookBg: '#E0F0E8',    bookText: '#3C6B4F',    // warm mint
-  lifehackBg: '#FFF3D0', lifehackText: '#7A5B1E', // warm gold
-  quoteBg: '#FFF0D0',   quoteText: '#6B5A2E',   // warm honey
-  randomBg: '#F0E8FF',  randomText: '#5E3C8B',  // warm lavender
+  // Category tints — vivid, fresh & playful
+  songBg: '#FFDDB3',    songText: '#7A4A20',    // warm amber
+  movieBg: '#FFD4E0',   movieText: '#7A2848',   // playful pink
+  bookBg: '#D0F2E0',    bookText: '#1E6040',    // fresh mint
+  lifehackBg: '#FFEDA8', lifehackText: '#6B4A0E', // warm gold
+  quoteBg: '#FFE8B0',   quoteText: '#5E4A1A',   // honey
+  randomBg: '#EDE4FF',  randomText: '#4A2880',  // soft lavender
 
   // Chat bubbles
-  bubbleOwn: '#E8B84B',           // warm golden
-  bubbleOwnText: '#2D2D2D',       // black text on yellow (was white)
-  bubbleOther: '#FFFFFF',         // white (was grey)
-  bubbleOtherText: '#2D2D2D',     // black text
+  bubbleOwn: '#6B4EE0',               // purple own-message bubble
+  bubbleOwnText: '#FFFFFF',
+  bubbleOther: '#FFFFFF',
+  bubbleOtherText: '#1A1A1A',
 
   // Input
-  inputBackground: '#FFFFFF',     // white input fields
-  inputBorder: '#C8C0B0',         // soft warm border on inputs
+  inputBackground: '#FFFFFF',
+  inputBorder: '#DDD6CC',             // matches cardBorder — cohesive
 
   // Header
-  headerBackground: '#F5F0E8',    // cream (was white)
-  headerTintColor: '#2D2D2D',
+  headerBackground: '#FAF7F2',        // matches background
+  headerTintColor: '#1A1A1A',
 
   // Tab bar
-  tabBarActive: '#2D2D2D',        // black icon + label (was indigo)
-  tabBarInactive: '#A09080',      // warm grey
-  tabBarBorder: '#C8C0B0',
-  tabBarBackground: '#F5F0E8',    // cream (was white)
+  tabBarActive: '#6B4EE0',            // purple active tab — playful identity
+  tabBarInactive: '#9A8E80',          // matches textTertiary
+  tabBarBorder: '#E8E2DA',            // very subtle — fresh
+  tabBarBackground: '#FAF7F2',        // matches background
 
   // Placeholder text
-  placeholder: '#A09080',
+  placeholder: '#9A8E80',
+
+  // Feature accent — playful purple for CTAs/badges
+  featureAccent: '#6B4EE0',           // confident purple
+  featureAccentDark: '#4F35BA',
 };
 
 export const Colors = {
@@ -185,7 +189,7 @@ export const Radius = {
 } as const;
 
 // ---------------------------------------------------------------------------
-// Shadows — hard-edged neo-brutalist (offset only, no blur, black shadow)
+// Shadows — soft elevation with natural blur
 // ---------------------------------------------------------------------------
 
 export const Shadows = {
@@ -204,6 +208,16 @@ export const Shadows = {
     opacity: 0.12,
     radius: 12,
   },
+} as const;
+
+// ---------------------------------------------------------------------------
+// Border widths — centralized for consistent softness
+// ---------------------------------------------------------------------------
+
+export const BorderWidth = {
+  hairline: StyleSheet.hairlineWidth,
+  thin: 1,
+  medium: 1.5,
 } as const;
 
 // ---------------------------------------------------------------------------
