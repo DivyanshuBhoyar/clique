@@ -3,8 +3,9 @@ import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
+import { SECURITY_LIMITS, assertPaginationLimit, assertRateLimit } from "./security";
 import { enrichUser, requireMembership } from "./users";
-import { assertLength } from "./validators";
+import { assertLength, assertNonEmpty } from "./validators";
 
 export const sendMessage = mutation({
     args: {
@@ -17,6 +18,9 @@ export const sendMessage = mutation({
     handler: async (ctx, args) => {
         const { userId, membership } = await requireMembership(ctx, args.squadId);
 
+        await assertRateLimit(ctx, ["sendMessage", args.squadId, args.channelId, userId], SECURITY_LIMITS.rate.sendMessage);
+
+        assertNonEmpty("Message", args.content);
         assertLength("Message", args.content, 2000);
 
         const channel = await ctx.db.get(args.channelId);
@@ -49,7 +53,7 @@ export const sendMessage = mutation({
             squadId: args.squadId,
             channelId: args.channelId,
             userId,
-            content: args.content,
+            content: args.content.trim(),
             type: "text",
             nickname: membership.nickname,
             parentMessageId: args.parentMessageId,
@@ -69,6 +73,8 @@ export const sendImageMessage = mutation({
 
     handler: async (ctx, args) => {
         const { userId, membership } = await requireMembership(ctx, args.squadId);
+
+        await assertRateLimit(ctx, ["sendImageMessage", args.squadId, args.channelId, userId], SECURITY_LIMITS.rate.sendImageMessage);
 
         if (args.content) assertLength("Caption", args.content, 500);
 
@@ -101,9 +107,94 @@ export const sendImageMessage = mutation({
             squadId: args.squadId,
             channelId: args.channelId,
             userId,
-            content: args.content ?? "",
+            content: args.content?.trim() ?? "",
             type: "image",
             storageId: args.storageId,
+            nickname: membership.nickname,
+            parentMessageId: args.parentMessageId,
+            createdAt: Date.now(),
+        });
+    },
+});
+
+// Allowed GIPHY CDN hostnames — validated server-side to prevent arbitrary URLs
+const GIPHY_CDN_HOSTS = [
+    "media.giphy.com",
+    "media0.giphy.com",
+    "media1.giphy.com",
+    "media2.giphy.com",
+    "media3.giphy.com",
+    "media4.giphy.com",
+    "i.giphy.com",
+];
+
+function assertGiphyUrl(url: string): void {
+    let hostname: string;
+    try {
+        ({ hostname } = new URL(url));
+    } catch {
+        throw new Error("Invalid GIF URL");
+    }
+    if (!GIPHY_CDN_HOSTS.includes(hostname)) {
+        throw new Error("Invalid GIF URL");
+    }
+}
+
+export const sendGifMessage = mutation({
+    args: {
+        squadId: v.id("squads"),
+        channelId: v.id("channels"),
+        gifUrl: v.string(),
+        gifPreviewUrl: v.string(),
+        gifId: v.string(),
+        gifTitle: v.optional(v.string()),
+        parentMessageId: v.optional(v.id("messages")),
+    },
+
+    handler: async (ctx, args) => {
+        const { userId, membership } = await requireMembership(ctx, args.squadId);
+
+        await assertRateLimit(ctx, ["sendGifMessage", args.squadId, args.channelId, userId], SECURITY_LIMITS.rate.sendGifMessage);
+
+        assertGiphyUrl(args.gifUrl);
+        assertGiphyUrl(args.gifPreviewUrl);
+        assertLength("GIF ID", args.gifId, 64);
+        if (args.gifTitle) assertLength("GIF title", args.gifTitle, 200);
+
+        const channel = await ctx.db.get(args.channelId);
+        if (!channel || channel.squadId !== args.squadId) {
+            throw new Error("Invalid channel");
+        }
+
+        if (channel.type === "private") {
+            const chMembership = await ctx.db
+                .query("channelMemberships")
+                .withIndex("by_user_channel", (q) => q.eq("userId", userId).eq("channelId", args.channelId))
+                .first();
+            if (!chMembership) throw new Error("Not a member of this channel");
+        }
+
+        if (channel.type === "ephemeral" && channel.expiresAt && Date.now() > channel.expiresAt) {
+            throw new Error("This room has expired");
+        }
+
+        if (args.parentMessageId) {
+            const parent = await ctx.db.get(args.parentMessageId);
+            if (!parent || parent.channelId !== args.channelId) {
+                throw new Error("Invalid parent");
+            }
+        }
+
+        return await ctx.db.insert("messages", {
+            squadId: args.squadId,
+            channelId: args.channelId,
+            userId,
+            content: "",
+            type: "gif",
+            gifUrl: args.gifUrl,
+            gifPreviewUrl: args.gifPreviewUrl,
+            gifId: args.gifId,
+            gifTitle: args.gifTitle,
             nickname: membership.nickname,
             parentMessageId: args.parentMessageId,
             createdAt: Date.now(),
@@ -121,6 +212,22 @@ export const getMessages = query({
 
     handler: async (ctx, args) => {
         const userId = await getAuthUserId(ctx);
+        if (!userId) throw new Error("Unauthenticated");
+
+        assertPaginationLimit("Messages", args.paginationOpts);
+
+        const channel = await ctx.db.get(args.channelId);
+        if (!channel) throw new Error("Channel not found");
+
+        await requireMembership(ctx, channel.squadId);
+
+        if (channel.type === "private") {
+            const membership = await ctx.db
+                .query("channelMemberships")
+                .withIndex("by_user_channel", (q) => q.eq("userId", userId).eq("channelId", args.channelId))
+                .first();
+            if (!membership) throw new Error("Not a member of this channel");
+        }
 
         const page = await ctx.db
             .query("messages")
@@ -140,7 +247,7 @@ export const getMessages = query({
                     ctx.db
                         .query("reactions")
                         .withIndex("by_message", (q) => q.eq("messageId", id))
-                        .collect()
+                        .take(SECURITY_LIMITS.query.maxReactionRead)
                 ),
             );
 
@@ -192,6 +299,11 @@ export const getMessages = query({
                 ? await ctx.storage.getUrl(m.storageId)
                 : null;
 
+            const gifUrl = m.type === "gif" && !isDeleted ? (m.gifUrl ?? null) : null;
+            const gifPreviewUrl = m.type === "gif" && !isDeleted ? (m.gifPreviewUrl ?? null) : null;
+            const gifId = m.type === "gif" && !isDeleted ? (m.gifId ?? null) : null;
+            const gifTitle = m.type === "gif" && !isDeleted ? (m.gifTitle ?? null) : null;
+
             const bookmark = userId
                 ? await ctx.db
                     .query("bookmarks")
@@ -205,6 +317,10 @@ export const getMessages = query({
                 deleted: isDeleted,
                 avatarUrl: avatarMap.get(m.userId) ?? null,
                 imageUrl,
+                gifUrl,
+                gifPreviewUrl,
+                gifId,
+                gifTitle,
                 isBookmarked: !!bookmark,
 
                 reactions: reactionsMap.get(m._id) || [],
@@ -242,6 +358,8 @@ export const deleteMessage = mutation({
         if (!message) {
             throw new Error("Message not found");
         }
+
+        await requireMembership(ctx, message.squadId);
 
         if (message.userId !== userId) {
             throw new Error("Unauthorized");
@@ -287,6 +405,8 @@ export const editMessage = mutation({
             throw new Error("Message not found");
         }
 
+        await requireMembership(ctx, message.squadId);
+
         if (message.userId !== userId) {
             throw new Error("Unauthorized");
         }
@@ -296,7 +416,7 @@ export const editMessage = mutation({
         }
 
         await ctx.db.patch(args.messageId, {
-            content: args.content,
+            content: args.content.trim(),
             editedAt: Date.now(),
         });
 
