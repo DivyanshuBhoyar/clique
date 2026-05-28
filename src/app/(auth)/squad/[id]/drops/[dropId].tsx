@@ -18,12 +18,15 @@ import { Id } from '@/convex/_generated/dataModel';
 import { useBookmarkToggle } from '@/hooks/use-bookmark-mutation';
 import { useReactionPicker } from '@/hooks/use-reaction-picker';
 import { useCommentVote, useDropVote } from '@/hooks/use-vote-mutation';
+import { pingGiphy } from '@/lib/giphy';
+import { backOrReplace } from '@/utils/navigation';
 
 const COMMENTS_PAGE_SIZE = 20;
 
 export default function DropDetailScreen() {
-    const { dropId } = useGlobalSearchParams<{ dropId: string }>();
+    const { id, dropId } = useGlobalSearchParams<{ id: string; dropId: string }>();
     const router = useRouter();
+    const squadId = id as Id<'squads'>;
     const [commentText, setCommentText] = useState('');
     const [isSendingComment, setIsSendingComment] = useState(false);
     const [showDeleteDropConfirm, setShowDeleteDropConfirm] = useState(false);
@@ -110,7 +113,7 @@ export default function DropDetailScreen() {
     return (
         <DetailScreenContainer
             title="Drop 🎁"
-            onBack={() => router.back()}
+            onBack={() => backOrReplace(router, `/squad/${squadId}/drops`)}
             rightIcon={isMyDrop ? MoreHorizontal : undefined}
             onRightPress={isMyDrop ? handleMorePress : undefined}
         >
@@ -150,6 +153,26 @@ export default function DropDetailScreen() {
                         sending={isSendingComment}
                         avatarUrl={(currentUser as any)?.avatarUrl}
                         fallbackText={(currentUser as any)?.nickname ?? 'Me'}
+                        onGifSelect={async (gif) => {
+                            if (!dropId || isSendingComment) return;
+                            setIsSendingComment(true);
+                            try {
+                                pingGiphy('onsent', gif);
+                                await addDropComment({
+                                    dropId: dropId as Id<'drops'>,
+                                    content: commentText.trim(),
+                                    gifUrl: gif.url,
+                                    gifPreviewUrl: gif.previewUrl,
+                                    gifId: gif.id,
+                                    gifTitle: gif.title || undefined,
+                                });
+                                setCommentText('');
+                            } catch (error) {
+                                Alert.alert('Could not send GIF', error instanceof Error ? error.message : 'Please try again.');
+                            } finally {
+                                setIsSendingComment(false);
+                            }
+                        }}
                     />
                 }
                 renderItem={({ item }) => (
@@ -157,6 +180,8 @@ export default function DropDetailScreen() {
                         avatarUrl={item.avatarUrl}
                         nickname={item.nickname}
                         content={item.content}
+                        gifUrl={item.gifUrl}
+                        gifTitle={item.gifTitle}
                         createdAt={item.createdAt}
                         upvotes={item.upvotes}
                         downvotes={item.downvotes}
@@ -180,7 +205,7 @@ export default function DropDetailScreen() {
                     onConfirm={async () => {
                         setShowDeleteDropConfirm(false);
                         await deleteDrop({ dropId: dropId as Id<'drops'> });
-                        router.back();
+                        backOrReplace(router, `/squad/${squadId}/drops`);
                     }}
                 />
 
