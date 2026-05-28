@@ -20,13 +20,16 @@ import { NotFoundState } from '@/components/ui/not-found-state';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { useToast } from '@/hooks/use-toast';
+import { type GiphyGif, pingGiphy } from '@/lib/giphy';
+import { backOrReplace } from '@/utils/navigation';
 
 const COMMENTS_PAGE_SIZE = 20;
 
 export default function MemoryDetailScreen() {
-    const { memoryId } = useGlobalSearchParams<{ memoryId: string }>();
+    const { id, memoryId } = useGlobalSearchParams<{ id: string; memoryId: string }>();
     const router = useRouter();
     const toast = useToast();
+    const squadId = id as Id<'squads'>;
 
     const currentUser = useQuery(api.users.current);
     const toggleReaction = useMutation(api.memories.toggleMemoryReaction);
@@ -189,7 +192,7 @@ export default function MemoryDetailScreen() {
     return (
         <DetailScreenContainer
             title={isWall ? 'Memory 💛' : (detail.memory.title ?? 'Event 🎉')}
-            onBack={() => router.back()}
+            onBack={() => backOrReplace(router, `/squad/${squadId}/memories`)}
             rightIcon={MoreHorizontal}
             onRightPress={isOwner ? () => setShowActions(true) : undefined}
         >
@@ -230,6 +233,24 @@ export default function MemoryDetailScreen() {
                         placeholder={isWall ? 'Add a comment…' : 'Add a reflection…'}
                         avatarUrl={(currentUser as any)?.avatarUrl}
                         fallbackText={(currentUser as any)?.nickname ?? 'Me'}
+                        onGifSelect={async (gif: GiphyGif) => {
+                            if (!memoryId || sending) return;
+                            setSending(true);
+                            try {
+                                pingGiphy('onsent', gif);
+                                await addComment({
+                                    memoryId: memoryId as Id<'memories'>,
+                                    content: commentText.trim(),
+                                    gifUrl: gif.url,
+                                    gifPreviewUrl: gif.previewUrl,
+                                    gifId: gif.id,
+                                    gifTitle: gif.title || undefined,
+                                });
+                                setCommentText('');
+                            } finally {
+                                setSending(false);
+                            }
+                        }}
                     />
                 }
                 renderItem={({ item }) => (
@@ -237,6 +258,8 @@ export default function MemoryDetailScreen() {
                         avatarUrl={item.avatarUrl}
                         nickname={item.nickname}
                         content={item.content}
+                        gifUrl={item.gifUrl}
+                        gifTitle={item.gifTitle}
                         createdAt={item.createdAt}
                     />
                 )}
@@ -297,7 +320,7 @@ export default function MemoryDetailScreen() {
                         if (!memoryId) return;
                         setShowDeleteConfirm(false);
                         await deleteMemory({ memoryId: memoryId as Id<"memories"> });
-                        router.back();
+                        backOrReplace(router, `/squad/${squadId}/memories`);
                     }}
                 />
 
