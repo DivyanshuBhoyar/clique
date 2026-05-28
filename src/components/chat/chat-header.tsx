@@ -7,17 +7,19 @@ import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring } 
 import { ThemedText } from '@/components/themed-text';
 import { LineHeight, Radius, Spacing, Typography, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { backOrReplace } from '@/utils/navigation';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ChatHeaderProps {
   channelName: string;
+  channelEmoji?: string;
   onlineCount?: number;
   otherUnreadCount?: number;
   onTitlePress?: () => void;
   onSettingsPress?: () => void;
 }
 
-export function ChatHeader({ channelName, onlineCount, otherUnreadCount = 0, onTitlePress, onSettingsPress }: ChatHeaderProps) {
+export function ChatHeader({ channelName, channelEmoji, onlineCount, otherUnreadCount = 0, onTitlePress, onSettingsPress }: ChatHeaderProps) {
   const theme = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -52,16 +54,13 @@ export function ChatHeader({ channelName, onlineCount, otherUnreadCount = 0, onT
     >
       <View style={styles.side}>
         <Pressable
-          onPress={() => {
-            if (router.canGoBack()) router.back();
-            else router.replace('..');
-          }}
+          onPress={() => backOrReplace(router, '..')}
           accessibilityRole="button"
           accessibilityLabel="Go back"
           hitSlop={8}
-          style={styles.iconButton}
+          style={[styles.iconButton, { backgroundColor: theme.surface, borderColor: theme.outlineLight }]}
         >
-          <ChevronLeft size={28} color={theme.text} strokeWidth={2.5} />
+          <ChevronLeft size={22} color={theme.text} strokeWidth={2.4} />
         </Pressable>
       </View>
 
@@ -72,6 +71,9 @@ export function ChatHeader({ channelName, onlineCount, otherUnreadCount = 0, onT
         style={styles.titleButton}
       >
         <View style={styles.titleRow}>
+          {channelEmoji ? (
+            <ThemedText style={styles.channelEmoji}>{channelEmoji}</ThemedText>
+          ) : null}
           <ThemedText style={[styles.title, { color: theme.text }]} numberOfLines={1}>
             {channelName} ▾
           </ThemedText>
@@ -80,8 +82,8 @@ export function ChatHeader({ channelName, onlineCount, otherUnreadCount = 0, onT
               style={[
                 styles.unreadBadge,
                 {
-                  backgroundColor: theme.accent,
-                  borderColor: theme.outline,
+                  backgroundColor: theme.surfaceAccent,
+                  borderColor: theme.accentDark,
                   shadowColor: theme.shadow,
                 },
                 badgeAnimatedStyle,
@@ -107,7 +109,7 @@ export function ChatHeader({ channelName, onlineCount, otherUnreadCount = 0, onT
             accessibilityRole="button"
             accessibilityLabel="Channel settings"
             hitSlop={8}
-            style={styles.iconButton}
+            style={[styles.iconButton, { backgroundColor: theme.surface, borderColor: theme.outlineLight }]}
           >
             <Settings size={22} color={theme.text} strokeWidth={2} />
           </Pressable>
@@ -122,8 +124,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.sm,
-    borderBottomWidth: 1.5,
+    paddingBottom: Spacing.md,
+    borderBottomWidth: 1,
   },
   side: {
     width: 44,
@@ -131,8 +133,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconButton: {
-    width: 44,
-    height: 44,
+    width: 38,
+    height: 38,
+    borderRadius: Radius.full,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -157,18 +161,17 @@ const styles = StyleSheet.create({
     fontWeight: Weight.bold,
     textAlign: 'center',
   },
+  channelEmoji: {
+    fontSize: 18,
+  },
   unreadBadge: {
     minWidth: 24,
     height: 22,
     paddingHorizontal: Spacing.xs,
     borderRadius: Radius.full,
-    borderWidth: 1.5,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowOffset: { width: 2, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 0,
-    elevation: 2,
   },
   unreadText: {
     fontWeight: Weight.black,

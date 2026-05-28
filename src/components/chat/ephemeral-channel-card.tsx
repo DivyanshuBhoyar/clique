@@ -2,7 +2,7 @@ import { Link } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Shadows, Spacing, Typography, Weight } from '@/constants/theme';
+import { Radius, Spacing, Typography, Weight } from '@/constants/theme';
 import { Id } from '@/convex/_generated/dataModel';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -34,15 +34,16 @@ export function EphemeralChannelCard({ channel, squadId }: EphemeralChannelCardP
   const expired = channel.isExpired ?? remaining <= 0;
 
   return (
-    <Link href={`/squad/${squadId}/chat/${channel._id}` as any} style={[
+    <Link href={`/squad/${squadId}/chat/${channel._id}` as any} accessibilityRole="button" accessibilityLabel={`Open ${channel.name}`} style={[
       styles.card,
       {
         backgroundColor: expired ? theme.backgroundElement : theme.surface,
+        borderColor: theme.outlineLight,
         shadowColor: theme.shadow,
-        shadowOffset: Shadows.sm.offset,
-        shadowOpacity: Shadows.sm.opacity,
-        shadowRadius: Shadows.sm.radius,
-        elevation: 2,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 10,
+        elevation: 1,
       },
       expired && { opacity: 0.6 },
     ]}>
@@ -55,8 +56,8 @@ export function EphemeralChannelCard({ channel, squadId }: EphemeralChannelCardP
             <ThemedText type="smallBold">{channel.name}</ThemedText>
             <View style={styles.rowRight}>
               {channel.unreadCount > 0 && (
-                <View style={[styles.unreadDot, { backgroundColor: theme.accent }]}>
-                  <ThemedText type="caption" style={{ color: '#fff', fontWeight: Weight.bold }}>
+                <View style={[styles.unreadDot, { backgroundColor: '#FFF1B8', borderColor: theme.accentDark }]}> 
+                  <ThemedText type="caption" style={{ color: theme.text, fontWeight: Weight.bold, fontVariant: ['tabular-nums'] }}>
                     {channel.unreadCount}
                   </ThemedText>
                 </View>
@@ -76,9 +77,10 @@ export function EphemeralChannelCard({ channel, squadId }: EphemeralChannelCardP
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 16,
+    borderRadius: Radius.xl,
+    borderWidth: 1.25,
     padding: Spacing.md,
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.md,
   },
   inner: {
     flexDirection: 'row',
@@ -86,9 +88,9 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   iconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -105,9 +107,11 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   unreadDot: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    minWidth: 24,
+    height: 24,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    paddingHorizontal: 6,
     alignItems: 'center',
     justifyContent: 'center',
   },

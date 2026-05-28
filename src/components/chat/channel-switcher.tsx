@@ -3,9 +3,9 @@ import { Modal, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing, Weight } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
+import { useTheme } from '@/hooks/use-theme';
 
 interface ChannelSwitcherProps {
     visible: boolean;
@@ -47,9 +47,14 @@ export function ChannelSwitcher({ visible, squadId, currentChannelId, onClose, o
                                     accessibilityLabel={`Switch to ${channel.name}`}
                                 >
                                     <View style={styles.itemContent}>
-                                        <ThemedText style={isActive && { fontWeight: Weight.bold }}>
-                                            {channel.name}
-                                        </ThemedText>
+                                        <View style={styles.channelLabel}>
+                                            {channel.emoji ? (
+                                                <ThemedText style={styles.channelEmoji}>{channel.emoji}</ThemedText>
+                                            ) : null}
+                                            <ThemedText style={isActive && { fontWeight: Weight.bold }}>
+                                                {channel.name}
+                                            </ThemedText>
+                                        </View>
                                         {channel.unreadCount > 0 && !isActive && (
                                             <View style={[styles.badge, { backgroundColor: theme.accent }]}>
                                                 <ThemedText type="caption" style={{ color: '#fff', fontWeight: Weight.bold }}>
@@ -100,6 +105,15 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
+    },
+    channelLabel: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.xs,
+        flex: 1,
+    },
+    channelEmoji: {
+        fontSize: 18,
     },
     badge: {
         paddingHorizontal: Spacing.sm,

@@ -9,6 +9,7 @@ interface SearchBarProps {
   onChangeText: (text: string) => void;
   placeholder?: string;
   rightAction?: React.ReactNode;
+  variant?: 'default' | 'soft';
 }
 
 export function SearchBar({
@@ -16,18 +17,21 @@ export function SearchBar({
   onChangeText,
   placeholder = 'Search...',
   rightAction,
+  variant = 'default',
 }: SearchBarProps) {
   const theme = useTheme();
+  const isSoft = variant === 'soft';
 
   return (
     <View style={styles.row}>
       <View
         style={[
           styles.inputWrap,
-          { backgroundColor: theme.surface, borderColor: theme.outline },
+          isSoft && styles.inputWrapSoft,
+          { backgroundColor: theme.surface, borderColor: isSoft ? theme.outlineLight : theme.outline },
         ]}
       >
-        <Search size={18} color={theme.placeholder} strokeWidth={2.2} />
+        <Search size={18} color={theme.placeholder} strokeWidth={isSoft ? 2 : 2.2} />
         <TextInput
           value={value}
           onChangeText={onChangeText}
@@ -57,6 +61,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
+  },
+  inputWrapSoft: {
+    minHeight: 50,
+    borderWidth: 1.25,
+    borderRadius: Radius.full,
   },
   input: {
     flex: 1,

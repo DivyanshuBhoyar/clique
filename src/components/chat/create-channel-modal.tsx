@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { EmojiPickerModal } from '@/components/ui/emoji-picker-modal';
 import { Radius, Spacing, Typography, Weight } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
@@ -11,11 +12,13 @@ import { useTheme } from '@/hooks/use-theme';
 type ChannelType = 'topic' | 'mood' | 'ephemeral' | 'private';
 
 const DURATIONS = [
+    { label: '10 min', ms: 10 * 60 * 1000 },
     { label: '30 min', ms: 30 * 60 * 1000 },
     { label: '1 hour', ms: 60 * 60 * 1000 },
     { label: '2 hours', ms: 2 * 60 * 60 * 1000 },
-    { label: '6 hours', ms: 6 * 60 * 60 * 1000 },
     { label: '24 hours', ms: 24 * 60 * 60 * 1000 },
+    { label: '3 days', ms: 3 * 24 * 60 * 60 * 1000 },
+    { label: '1 week', ms: 7 * 24 * 60 * 60 * 1000 },
 ];
 
 function formatGracePeriod(durationMs: number): string {
@@ -32,7 +35,7 @@ interface CreateChannelModalProps {
     defaultType: ChannelType;
     squadId: Id<"squads">;
     onClose: () => void;
-    onCreate: (args: { name: string; type: ChannelType; expiresAt?: number; memberIds?: Id<"users">[] }) => Promise<void>;
+    onCreate: (args: { name: string; type: ChannelType; emoji?: string; expiresAt?: number; memberIds?: Id<"users">[] }) => Promise<void>;
 }
 
 export function CreateChannelModal({ visible, defaultType, squadId, onClose, onCreate }: CreateChannelModalProps) {
@@ -40,6 +43,8 @@ export function CreateChannelModal({ visible, defaultType, squadId, onClose, onC
     const [type, setType] = useState<ChannelType>(defaultType);
     const [duration, setDuration] = useState(DURATIONS[0].ms);
     const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
+    const [selectedEmoji, setSelectedEmoji] = useState<string | undefined>(undefined);
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [creating, setCreating] = useState(false);
     const theme = useTheme();
 
@@ -62,12 +67,14 @@ export function CreateChannelModal({ visible, defaultType, squadId, onClose, onC
             await onCreate({
                 name: name.trim(),
                 type,
+                emoji: selectedEmoji,
                 expiresAt: type === 'ephemeral' ? Date.now() + duration : undefined,
                 memberIds: type === 'private' ? [...selectedMembers] as Id<"users">[] : undefined,
             });
             setName('');
             setDuration(DURATIONS[0].ms);
             setSelectedMembers(new Set());
+            setSelectedEmoji(undefined);
             onClose();
         } finally {
             setCreating(false);
@@ -165,16 +172,30 @@ export function CreateChannelModal({ visible, defaultType, squadId, onClose, onC
                         </View>
                     )}
 
-                    <TextInput
-                        value={name}
-                        onChangeText={setName}
-                        placeholder="Channel name"
-                        placeholderTextColor={theme.textTertiary}
-                        style={[styles.input, { color: theme.text, borderColor: theme.outline, backgroundColor: theme.inputBackground }]}
-                        autoFocus
-                        returnKeyType="done"
-                        onSubmitEditing={handleCreate}
-                    />
+                    <View style={styles.nameRow}>
+                        <Pressable
+                            onPress={() => setShowEmojiPicker(true)}
+                            style={[
+                                styles.iconButton,
+                                { borderColor: theme.outline, backgroundColor: theme.inputBackground },
+                            ]}
+                            accessibilityLabel="Pick group icon"
+                        >
+                            <ThemedText style={styles.iconButtonText}>
+                                {selectedEmoji ?? '+'}
+                            </ThemedText>
+                        </Pressable>
+                        <TextInput
+                            value={name}
+                            onChangeText={setName}
+                            placeholder="Channel name"
+                            placeholderTextColor={theme.textTertiary}
+                            style={[styles.input, { color: theme.text, borderColor: theme.outline, backgroundColor: theme.inputBackground }]}
+                            autoFocus
+                            returnKeyType="done"
+                            onSubmitEditing={handleCreate}
+                        />
+                    </View>
 
                     <View style={styles.actions}>
                         <Pressable onPress={onClose} style={styles.actionBtn}>
@@ -200,6 +221,13 @@ export function CreateChannelModal({ visible, defaultType, squadId, onClose, onC
                     </View>
                 </Pressable>
             </Pressable>
+
+            <EmojiPickerModal
+                visible={showEmojiPicker}
+                title="Group icon"
+                onClose={() => setShowEmojiPicker(false)}
+                onSelect={(emoji) => setSelectedEmoji(emoji)}
+            />
         </Modal>
     );
 }
@@ -271,13 +299,30 @@ const styles = StyleSheet.create({
         minHeight: 44,
     },
     input: {
+        flex: 1,
         borderWidth: 2,
         borderRadius: Radius.md,
         paddingHorizontal: Spacing.lg,
         paddingVertical: Spacing.sm,
         fontSize: Typography.body,
+        minHeight: 52,
+    },
+    nameRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.sm,
         marginBottom: Spacing.lg,
-        minHeight: 48,
+    },
+    iconButton: {
+        width: 52,
+        height: 52,
+        borderRadius: Radius.md,
+        borderWidth: 2,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    iconButtonText: {
+        fontSize: 24,
     },
     actions: {
         flexDirection: 'row',
