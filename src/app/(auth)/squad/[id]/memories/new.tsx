@@ -1,20 +1,21 @@
 import { useMutation } from 'convex/react';
-import { useRouter, useGlobalSearchParams } from 'expo-router';
+import { useGlobalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/button';
-import { ScreenHeader } from '@/components/ui/screen-header';
-import { ImageUploadField } from '@/components/ui/image-upload-field';
-import { TypeToggle } from '@/components/ui/type-toggle';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { ImageUploadField } from '@/components/ui/image-upload-field';
+import { ScreenHeader } from '@/components/ui/screen-header';
+import { TypeToggle } from '@/components/ui/type-toggle';
 import { LineHeight, Spacing, Typography, Weight } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { useImageUpload } from '@/hooks/use-image-upload';
 import { useTheme } from '@/hooks/use-theme';
+import { backOrReplace } from '@/utils/navigation';
 
 type MemoryType = 'wall' | 'event';
 
@@ -73,7 +74,7 @@ export default function NewMemoryScreen() {
             <SafeAreaView style={styles.safeArea} edges={[]}>
                 <ScreenHeader
                     title={memType === 'event' ? 'New Event 🎉' : 'New Memory 🧠'}
-                    onBack={() => router.back()}
+                    onBack={() => backOrReplace(router, `/squad/${squadId}/memories`)}
                 />
                 <KeyboardAvoidingView
                     behavior={Platform.OS === 'ios' ? 'padding' : undefined}

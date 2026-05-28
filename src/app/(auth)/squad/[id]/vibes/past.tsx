@@ -14,6 +14,7 @@ import { Radius, Spacing, Weight } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { useTheme } from '@/hooks/use-theme';
+import { backOrReplace } from '@/utils/navigation';
 
 const RECENT_POLLS_COUNT = 5;
 
@@ -41,7 +42,7 @@ export default function PastVibesScreen() {
     return (
         <ThemedView style={styles.container}>
             <SafeAreaView style={styles.safeArea} edges={[]}>
-                <ScreenHeader title="Past Vibes ✨" onBack={() => router.back()} />
+                <ScreenHeader title="Past Vibes ✨" onBack={() => backOrReplace(router, `/squad/${squadId}/vibes`)} />
 
                 {isLoading ? (
                     <View style={styles.loading}>

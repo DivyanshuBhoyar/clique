@@ -19,6 +19,7 @@ import { ScreenHeader } from '@/components/ui/screen-header';
 import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useToast } from '@/hooks/use-toast';
+import { backOrReplace } from '@/utils/navigation';
 import { api } from '../../../convex/_generated/api';
 
 const NAME_LIMIT = 32;
@@ -57,7 +58,7 @@ export default function CreateSquadScreen() {
     return (
         <ThemedView style={styles.container}>
             <SafeAreaView style={styles.safeArea} edges={['top']}>
-                <ScreenHeader title="Create Squad 🏠" onBack={() => router.back()} />
+                <ScreenHeader title="Create Squad 🏠" onBack={() => backOrReplace(router, '/')} />
                 <KeyboardAvoidingView
                     behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                     style={{ flex: 1 }}

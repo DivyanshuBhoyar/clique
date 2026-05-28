@@ -13,6 +13,7 @@ import { ScreenHeader } from '@/components/ui/screen-header';
 import { Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
+import { backOrReplace } from '@/utils/navigation';
 
 const PAGE_SIZE = 20;
 
@@ -41,7 +42,7 @@ export default function JournalsScreen() {
             <SafeAreaView style={styles.safeArea} edges={[]}>
                 <ScreenHeader
                     title="Past Journals 📓"
-                    onBack={() => router.back()}
+                    onBack={() => backOrReplace(router, `/squad/${squadId}/notes`)}
                 />
                 <PaginatedList
                     data={journals}

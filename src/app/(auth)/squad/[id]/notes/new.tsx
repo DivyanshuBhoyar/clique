@@ -13,6 +13,7 @@ import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { useKeyboardHeight } from '@/hooks/use-keyboard-height';
 import { useTheme } from '@/hooks/use-theme';
+import { backOrReplace } from '@/utils/navigation';
 
 export default function NewNoteScreen() {
     const theme = useTheme();
@@ -57,7 +58,7 @@ export default function NewNoteScreen() {
         <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={[]}>
             <ScreenHeader
                 title={isShared ? 'New Shared Note 🤝' : 'New Note 📝'}
-                onBack={() => router.back()}
+                onBack={() => backOrReplace(router, `/squad/${squadId}/notes`)}
             />
             <KeyboardAwareScrollView
                 style={styles.scroll}

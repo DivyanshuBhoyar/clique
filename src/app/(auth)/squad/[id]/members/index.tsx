@@ -13,6 +13,7 @@ import { Radius, Shadows, Spacing, Weight } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { useTheme } from '@/hooks/use-theme';
+import { backOrReplace } from '@/utils/navigation';
 import { formatRelativeTime } from '@/utils/time';
 
 export default function MembersScreen() {
@@ -34,7 +35,7 @@ export default function MembersScreen() {
                 <ScreenHeader
                     title="Members"
                     subtitle={`${members.length} friend${members.length !== 1 ? 's' : ''} · ${onlineCount} online`}
-                    onBack={() => router.back()}
+                    onBack={() => backOrReplace(router, `/squad/${squadId}/chat`)}
                     rightIcon={Settings}
                     onRightPress={() => router.push(`/squad/${squadId}/settings` as any)}
                 />

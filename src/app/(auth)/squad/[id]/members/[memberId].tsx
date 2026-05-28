@@ -18,6 +18,7 @@ import { Id } from '@/convex/_generated/dataModel';
 import { useTheme } from '@/hooks/use-theme';
 import { useToast } from '@/hooks/use-toast';
 import { heavyImpact } from '@/utils/haptics';
+import { backOrReplace } from '@/utils/navigation';
 import { formatRelativeTime } from '@/utils/time';
 
 export default function MemberProfileScreen() {
@@ -56,7 +57,7 @@ export default function MemberProfileScreen() {
     return (
         <ThemedView style={styles.container}>
             <SafeAreaView style={styles.safeArea} edges={[]}>
-                <ScreenHeader title={profile.nickname} onBack={() => router.back()} />
+                <ScreenHeader title={profile.nickname} onBack={() => backOrReplace(router, `/squad/${squadId}/members`)} />
 
                 <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
                     <View style={[styles.heroCard, { backgroundColor: theme.surface, borderColor: theme.outline, shadowColor: theme.shadow }]}>

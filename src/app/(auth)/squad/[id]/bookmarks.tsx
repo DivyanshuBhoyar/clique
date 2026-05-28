@@ -14,6 +14,7 @@ import { Radius, Spacing, Typography } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { useTheme } from '@/hooks/use-theme';
+import { backOrReplace } from '@/utils/navigation';
 
 const PAGE_SIZE = 30;
 
@@ -59,7 +60,7 @@ export default function BookmarksScreen() {
             <SafeAreaView style={styles.safeArea} edges={[]}>
                 <ScreenHeader
                     title="Bookmarks 🔖"
-                    onBack={() => router.back()}
+                    onBack={() => backOrReplace(router, `/squad/${squadId}/drops`)}
                 />
                 <PaginatedList
                     data={bookmarks}

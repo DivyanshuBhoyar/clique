@@ -29,12 +29,14 @@ import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { useMarkdownInsert } from '@/hooks/use-markdown-insert';
 import { useTheme } from '@/hooks/use-theme';
+import { backOrReplace } from '@/utils/navigation';
 import { formatRelativeTime } from '@/utils/time';
 
 export default function NoteEditorScreen() {
     const theme = useTheme();
     const router = useRouter();
-    const { noteId } = useLocalSearchParams<{ noteId: string }>();
+    const { id, noteId } = useLocalSearchParams<{ id: string; noteId: string }>();
+    const squadId = id as Id<'squads'>;
     const typedNoteId = noteId as Id<'notes'>;
 
     const note = useQuery(api.notes.getNote, { noteId: typedNoteId });
@@ -116,7 +118,7 @@ export default function NoteEditorScreen() {
                         await togglePin({ noteId: typedNoteId });
                     } else if (options[buttonIdx]?.startsWith('🗑')) {
                         await deleteNote({ noteId: typedNoteId });
-                        router.back();
+                        backOrReplace(router, `/squad/${squadId}/notes`);
                     }
                 },
             );
@@ -134,7 +136,7 @@ export default function NoteEditorScreen() {
                         style: 'destructive' as const,
                         onPress: async () => {
                             await deleteNote({ noteId: typedNoteId });
-                            router.back();
+                            backOrReplace(router, `/squad/${squadId}/notes`);
                         },
                     },
                     { text: 'Cancel', style: 'cancel' as const },
@@ -159,7 +161,7 @@ export default function NoteEditorScreen() {
             <SafeAreaView style={styles.safeArea} edges={[]}>
                 <ScreenHeader
                     title={'Note 📝'}
-                    onBack={() => router.back()}
+                    onBack={() => backOrReplace(router, `/squad/${squadId}/notes`)}
                     rightIcon={MoreHorizontal}
                     onRightPress={handleMorePress}
                 />

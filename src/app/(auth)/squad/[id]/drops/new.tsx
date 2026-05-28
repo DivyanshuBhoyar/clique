@@ -1,19 +1,20 @@
 import { useMutation } from 'convex/react';
-import { useRouter, useGlobalSearchParams } from 'expo-router';
+import { useGlobalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/button';
 import { CategorySelector } from '@/components/drops/category-selector';
-import { ScreenHeader } from '@/components/ui/screen-header';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { ScreenHeader } from '@/components/ui/screen-header';
 import { type DropCategoryKey } from '@/constants/drops';
 import { LineHeight, Spacing, Typography, Weight } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { useTheme } from '@/hooks/use-theme';
+import { backOrReplace } from '@/utils/navigation';
 
 export default function NewDropScreen() {
   const router = useRouter();
@@ -39,7 +40,7 @@ export default function NewDropScreen() {
     setSubmitting(true);
     try {
       await createDrop({ squadId, category, content: content.trim() });
-      router.back();
+      backOrReplace(router, `/squad/${squadId}/drops`);
     } catch {
       setSubmitting(false);
     }
@@ -50,7 +51,7 @@ export default function NewDropScreen() {
       <SafeAreaView style={styles.safeArea} edges={[]}>
         <ScreenHeader
           title="New Drop 🎁"
-          onBack={() => router.back()}
+          onBack={() => backOrReplace(router, `/squad/${squadId}/drops`)}
         />
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}

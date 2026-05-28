@@ -8,6 +8,7 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useTheme } from "@/hooks/use-theme";
 import { useToast } from "@/hooks/use-toast";
+import { backOrReplace } from "@/utils/navigation";
 import { useMutation, useQuery } from "convex/react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Search } from "lucide-react-native";
@@ -71,7 +72,7 @@ export default function NewDmScreen() {
 
     return (
         <ThemedView style={styles.container}>
-            <ScreenHeader title="New Message 🔒" onBack={() => router.back()} />
+            <ScreenHeader title="New Message 🔒" onBack={() => backOrReplace(router, "/(auth)/dm")} />
 
             {/* Search bar */}
             <View

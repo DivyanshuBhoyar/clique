@@ -16,6 +16,7 @@ import { Id } from '@/convex/_generated/dataModel';
 import { useTheme } from '@/hooks/use-theme';
 import { useToast } from '@/hooks/use-toast';
 import { heavyImpact } from '@/utils/haptics';
+import { backOrReplace } from '@/utils/navigation';
 
 export default function SquadSettingsScreen() {
     const router = useRouter();
@@ -83,7 +84,7 @@ export default function SquadSettingsScreen() {
     return (
         <ThemedView style={styles.container}>
             <SafeAreaView style={styles.safeArea} edges={[]}>
-                <ScreenHeader title="Squad settings" onBack={() => router.back()} />
+                <ScreenHeader title="Squad settings" onBack={() => backOrReplace(router, `/squad/${squadId}/chat`)} />
 
                 <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
                     <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.outline, shadowColor: theme.shadow }]}>

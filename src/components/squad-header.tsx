@@ -1,8 +1,9 @@
-import { Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { backOrReplace } from '@/utils/navigation';
 import { router } from 'expo-router';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 interface SquadHeaderProps {
     name?: string;
@@ -21,7 +22,7 @@ export function SquadHeader({ name, disabled }: SquadHeaderProps) {
                     {name || '...'}
                 </ThemedText>
             )}
-            <Pressable onPress={() => router.back()} hitSlop={12}>
+            <Pressable onPress={() => backOrReplace(router, '/')} hitSlop={12}>
                 <ThemedText type="small" style={{ color: theme.textSecondary }}>
                     Close
                 </ThemedText>

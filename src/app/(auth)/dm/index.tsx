@@ -6,16 +6,17 @@ import { UserAvatar } from "@/components/user-avatar";
 import { Radius, Shadows, Spacing } from "@/constants/theme";
 import { api } from "@/convex/_generated/api";
 import { useTheme } from "@/hooks/use-theme";
+import { backOrReplace } from "@/utils/navigation";
 import { useQuery } from "convex/react";
 import { useRouter } from "expo-router";
 import { PenSquare } from "lucide-react-native";
 import { useMemo } from "react";
 import {
-    ActivityIndicator,
-    FlatList,
-    Pressable,
-    StyleSheet,
-    View,
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  View,
 } from "react-native";
 
 export default function DmInboxScreen() {
@@ -43,7 +44,7 @@ export default function DmInboxScreen() {
     <ThemedView style={styles.container}>
       <ScreenHeader
         title="Messages 💬"
-        onBack={() => router.back()}
+        onBack={() => backOrReplace(router, "/")}
         rightIcon={PenSquare}
         onRightPress={() => router.push("/(auth)/dm/new")}
       />
@@ -65,9 +66,9 @@ export default function DmInboxScreen() {
           contentInsetAdjustmentBehavior="automatic"
           ListHeaderComponent={
             <View style={[styles.helperCard, { backgroundColor: theme.surfaceWarm, borderColor: theme.outlineLight }]}>
-              <ThemedText type="captionBold">Private, cozy side chats</ThemedText>
+              <ThemedText type="captionBold">Private DMs</ThemedText>
               <ThemedText type="caption" themeColor="textSecondary">
-                Start a 1:1 with anyone you share a squad with. Message contents stay end-to-end encrypted.
+                Message contents stay E2E encrypted. You can use upto 5 devices.
               </ThemedText>
             </View>
           }
