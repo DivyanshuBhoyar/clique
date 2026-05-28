@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from 'convex/react';
-import { Link, useGlobalSearchParams, useRouter } from 'expo-router';
+import { useGlobalSearchParams, useRouter } from 'expo-router';
 import { Globe, Users } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -8,13 +8,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChannelCard } from '@/components/chat/channel-card';
 import { CreateChannelModal } from '@/components/chat/create-channel-modal';
 import { EphemeralChannelCard } from '@/components/chat/ephemeral-channel-card';
+import { LoungeHeroCard } from '@/components/chat/lounge-hero-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { LoadingState } from '@/components/ui/loading-state';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { SearchBar } from '@/components/ui/search-bar';
-import { Radius, Shadows, Spacing, Typography, Weight } from '@/constants/theme';
+import { Radius, Spacing, Typography } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { useTheme } from '@/hooks/use-theme';
@@ -30,6 +31,7 @@ export default function ChatScreen() {
 
     const channels = useQuery(api.channel.getChannelsWithUnread, squadId ? { squadId } : "skip");
     const squad = useQuery(api.squad.getSquad, squadId ? { id: squadId } : "skip");
+    const squadMembers = useQuery(api.squad.getSquadMembers, squadId ? { squadId } : "skip");
     const createChannel = useMutation(api.channel.createChannel);
     const leaveSquad = useMutation(api.squad.leaveSquad);
 
@@ -39,9 +41,9 @@ export default function ChatScreen() {
     const [search, setSearch] = useState('');
     const toast = useToast();
 
-    const handleCreate = async (args: { name: string; type: ChannelType; expiresAt?: number; memberIds?: any[] }) => {
+    const handleCreate = async (args: { name: string; type: ChannelType; emoji?: string; expiresAt?: number; memberIds?: any[] }) => {
         try {
-            await createChannel({ squadId, name: args.name, type: args.type, expiresAt: args.expiresAt, memberIds: args.memberIds });
+            await createChannel({ squadId, name: args.name, type: args.type, emoji: args.emoji, expiresAt: args.expiresAt, memberIds: args.memberIds });
             toast.success('Channel created');
         } catch (err: any) {
             toast.error(err.message ?? 'Failed to create channel');
@@ -89,65 +91,31 @@ export default function ChatScreen() {
                             value={search}
                             onChangeText={setSearch}
                             placeholder="Search channels…"
+                            variant="soft"
                         />
                     </View>
 
                     {mainChannels.map(channel => (
-                        <Link key={channel._id} href={`/squad/${squadId}/chat/${channel._id}` as any} style={[
-                            styles.heroCard,
-                            {
-                                backgroundColor: theme.accent,
-                                borderWidth: 2,
-                                borderColor: theme.outline,
-                                shadowColor: theme.shadow,
-                                shadowOffset: Shadows.md.offset,
-                                shadowOpacity: Shadows.md.opacity,
-                                shadowRadius: Shadows.md.radius,
-                                elevation: 3,
-                            },
-                        ]}>
-                            <View style={styles.heroHeader}>
-                                <View style={[styles.iconCircle, { backgroundColor: theme.surface, borderWidth: 2, borderColor: theme.outline }]}>
-                                    <ThemedText style={styles.iconEmoji}>💬</ThemedText>
-                                </View>
-                                <View style={styles.heroTitleRow}>
-                                    <ThemedText type="heading">Lounge</ThemedText>
-                                    {channel.unreadCount > 0 && (
-                                        <View style={[styles.unreadDot, { backgroundColor: theme.accent }]}>
-                                            <ThemedText type="caption" style={{ color: '#fff', fontWeight: Weight.bold }}>
-                                                {channel.unreadCount}
-                                            </ThemedText>
-                                        </View>
-                                    )}
-                                </View>
-                            </View>
-                            {channel.recentMessages.length > 0 && (
-                                <View style={styles.heroMessages}>
-                                    {channel.recentMessages.slice(0, 2).map((msg, i) => (
-                                        <ThemedText key={i} type="small" numberOfLines={1} themeColor="textSecondary">
-                                            {msg.nickname}: {msg.content}
-                                        </ThemedText>
-                                    ))}
-                                </View>
-                            )}
-                        </Link>
+                        <LoungeHeroCard
+                            key={channel._id}
+                            channel={channel}
+                            squadId={squadId}
+                            members={squadMembers ?? []}
+                        />
                     ))}
 
                     {moodChannels.length > 0 && (
                         <ChannelSection
-                            emoji="🎭" label="MOOD ROOMS"
+                            emoji="🎭" label="Mood rooms"
                             channels={moodChannels}
                             squadId={squadId}
                             type="mood"
                             onCreate={() => { setDefaultType('mood'); setShowCreate(true); }}
                         />
                     )}
-
-
-
                     {topicChannels.length > 0 && (
                         <ChannelSection
-                            emoji="💭" label="TOPIC THREADS"
+                            emoji="💭" label="Topic threads"
                             channels={topicChannels}
                             squadId={squadId}
                             type="topic"
@@ -156,7 +124,7 @@ export default function ChatScreen() {
                     )}
                     {privateChannels.length > 0 && (
                         <ChannelSection
-                            emoji="🔒" label="PRIVATE"
+                            emoji="🔒" label="Private rooms"
                             channels={privateChannels}
                             squadId={squadId}
                             type="private"
@@ -168,11 +136,16 @@ export default function ChatScreen() {
                         <View style={styles.section}>
                             <View style={styles.sectionHeader}>
                                 <View style={styles.sectionTitleRow}>
-                                    <ThemedText>⏳</ThemedText>
-                                    <ThemedText type="caption" style={{ letterSpacing: 0.5, color: theme.textSecondary }}>EPHEMERAL</ThemedText>
+                                    <View style={[styles.sectionEmoji, { backgroundColor: theme.errorSoft }]}> 
+                                        <ThemedText type="caption">⏳</ThemedText>
+                                    </View>
+                                    <View>
+                                        <ThemedText type="bodyBold" style={styles.sectionTitle}>Ephemeral</ThemedText>
+                                        <ThemedText type="caption" themeColor="textSecondary">{ephemeralChannels.length} temporary room{ephemeralChannels.length !== 1 ? 's' : ''}</ThemedText>
+                                    </View>
                                 </View>
-                                <Pressable onPress={() => { setDefaultType('ephemeral'); setShowCreate(true); }} hitSlop={8}>
-                                    <ThemedText type="small" style={{ color: theme.accent, fontWeight: Weight.semibold }}>+ New</ThemedText>
+                                <Pressable onPress={() => { setDefaultType('ephemeral'); setShowCreate(true); }} hitSlop={8} style={[styles.newButton, { backgroundColor: theme.surfaceAccent }]}> 
+                                    <ThemedText type="smallBold" style={{ color: theme.accentDark }}>+ New</ThemedText>
                                 </Pressable>
                             </View>
                             {ephemeralChannels.map(channel => (
@@ -246,11 +219,16 @@ function ChannelSection({ emoji, label, channels, squadId, type, onCreate }: {
         <View style={styles.section}>
             <View style={styles.sectionHeader}>
                 <View style={styles.sectionTitleRow}>
-                    <ThemedText>{emoji}</ThemedText>
-                    <ThemedText type="caption" style={{ letterSpacing: 0.5, color: theme.textSecondary }}>{label}</ThemedText>
+                    <View style={[styles.sectionEmoji, { backgroundColor: theme.surfaceAccent }]}> 
+                        <ThemedText type="caption">{emoji}</ThemedText>
+                    </View>
+                    <View>
+                        <ThemedText type="bodyBold" style={styles.sectionTitle}>{label}</ThemedText>
+                        <ThemedText type="caption" themeColor="textSecondary">{channels.length} room{channels.length !== 1 ? 's' : ''}</ThemedText>
+                    </View>
                 </View>
-                <Pressable onPress={onCreate} hitSlop={8}>
-                    <ThemedText type="small" style={{ color: theme.accent, fontWeight: Weight.semibold }}>+ New</ThemedText>
+                <Pressable onPress={onCreate} hitSlop={8} style={[styles.newButton, { backgroundColor: theme.surfaceAccent }]}> 
+                    <ThemedText type="smallBold" style={{ color: theme.accentDark }}>+ New</ThemedText>
                 </Pressable>
             </View>
             {channels.map(channel => (
@@ -264,17 +242,13 @@ const styles = StyleSheet.create({
     container: { flex: 1 },
     safeArea: { flex: 1 },
     content: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg, paddingBottom: Spacing.xxxl },
-    searchWrap: { marginBottom: Spacing.xl },
-    heroCard: { borderRadius: Radius.lg, padding: Spacing.xl, marginBottom: Spacing.xl },
-    heroHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginBottom: Spacing.sm },
-    heroTitleRow: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    heroMessages: { gap: 2 },
-    iconCircle: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-    iconEmoji: { fontSize: Typography.body },
-    unreadDot: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+    searchWrap: { marginBottom: Spacing.lg },
     section: { marginBottom: Spacing.xl },
-    sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
-    sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
+    sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
+    sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+    sectionEmoji: { width: 32, height: 32, borderRadius: Radius.full, alignItems: 'center', justifyContent: 'center' },
+    sectionTitle: { color: '#202124' },
+    newButton: { minHeight: 36, borderRadius: Radius.full, paddingHorizontal: Spacing.md, alignItems: 'center', justifyContent: 'center' },
     emptySection: { alignItems: 'center', paddingVertical: Spacing.xxxl, gap: Spacing.sm },
     createBtn: { marginTop: Spacing.sm, paddingHorizontal: Spacing.xl, paddingVertical: Spacing.sm, borderRadius: Radius.md, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
     leave: { marginTop: Spacing.lg, paddingTop: Spacing.lg, borderTopWidth: 1.5, alignItems: 'center' },

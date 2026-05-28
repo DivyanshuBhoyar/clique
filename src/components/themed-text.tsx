@@ -60,25 +60,25 @@ const styles = StyleSheet.create({
   display: {
     fontSize: Typography.display,
     lineHeight: LineHeight.display,
-    fontWeight: Weight.black,
+    fontWeight: Weight.bold,
     fontFamily: Fonts.rounded,
   },
   title: {
     fontSize: Typography.title,
-    fontWeight: Weight.extrabold,
+    fontWeight: Weight.bold,
     lineHeight: LineHeight.title,
     fontFamily: Fonts.rounded,
   },
   heading: {
     fontSize: Typography.heading,
     lineHeight: LineHeight.heading,
-    fontWeight: Weight.bold,
+    fontWeight: Weight.semibold,
     fontFamily: Fonts.rounded,
   },
   subtitle: {
     fontSize: Typography.subtitle,
     lineHeight: LineHeight.subtitle,
-    fontWeight: Weight.bold,
+    fontWeight: Weight.semibold,
     fontFamily: Fonts.rounded,
   },
   default: {

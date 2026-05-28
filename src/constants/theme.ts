@@ -1,7 +1,7 @@
 /**
  * Design tokens for the Homie Squad app.
- * Cozy & Playful with neo-brutalist structure: warm surfaces, clear outlines,
- * chunky hit areas, honest hard-edged shadows, flat fills.
+ * Cozy & Playful with soft modern structure: warm surfaces, gentle elevation,
+ * rounded corners, breathable spacing.
  */
 
 import '@/global.css';
@@ -22,16 +22,16 @@ const palette = {
   textSecondary: '#6B6050',       // warm grey-brown
 
   // Surfaces
-  outline: '#2D2D2D',             // near-black outlines (neo-brutalist)
+  outline: '#4A4540',             // warm charcoal (softened)
   outlineLight: '#C8C0B0',        // subtle dividers
   surface: '#FFFFFF',             // card surface
   surfaceWarm: '#FFF5E0',         // warm tinted surface
   surfaceAccent: '#FFF8E1',       // very soft yellow surface
 
   // Accent — golden yellow
-  accent: '#F5C542',              // primary CTA, FAB, active states (was indigo)
+  accent: '#E8B84B',              // warm golden accent
   accentSoft: '#FFF8E1',          // soft yellow bg for hero cards
-  accentDark: '#E0B035',          // pressed/dark state for yellow buttons
+  accentDark: '#D4A43E',          // pressed state
 
   // Semantic
   success: '#3BB897',
@@ -45,15 +45,15 @@ const palette = {
   textTertiary: '#A09080',        // warm tertiary text
 
   // Shadows — hard-edged neo-brutalist, dark shadow for punch
-  shadow: '#2D2D2D',              // black shadow (was soft purple-grey)
+  shadow: '#8B8070',              // warm mid-grey for soft shadows
 
   // FAB
-  fabBackground: '#F5C542',       // golden yellow (was indigo)
+  fabBackground: '#E8B84B',       // warm golden
   fabText: '#2D2D2D',             // black text on yellow (was white)
 
   // Dashed borders inside cards
   dashedBorder: '#C0BAB0',        // warm grey dashed separator
-  cardBorder: '#2D2D2D',          // explicit card border (same as outline)
+  cardBorder: '#D4CFC6',          // subtle warm grey border
 
   // Category tints — warmer versions matching designs
   songBg: '#FFE8CC',    songText: '#8B5E3C',    // warm amber
@@ -64,14 +64,14 @@ const palette = {
   randomBg: '#F0E8FF',  randomText: '#5E3C8B',  // warm lavender
 
   // Chat bubbles
-  bubbleOwn: '#F5C542',           // golden yellow (was indigo)
+  bubbleOwn: '#E8B84B',           // warm golden
   bubbleOwnText: '#2D2D2D',       // black text on yellow (was white)
   bubbleOther: '#FFFFFF',         // white (was grey)
   bubbleOtherText: '#2D2D2D',     // black text
 
   // Input
   inputBackground: '#FFFFFF',     // white input fields
-  inputBorder: '#2D2D2D',         // black border on inputs
+  inputBorder: '#C8C0B0',         // soft warm border on inputs
 
   // Header
   headerBackground: '#F5F0E8',    // cream (was white)
@@ -190,19 +190,19 @@ export const Radius = {
 
 export const Shadows = {
   sm: {
-    offset: { width: 2, height: 2 },
-    opacity: 0.9,
-    radius: 0,
+    offset: { width: 0, height: 1 },
+    opacity: 0.08,
+    radius: 3,
   },
   md: {
-    offset: { width: 3, height: 3 },
-    opacity: 0.9,
-    radius: 0,
+    offset: { width: 0, height: 2 },
+    opacity: 0.10,
+    radius: 6,
   },
   lg: {
-    offset: { width: 4, height: 4 },
-    opacity: 0.9,
-    radius: 0,
+    offset: { width: 0, height: 4 },
+    opacity: 0.12,
+    radius: 12,
   },
 } as const;
 

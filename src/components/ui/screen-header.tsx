@@ -4,7 +4,7 @@
  * Pattern from designs: ← Title 🎁  [icon button]
  *
  * Usage:
- *   <ScreenHeader title="Drops 🎁" onBack={() => router.back()} rightIcon={Plus} onRightPress={...} />
+ *   <ScreenHeader title="Drops 🎁" onBack={handleBack} rightIcon={Plus} onRightPress={...} />
  *   <ScreenHeader title="🏠 The Cove" />   // no back or right button
  */
 import { ChevronLeft, type LucideIcon } from 'lucide-react-native';
