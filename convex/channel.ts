@@ -1,8 +1,9 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { SECURITY_LIMITS, assertArrayLimit, assertRateLimit } from "./security";
 import { enrichUser, requireMembership } from "./users";
-import { assertLength } from "./validators";
+import { assertLength, assertNonEmpty } from "./validators";
 
 const UNREAD_COUNT_LIMIT = 100;
 const UNREAD_CHANNEL_LIMIT = 50;
@@ -27,7 +28,7 @@ export const getChannels = query({
         const channels = await ctx.db
             .query("channels")
             .withIndex("by_squad", (q) => q.eq("squadId", args.squadId))
-            .collect();
+            .take(SECURITY_LIMITS.query.maxChannelList);
 
         // Filter out private channels the user isn't a member of
         const visible = [];
@@ -53,7 +54,7 @@ export const getChannelsWithUnread = query({
         const channels = await ctx.db
             .query("channels")
             .withIndex("by_squad", (q) => q.eq("squadId", args.squadId))
-            .collect();
+            .take(SECURITY_LIMITS.query.maxChannelList);
 
         // Filter out private channels the user isn't a member of
         const visibleChannels = [];
@@ -72,7 +73,7 @@ export const getChannelsWithUnread = query({
         const readStatuses = await ctx.db
             .query("channelReadStatus")
             .withIndex("by_user", (q) => q.eq("userId", userId))
-            .collect();
+            .take(SECURITY_LIMITS.query.maxChannelList);
 
         const readMap = new Map(readStatuses.map(r => [r.channelId, r.lastReadAt]));
 
@@ -199,6 +200,7 @@ export const createChannel = mutation({
     args: {
         squadId: v.id("squads"),
         name: v.string(),
+        emoji: v.optional(v.string()),
         type: v.union(
             v.literal("topic"),
             v.literal("mood"),
@@ -214,18 +216,40 @@ export const createChannel = mutation({
     handler: async (ctx, args) => {
         const { userId } = await requireMembership(ctx, args.squadId);
 
+        await assertRateLimit(ctx, ["createChannel", args.squadId, userId], SECURITY_LIMITS.rate.createChannel);
+
+        assertNonEmpty("Channel name", args.name);
         assertLength("Channel name", args.name, 50);
+        if (args.emoji) assertLength("Emoji", args.emoji, 10);
+        assertArrayLimit("Private channel members", args.memberIds ?? [], SECURITY_LIMITS.squads.maxPrivateChannelMembers - 1);
+
+        const existingChannels = await ctx.db
+            .query("channels")
+            .withIndex("by_squad", (q) => q.eq("squadId", args.squadId))
+            .take(SECURITY_LIMITS.squads.maxChannels);
+        if (existingChannels.length >= SECURITY_LIMITS.squads.maxChannels) {
+            throw new Error(`A squad can have up to ${SECURITY_LIMITS.squads.maxChannels} channels`);
+        }
+
+        if (args.parentChannelId) {
+            const parent = await ctx.db.get(args.parentChannelId);
+            if (!parent || parent.squadId !== args.squadId) throw new Error("Invalid parent channel");
+        }
 
         // Auto-calculate grace period for ephemeral channels (10% of duration, min 5 min)
         let gracePeriodMs;
         if (args.type === "ephemeral" && args.expiresAt) {
             const duration = args.expiresAt - Date.now();
+            if (duration < 5 * 60 * 1000 || duration > 14 * 24 * 60 * 60 * 1000) {
+                throw new Error("Ephemeral channels must last between 5 minutes and 14 days");
+            }
             gracePeriodMs = Math.max(Math.floor(duration * 0.1), 5 * 60 * 1000);
         }
 
         const channelId = await ctx.db.insert("channels", {
             squadId: args.squadId,
-            name: args.name,
+            name: args.name.trim(),
+            emoji: args.emoji,
             type: args.type,
             parentChannelId: args.parentChannelId,
             expiresAt: args.expiresAt,
@@ -238,7 +262,16 @@ export const createChannel = mutation({
         if (args.type === "private") {
             const memberSet = new Set(args.memberIds ?? []);
             memberSet.add(userId); // Creator is always a member
+            if (memberSet.size > SECURITY_LIMITS.squads.maxPrivateChannelMembers) {
+                throw new Error(`Private channels can include up to ${SECURITY_LIMITS.squads.maxPrivateChannelMembers} members`);
+            }
             for (const memberId of memberSet) {
+                const squadMembership = await ctx.db
+                    .query("memberships")
+                    .withIndex("by_user_squad", (q) => q.eq("userId", memberId).eq("squadId", args.squadId))
+                    .first();
+                if (!squadMembership) throw new Error("Private channel members must belong to the squad");
+
                 await ctx.db.insert("channelMemberships", {
                     channelId,
                     userId: memberId,
@@ -266,8 +299,30 @@ export const updateChannelMembers = mutation({
         if (channel.type !== "private") throw new Error("Not a private channel");
         if (channel.createdBy !== userId) throw new Error("Only the channel creator can manage members");
 
+        await assertRateLimit(ctx, ["channelMembers", args.channelId, userId], SECURITY_LIMITS.rate.channelMembershipUpdate);
+        assertArrayLimit("Members to add", args.addIds, SECURITY_LIMITS.squads.maxPrivateChannelMembers);
+        assertArrayLimit("Members to remove", args.removeIds, SECURITY_LIMITS.squads.maxPrivateChannelMembers);
+
+        const existingMembers = await ctx.db
+            .query("channelMemberships")
+            .withIndex("by_channel", (q) => q.eq("channelId", args.channelId))
+            .take(SECURITY_LIMITS.squads.maxPrivateChannelMembers);
+        const nextMembers = new Set(existingMembers.map((member) => member.userId));
+        for (const removeId of args.removeIds) nextMembers.delete(removeId);
+        for (const addId of args.addIds) nextMembers.add(addId);
+        nextMembers.add(channel.createdBy);
+        if (nextMembers.size > SECURITY_LIMITS.squads.maxPrivateChannelMembers) {
+            throw new Error(`Private channels can include up to ${SECURITY_LIMITS.squads.maxPrivateChannelMembers} members`);
+        }
+
         // Add new members
         for (const addId of args.addIds) {
+            const squadMembership = await ctx.db
+                .query("memberships")
+                .withIndex("by_user_squad", (q) => q.eq("userId", addId).eq("squadId", channel.squadId))
+                .first();
+            if (!squadMembership) throw new Error("Private channel members must belong to the squad");
+
             const existing = await ctx.db
                 .query("channelMemberships")
                 .withIndex("by_user_channel", (q) => q.eq("userId", addId).eq("channelId", args.channelId))
@@ -319,8 +374,9 @@ export const renameChannel = mutation({
         if (!channel) throw new Error("Channel not found");
         if (channel.createdBy !== userId) throw new Error("Only the channel creator can rename");
 
+        assertNonEmpty("Channel name", args.name);
         assertLength("Channel name", args.name, 50);
-        await ctx.db.patch(args.channelId, { name: args.name });
+        await ctx.db.patch(args.channelId, { name: args.name.trim() });
     },
 });
 
@@ -334,11 +390,18 @@ export const getChannelMembers = query({
         if (!channel) return [];
 
         await requireMembership(ctx, channel.squadId);
+        if (channel.type === "private") {
+            const membership = await ctx.db
+                .query("channelMemberships")
+                .withIndex("by_user_channel", (q) => q.eq("userId", userId).eq("channelId", args.channelId))
+                .first();
+            if (!membership) return [];
+        }
 
         const memberships = await ctx.db
             .query("channelMemberships")
             .withIndex("by_channel", (q) => q.eq("channelId", args.channelId))
-            .collect();
+            .take(SECURITY_LIMITS.squads.maxPrivateChannelMembers);
 
         return await Promise.all(
             memberships.map(async (m) => {
@@ -362,6 +425,8 @@ export const getChannelExpiry = query({
         if (!channel || channel.type !== "ephemeral") {
             return null;
         }
+
+        await requireMembership(ctx, channel.squadId);
 
         const now = Date.now();
         const isExpired = channel.expiresAt ? now > channel.expiresAt : false;
@@ -389,6 +454,17 @@ export const markChannelRead = mutation({
     handler: async (ctx, args) => {
         const userId = await getAuthUserId(ctx);
         if (!userId) throw new Error("Unauthenticated");
+
+        const channel = await ctx.db.get(args.channelId);
+        if (!channel) throw new Error("Channel not found");
+        const { userId: memberUserId } = await requireMembership(ctx, channel.squadId);
+        if (channel.type === "private") {
+            const membership = await ctx.db
+                .query("channelMemberships")
+                .withIndex("by_user_channel", (q) => q.eq("userId", memberUserId).eq("channelId", args.channelId))
+                .first();
+            if (!membership) throw new Error("Not a member of this channel");
+        }
 
         const existing = await ctx.db
             .query("channelReadStatus")
@@ -418,11 +494,18 @@ export const getChannelReadReceipts = query({
         if (!channel) return [];
 
         const { userId } = await requireMembership(ctx, channel.squadId);
+        if (channel.type === "private") {
+            const membership = await ctx.db
+                .query("channelMemberships")
+                .withIndex("by_user_channel", (q) => q.eq("userId", userId).eq("channelId", args.channelId))
+                .first();
+            if (!membership) return [];
+        }
 
         const statuses = await ctx.db
             .query("channelReadStatus")
             .withIndex("by_channel", (q) => q.eq("channelId", args.channelId))
-            .take(50);
+            .take(SECURITY_LIMITS.query.maxSquadMembersRead);
 
         const visibleStatuses = statuses.filter((status) => status.userId !== userId);
 

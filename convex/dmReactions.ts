@@ -1,6 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { SECURITY_LIMITS, assertRateLimit } from "./security";
 import { assertLength } from "./validators";
 
 /**
@@ -22,6 +23,7 @@ export const toggle = mutation({
         if (!userId) throw new Error("Unauthenticated");
 
         assertLength("Emoji", emoji, 10);
+        assertLength("Message id", messageId, 100);
 
         // Verify the user is a participant
         const conv = await ctx.db.get(conversationId);
@@ -29,6 +31,8 @@ export const toggle = mutation({
         if (conv.participantA !== userId && conv.participantB !== userId) {
             throw new Error("FORBIDDEN");
         }
+
+        await assertRateLimit(ctx, ["dmReaction", conversationId, userId], SECURITY_LIMITS.rate.reaction);
 
         // Find any existing reaction this user has on this message
         const existing = await ctx.db
@@ -77,6 +81,6 @@ export const forConversation = query({
         return ctx.db
             .query("dmReactions")
             .withIndex("by_conversation", (q) => q.eq("conversationId", conversationId))
-            .collect();
+            .take(SECURITY_LIMITS.dm.maxReactionsPerConversationRead);
     },
 });

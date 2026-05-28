@@ -1,7 +1,9 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { SECURITY_LIMITS, assertArrayLimit, assertRateLimit, assertUsersShareSquad } from "./security";
 import { getAvatarUrl } from "./users";
+import { assertLength, assertNonEmpty } from "./validators";
 
 export const getOrCreateConversation = mutation({
     args: { otherUserId: v.id("users") },
@@ -22,18 +24,22 @@ export const getOrCreateConversation = mutation({
 
         if (existing) return existing._id;
 
-        // Guard: users must share at least one squad to start a DM
-        const mySquads = await ctx.db
-            .query("memberships")
-            .withIndex("by_user", (q) => q.eq("userId", userId))
-            .collect();
-        const theirSquads = await ctx.db
-            .query("memberships")
-            .withIndex("by_user", (q) => q.eq("userId", otherUserId))
-            .collect();
-        const mySquadIds = new Set(mySquads.map((m) => m.squadId));
-        const hasCommon = theirSquads.some((m) => mySquadIds.has(m.squadId));
-        if (!hasCommon) throw new Error("You can only DM someone in a shared squad");
+        await assertRateLimit(ctx, ["dmConversation", userId], SECURITY_LIMITS.rate.dmConversation);
+        await assertUsersShareSquad(ctx, userId, otherUserId);
+
+        const [asA, asB] = await Promise.all([
+            ctx.db
+                .query("dmConversations")
+                .withIndex("by_user_a", (q) => q.eq("participantA", userId))
+                .take(SECURITY_LIMITS.dm.maxConversationsPerUser),
+            ctx.db
+                .query("dmConversations")
+                .withIndex("by_user_b", (q) => q.eq("participantB", userId))
+                .take(SECURITY_LIMITS.dm.maxConversationsPerUser),
+        ]);
+        if (asA.length + asB.length >= SECURITY_LIMITS.dm.maxConversationsPerUser) {
+            throw new Error("DM conversation limit reached");
+        }
 
         return await ctx.db.insert("dmConversations", {
             participantA,
@@ -75,6 +81,10 @@ export const sendFanOut = mutation({
             throw new Error("FORBIDDEN");
         }
 
+        await assertRateLimit(ctx, ["sendDm", conversationId, userId], SECURITY_LIMITS.rate.sendDm);
+        assertArrayLimit("DM envelopes", envelopes, SECURITY_LIMITS.dm.maxEnvelopesPerFanOut);
+        if (envelopes.length === 0) throw new Error("At least one envelope is required");
+
         // Atomic sequence increment — this is the message's order number
         const seq = conv.lastSeq + 1;
         await ctx.db.patch(conv._id, { lastSeq: seq, lastEnvelopeAt: Date.now() });
@@ -82,6 +92,17 @@ export const sendFanOut = mutation({
         const serverTimestamp = Date.now();
 
         for (const e of envelopes) {
+            if (e.recipientId !== conv.participantA && e.recipientId !== conv.participantB) {
+                throw new Error("Invalid recipient");
+            }
+            assertNonEmpty("Message id", e.messageId);
+            assertLength("Message id", e.messageId, 100);
+            assertLength("Recipient device id", e.recipientDeviceId, 100);
+            assertLength("Sender device id", e.senderDeviceId, 100);
+            assertLength("Sender public key", e.senderPublicKey, 200);
+            assertLength("Nonce", e.nonce, 100);
+            assertLength("Ciphertext", e.ciphertext, 10000);
+
             await ctx.db.insert("messageEnvelopes", {
                 ...e,
                 senderId:        userId,
@@ -102,6 +123,8 @@ export const pendingForDevice = query({
         const userId = await getAuthUserId(ctx);
         if (!userId) return [];
 
+        assertLength("Recipient device id", recipientDeviceId, 100);
+
         return ctx.db
             .query("messageEnvelopes")
             .withIndex("by_recipient_device", (q) =>
@@ -110,7 +133,7 @@ export const pendingForDevice = query({
                  .eq("delivered", false)
             )
             .order("asc")
-            .take(50);
+            .take(SECURITY_LIMITS.dm.maxPendingPerDevice);
     },
 });
 
@@ -134,7 +157,7 @@ export const getDmableUsers = query({
         const myMemberships = await ctx.db
             .query("memberships")
             .withIndex("by_user", (q) => q.eq("userId", userId))
-            .collect();
+            .take(SECURITY_LIMITS.query.maxDmableSquads);
 
         const usersById = new Map<string, {
             userId: typeof userId;
@@ -150,7 +173,7 @@ export const getDmableUsers = query({
             const squadMembers = await ctx.db
                 .query("memberships")
                 .withIndex("by_squad", (q) => q.eq("squadId", membership.squadId))
-                .collect();
+                .take(SECURITY_LIMITS.query.maxSquadMembersRead);
 
             for (const squadMember of squadMembers) {
                 if (squadMember.userId === userId) continue;
@@ -171,11 +194,14 @@ export const getDmableUsers = query({
 
                 usersById.set(key, {
                     userId: squadMember.userId,
-                    name: user?.name ?? squadMember.nickname ?? user?.email ?? "Unknown",
+                    name: user?.name ?? user?.email ?? squadMember.nickname ?? "Unknown",
                     avatarUrl,
                     squadNames: [squad.name],
                 });
+
+                if (usersById.size >= SECURITY_LIMITS.query.maxDmableUsers) break;
             }
+            if (usersById.size >= SECURITY_LIMITS.query.maxDmableUsers) break;
         }
 
         return Array.from(usersById.values()).sort((a, b) => a.name.localeCompare(b.name));
@@ -189,9 +215,9 @@ export const listConversations = query({
         if (!userId) return [];
 
         const asA = await ctx.db.query("dmConversations")
-            .withIndex("by_user_a", (q) => q.eq("participantA", userId)).collect();
+            .withIndex("by_user_a", (q) => q.eq("participantA", userId)).take(SECURITY_LIMITS.dm.maxConversationsPerUser);
         const asB = await ctx.db.query("dmConversations")
-            .withIndex("by_user_b", (q) => q.eq("participantB", userId)).collect();
+            .withIndex("by_user_b", (q) => q.eq("participantB", userId)).take(SECURITY_LIMITS.dm.maxConversationsPerUser);
 
         return Promise.all([...asA, ...asB].map(async (conv) => {
             const otherId = conv.participantA === userId
@@ -201,6 +227,7 @@ export const listConversations = query({
             return {
                 _id: conv._id,
                 otherUserId: otherId,
+                otherUserRealName: other?.name ?? other?.email ?? "Unknown",
                 otherUserName: other?.name ?? other?.email ?? "Unknown",
                 otherUserAvatar: avatar,
                 lastSeq: conv.lastSeq,

@@ -2,8 +2,9 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { SECURITY_LIMITS, assertPaginationLimit, assertRateLimit } from "./security";
 import { requireMembership } from "./users";
-import { assertLength } from "./validators";
+import { assertLength, assertNonEmpty } from "./validators";
 
 export const createConfession = mutation({
     args: {
@@ -11,13 +12,23 @@ export const createConfession = mutation({
         content: v.string(),
     },
     handler: async (ctx, args) => {
-        await requireMembership(ctx, args.squadId);
+        const { userId } = await requireMembership(ctx, args.squadId);
 
+        await assertRateLimit(ctx, ["createConfession", args.squadId, userId], SECURITY_LIMITS.rate.contentCreate);
+        assertNonEmpty("Confession", args.content);
         assertLength("Confession", args.content, 1000);
+
+        const existing = await ctx.db
+            .query("confessions")
+            .withIndex("by_squad", (q) => q.eq("squadId", args.squadId))
+            .take(SECURITY_LIMITS.content.maxConfessionsPerSquad);
+        if (existing.length >= SECURITY_LIMITS.content.maxConfessionsPerSquad) {
+            throw new Error(`A squad can have up to ${SECURITY_LIMITS.content.maxConfessionsPerSquad} confessions`);
+        }
 
         return await ctx.db.insert("confessions", {
             squadId: args.squadId,
-            content: args.content,
+            content: args.content.trim(),
             createdAt: Date.now(),
         });
     },
@@ -30,6 +41,7 @@ export const getConfessions = query({
     },
     handler: async (ctx, args) => {
         const { userId } = await requireMembership(ctx, args.squadId);
+        assertPaginationLimit("Confessions", args.paginationOpts);
 
         const result = await ctx.db
             .query("confessions")
@@ -46,7 +58,7 @@ export const getConfessions = query({
                 .withIndex("by_confession", (q) =>
                     q.eq("confessionId", confession._id)
                 )
-                .collect();
+                .take(SECURITY_LIMITS.query.maxReactionRead);
 
             const grouped = new Map<string, { emoji: string; count: number; hasReacted: boolean }>();
             for (const r of reactions) {
@@ -91,6 +103,8 @@ export const toggleConfessionReaction = mutation({
         if (!confession) throw new Error("Confession not found");
 
         await requireMembership(ctx, confession.squadId);
+
+        await assertRateLimit(ctx, ["confessionReaction", args.confessionId, userId], SECURITY_LIMITS.rate.reaction);
 
         const existing = await ctx.db
             .query("confessionReactions")

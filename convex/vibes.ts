@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { SECURITY_LIMITS, assertRateLimit } from "./security";
 import { enrichUser, requireMembership } from "./users";
 import { assertLength } from "./validators";
 
@@ -11,6 +12,8 @@ export const setVibe = mutation({
     },
     handler: async (ctx, args) => {
         const { userId, membership } = await requireMembership(ctx, args.squadId);
+
+        await assertRateLimit(ctx, ["setVibe", args.squadId, userId], SECURITY_LIMITS.rate.contentCreate);
 
         assertLength("Emoji", args.emoji, 10);
         if (args.label) assertLength("Label", args.label, 30);
@@ -48,7 +51,7 @@ export const getSquadVibes = query({
         const memberships = await ctx.db
             .query("memberships")
             .withIndex("by_squad", (q) => q.eq("squadId", args.squadId))
-            .collect();
+            .take(SECURITY_LIMITS.query.maxSquadMembersRead);
 
         const vibes = [];
         for (const m of memberships) {

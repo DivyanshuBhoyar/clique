@@ -1,9 +1,10 @@
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
-import { mutation, query } from "./_generated/server";
 import type { QueryCtx } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
+import { SECURITY_LIMITS, assertArrayLimit, assertRateLimit } from "./security";
 import { requireMembership } from "./users";
-import { assertLength } from "./validators";
+import { assertLength, assertNonEmpty } from "./validators";
 
 async function enrichPoll(ctx: QueryCtx, poll: Doc<"polls">, userId: Id<"users">) {
     const options = await ctx.db
@@ -44,8 +45,13 @@ export const createPoll = mutation({
     handler: async (ctx, args) => {
         const { userId } = await requireMembership(ctx, args.squadId);
 
+        await assertRateLimit(ctx, ["createPoll", args.squadId, userId], SECURITY_LIMITS.rate.contentCreate);
+
+        assertNonEmpty("Question", args.question);
         assertLength("Question", args.question, 300);
+        assertArrayLimit("Poll options", args.options, SECURITY_LIMITS.content.maxPollOptions);
         for (const opt of args.options) {
+            assertNonEmpty("Option", opt);
             assertLength("Option", opt, 100);
         }
 
@@ -53,9 +59,17 @@ export const createPoll = mutation({
             throw new Error("At least 2 options required");
         }
 
+        const existingPolls = await ctx.db
+            .query("polls")
+            .withIndex("by_squad", (q) => q.eq("squadId", args.squadId))
+            .take(SECURITY_LIMITS.content.maxPollsPerSquad);
+        if (existingPolls.length >= SECURITY_LIMITS.content.maxPollsPerSquad) {
+            throw new Error(`A squad can have up to ${SECURITY_LIMITS.content.maxPollsPerSquad} polls`);
+        }
+
         const pollId = await ctx.db.insert("polls", {
             squadId: args.squadId,
-            question: args.question,
+            question: args.question.trim(),
             createdBy: userId,
             expiresAt: args.expiresAt,
             createdAt: Date.now(),
@@ -64,7 +78,7 @@ export const createPoll = mutation({
         for (const text of args.options) {
             await ctx.db.insert("pollOptions", {
                 pollId,
-                text,
+                text: text.trim(),
             });
         }
 
@@ -82,6 +96,11 @@ export const votePoll = mutation({
         if (!poll) throw new Error("Poll not found");
 
         const { userId } = await requireMembership(ctx, poll.squadId);
+
+        await assertRateLimit(ctx, ["pollVote", args.pollId, userId], SECURITY_LIMITS.rate.pollVote);
+
+        const option = await ctx.db.get(args.optionId);
+        if (!option || option.pollId !== args.pollId) throw new Error("Invalid poll option");
 
         if (poll.expiresAt && Date.now() > poll.expiresAt) {
             throw new Error("Poll expired");

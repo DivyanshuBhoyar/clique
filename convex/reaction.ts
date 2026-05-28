@@ -1,6 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation } from "./_generated/server";
+import { SECURITY_LIMITS, assertRateLimit } from "./security";
 import { requireMembership } from "./users";
 import { assertLength } from "./validators";
 
@@ -20,6 +21,17 @@ export const toggleReaction = mutation({
         if (!message) throw new Error("Message not found");
 
         await requireMembership(ctx, message.squadId);
+
+        const channel = await ctx.db.get(message.channelId);
+        if (channel?.type === "private") {
+            const channelMembership = await ctx.db
+                .query("channelMemberships")
+                .withIndex("by_user_channel", (q) => q.eq("userId", userId).eq("channelId", message.channelId))
+                .first();
+            if (!channelMembership) throw new Error("Not a member of this channel");
+        }
+
+        await assertRateLimit(ctx, ["messageReaction", args.messageId, userId], SECURITY_LIMITS.rate.reaction);
 
         const existing = await ctx.db
             .query("reactions")

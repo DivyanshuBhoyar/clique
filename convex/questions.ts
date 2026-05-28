@@ -1,7 +1,8 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { SECURITY_LIMITS, assertRateLimit } from "./security";
 import { enrichUser, requireMembership } from "./users";
-import { assertLength } from "./validators";
+import { assertLength, assertNonEmpty } from "./validators";
 
 export const createWeeklyQuestion = mutation({
     args: {
@@ -11,13 +12,28 @@ export const createWeeklyQuestion = mutation({
     },
 
     handler: async (ctx, args) => {
-        await requireMembership(ctx, args.squadId);
+        const { userId } = await requireMembership(ctx, args.squadId);
 
+        await assertRateLimit(ctx, ["weeklyQuestion", args.squadId, userId], SECURITY_LIMITS.rate.contentCreate);
+        assertNonEmpty("Question", args.question);
         assertLength("Question", args.question, 300);
+
+        const existingQuestions = await ctx.db
+            .query("weeklyQuestions")
+            .withIndex("by_squad", (q) => q.eq("squadId", args.squadId))
+            .take(SECURITY_LIMITS.content.maxWeeklyQuestionsPerSquad);
+        if (existingQuestions.length >= SECURITY_LIMITS.content.maxWeeklyQuestionsPerSquad) {
+            throw new Error(`A squad can have up to ${SECURITY_LIMITS.content.maxWeeklyQuestionsPerSquad} weekly questions`);
+        }
+
+        if (args.channelId) {
+            const channel = await ctx.db.get(args.channelId);
+            if (!channel || channel.squadId !== args.squadId) throw new Error("Invalid channel");
+        }
 
         return await ctx.db.insert("weeklyQuestions", {
             squadId: args.squadId,
-            question: args.question,
+            question: args.question.trim(),
             channelId: args.channelId,
             createdAt: Date.now(),
         });
@@ -39,6 +55,8 @@ export const answerWeeklyQuestion = mutation({
             question.squadId
         );
 
+        await assertRateLimit(ctx, ["weeklyAnswer", question.squadId, userId], SECURITY_LIMITS.rate.contentCreate);
+        assertNonEmpty("Answer", args.content);
         assertLength("Answer", args.content, 2000);
 
         const existing = await ctx.db
@@ -50,7 +68,7 @@ export const answerWeeklyQuestion = mutation({
 
         if (existing) {
             await ctx.db.patch(existing._id, {
-                content: args.content,
+                content: args.content.trim(),
                 updatedAt: Date.now(),
             });
             return existing._id;
@@ -59,7 +77,7 @@ export const answerWeeklyQuestion = mutation({
         return await ctx.db.insert("weeklyAnswers", {
             questionId: args.questionId,
             userId,
-            content: args.content,
+            content: args.content.trim(),
             createdAt: Date.now(),
         });
     },
@@ -77,14 +95,14 @@ export const getWeeklyQuestions = query({
             .query("weeklyQuestions")
             .withIndex("by_squad", (q) => q.eq("squadId", args.squadId))
             .order("desc")
-            .collect();
+            .take(SECURITY_LIMITS.query.maxQuestionRead);
 
         return await Promise.all(
             questions.map(async (q) => {
                 const answers = await ctx.db
                     .query("weeklyAnswers")
                     .withIndex("by_question", (qa) => qa.eq("questionId", q._id))
-                    .collect();
+                    .take(SECURITY_LIMITS.query.maxAnswerRead);
                 return {
                     ...q,
                     answers,
@@ -112,7 +130,7 @@ export const getCurrentQuestion = query({
             const memberCount = (await ctx.db
                 .query("memberships")
                 .withIndex("by_squad", (q) => q.eq("squadId", args.squadId))
-                .collect()).length;
+                .take(SECURITY_LIMITS.query.maxSquadMembersRead)).length;
 
             return { question: null, answers: [], myAnswer: null, answerCount: 0, squadMemberCount: memberCount };
         }
@@ -120,7 +138,7 @@ export const getCurrentQuestion = query({
         const answers = await ctx.db
             .query("weeklyAnswers")
             .withIndex("by_question", (q) => q.eq("questionId", question._id))
-            .collect();
+            .take(SECURITY_LIMITS.query.maxAnswerRead);
 
         const enrichedAnswers = [];
         for (const a of answers) {
@@ -137,7 +155,7 @@ export const getCurrentQuestion = query({
         const memberCount = (await ctx.db
             .query("memberships")
             .withIndex("by_squad", (q) => q.eq("squadId", args.squadId))
-            .collect()).length;
+            .take(SECURITY_LIMITS.query.maxSquadMembersRead)).length;
 
         return {
             question,

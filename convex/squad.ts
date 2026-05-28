@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { SECURITY_LIMITS, assertRateLimit } from "./security";
 import { requireMembership } from "./users";
 import { assertLength, assertNonEmpty } from "./validators";
 
@@ -36,6 +37,8 @@ export const createSquad = mutation({
         const userId = await getAuthUserId(ctx);
         if (!userId) throw new Error("Unauthenticated");
 
+        await assertRateLimit(ctx, ["createSquad", userId], SECURITY_LIMITS.rate.createSquad);
+
         assertNonEmpty("Name", args.name);
         assertLength("Name", args.name, 50);
         assertNonEmpty("Password", args.password);
@@ -43,12 +46,20 @@ export const createSquad = mutation({
         assertNonEmpty("Nickname", args.nickname);
         assertLength("Nickname", args.nickname, 30);
 
+        const existingMemberships = await ctx.db
+            .query("memberships")
+            .withIndex("by_user", (q) => q.eq("userId", userId))
+            .take(SECURITY_LIMITS.squads.maxPerUser);
+        if (existingMemberships.length >= SECURITY_LIMITS.squads.maxPerUser) {
+            throw new Error(`You can join up to ${SECURITY_LIMITS.squads.maxPerUser} squads`);
+        }
+
         const now = Date.now();
 
         const passwordHash = await hashPassword(args.password);
 
         const squadId = await ctx.db.insert("squads", {
-            name: args.name,
+            name: args.name.trim(),
             passwordHash,
             createdBy: userId,
             createdAt: now,
@@ -57,7 +68,7 @@ export const createSquad = mutation({
         await ctx.db.insert("memberships", {
             userId,
             squadId,
-            nickname: args.nickname,
+            nickname: args.nickname.trim(),
             joinedAt: now,
         });
 
@@ -86,6 +97,8 @@ export const joinSquad = mutation({
         const userId = await getAuthUserId(ctx);
         if (!userId) throw new Error("Unauthenticated");
 
+        await assertRateLimit(ctx, ["joinSquad", userId], SECURITY_LIMITS.rate.joinSquad);
+
         assertNonEmpty("Squad name", args.squadName);
         assertNonEmpty("Password", args.password);
         assertNonEmpty("Nickname", args.nickname);
@@ -95,7 +108,7 @@ export const joinSquad = mutation({
 
         const squad = await ctx.db
             .query("squads")
-            .withIndex("by_name", (q) => q.eq("name", args.squadName))
+            .withIndex("by_name", (q) => q.eq("name", args.squadName.trim()))
             .first();
 
         if (!squad) throw new Error("Squad not found");
@@ -118,14 +131,31 @@ export const joinSquad = mutation({
 
         if (existing) return squadId;
 
+        const [userMemberships, squadMemberships] = await Promise.all([
+            ctx.db
+                .query("memberships")
+                .withIndex("by_user", (q) => q.eq("userId", userId))
+                .take(SECURITY_LIMITS.squads.maxPerUser),
+            ctx.db
+                .query("memberships")
+                .withIndex("by_squad", (q) => q.eq("squadId", squadId))
+                .take(SECURITY_LIMITS.squads.maxMembers),
+        ]);
+        if (userMemberships.length >= SECURITY_LIMITS.squads.maxPerUser) {
+            throw new Error(`You can join up to ${SECURITY_LIMITS.squads.maxPerUser} squads`);
+        }
+        if (squadMemberships.length >= SECURITY_LIMITS.squads.maxMembers) {
+            throw new Error("This squad is full");
+        }
+
         const joinedAt = Date.now();
 
         await ctx.db.insert("memberships", {
             userId,
             squadId: squadId,
-            nickname: args.nickname,
-            ...(args.vibe ? { vibe: args.vibe, vibeUpdatedAt: joinedAt } : {}),
-            ...(args.statusText ? { statusText: args.statusText } : {}),
+            nickname: args.nickname.trim(),
+            ...(args.vibe ? { vibe: args.vibe.trim(), vibeUpdatedAt: joinedAt } : {}),
+            ...(args.statusText ? { statusText: args.statusText.trim() } : {}),
             joinedAt,
         });
 
@@ -142,7 +172,7 @@ export const getUserSquads = query({
         const memberships = await ctx.db
             .query("memberships")
             .withIndex("by_user", (q) => q.eq("userId", userId))
-            .collect();
+            .take(SECURITY_LIMITS.squads.maxPerUser + 1);
 
         if (memberships.length === 0) {
             return [];
@@ -179,7 +209,7 @@ export const getCurrentUserSquads = query({
             .withIndex("by_user", (q) =>
                 q.eq("userId", userId)
             )
-            .collect();
+            .take(SECURITY_LIMITS.squads.maxPerUser + 1);
 
         if (memberships.length === 0) return [];
 
@@ -278,7 +308,7 @@ export const getSquadMembers = query({
         const memberships = await ctx.db
             .query("memberships")
             .withIndex("by_squad", (q) => q.eq("squadId", args.squadId))
-            .collect();
+            .take(SECURITY_LIMITS.query.maxSquadMembersRead);
 
         const enriched = await Promise.all(
             memberships.map(async (m) => {

@@ -2,8 +2,8 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-
-const MAX_DEVICES = 3;
+import { SECURITY_LIMITS, assertRateLimit, assertUsersShareSquad } from "./security";
+import { assertLength, assertNonEmpty } from "./validators";
 
 export const registerDevice = mutation({
     args: {
@@ -15,10 +15,17 @@ export const registerDevice = mutation({
         const userId = await getAuthUserId(ctx);
         if (!userId) throw new Error("Unauthenticated");
 
+        await assertRateLimit(ctx, ["registerDevice", userId], SECURITY_LIMITS.rate.registerDevice);
+        assertNonEmpty("Device id", args.deviceId);
+        assertLength("Device id", args.deviceId, 100);
+        assertNonEmpty("Public key", args.publicKey);
+        assertLength("Public key", args.publicKey, 200);
+        assertLength("Device name", args.deviceName, 80);
+
         const existing = await ctx.db
             .query("deviceKeys")
             .withIndex("by_user", (q) => q.eq("userId", userId))
-            .collect();
+            .take(SECURITY_LIMITS.dm.maxUserDevices);
 
         const dup = existing.find((d) => d.deviceId === args.deviceId);
         if (dup) {
@@ -26,7 +33,7 @@ export const registerDevice = mutation({
             return;
         }
 
-        if (existing.length >= MAX_DEVICES) {
+        if (existing.length >= SECURITY_LIMITS.dm.maxUserDevices) {
             throw new Error("MAX_DEVICES_REACHED");
         }
 
@@ -53,10 +60,22 @@ export const registerDevice = mutation({
 export const getDevicesForUser = query({
     args: { userId: v.id("users") },
     handler: async (ctx, { userId }) => {
-        return ctx.db
+        const currentUserId = await getAuthUserId(ctx);
+        if (!currentUserId) throw new Error("Unauthenticated");
+        if (currentUserId !== userId) {
+            await assertUsersShareSquad(ctx, currentUserId, userId);
+        }
+
+        const devices = await ctx.db
             .query("deviceKeys")
             .withIndex("by_user", (q) => q.eq("userId", userId))
-            .collect();
+            .take(SECURITY_LIMITS.dm.maxUserDevices);
+
+        return devices.map((device) => ({
+            userId: device.userId,
+            deviceId: device.deviceId,
+            publicKey: device.publicKey,
+        }));
     },
 });
 
@@ -65,6 +84,8 @@ export const removeDevice = mutation({
     handler: async (ctx, { deviceId }) => {
         const userId = await getAuthUserId(ctx);
         if (!userId) throw new Error("Unauthenticated");
+
+        assertLength("Device id", deviceId, 100);
 
         const device = await ctx.db
             .query("deviceKeys")
@@ -81,6 +102,10 @@ export const updateDeviceKey = mutation({
     handler: async (ctx, args) => {
         const userId = await getAuthUserId(ctx);
         if (!userId) throw new Error("Unauthenticated");
+
+        assertLength("Device id", args.deviceId, 100);
+        assertNonEmpty("Public key", args.publicKey);
+        assertLength("Public key", args.publicKey, 200);
 
         const device = await ctx.db
             .query("deviceKeys")

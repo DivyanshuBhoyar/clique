@@ -3,6 +3,7 @@ import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { MutationCtx, QueryCtx, mutation, query } from "./_generated/server";
+import { SECURITY_LIMITS, assertPaginationLimit, assertRateLimit } from "./security";
 import { enrichUser, requireMembership } from "./users";
 import { assertLength } from "./validators";
 
@@ -134,12 +135,33 @@ export const createNote = mutation({
         const { userId } = await requireMembership(ctx, args.squadId);
         const now = Date.now();
 
+        await assertRateLimit(ctx, ["createNote", args.squadId, userId], SECURITY_LIMITS.rate.contentCreate);
+
         assertLength("Title", args.title, 200);
         assertLength("Content", args.content, 10000);
         if (args.tag) assertLength("Tag", args.tag, 50);
 
+        const existingNotes = await ctx.db
+            .query("notes")
+            .withIndex("by_owner_squad", (q) => q.eq("ownerId", userId).eq("squadId", args.squadId))
+            .take(SECURITY_LIMITS.content.maxNotesPerUserPerSquad);
+        if (existingNotes.length >= SECURITY_LIMITS.content.maxNotesPerUserPerSquad) {
+            throw new Error(`You can create up to ${SECURITY_LIMITS.content.maxNotesPerUserPerSquad} notes in one squad`);
+        }
+
         if (args.type === "friend" && !args.targetUserId) {
             throw new Error("targetUserId required for friend note");
+        }
+        if (args.targetUserId) {
+            const targetMembership = await ctx.db
+                .query("memberships")
+                .withIndex("by_user_squad", (q) => q.eq("userId", args.targetUserId!).eq("squadId", args.squadId))
+                .first();
+            if (!targetMembership) throw new Error("Friend notes must target a squad member");
+        }
+        if (args.channelId) {
+            const channel = await ctx.db.get(args.channelId);
+            if (!channel || channel.squadId !== args.squadId) throw new Error("Invalid channel");
         }
 
         const noteId = await ctx.db.insert("notes", {
@@ -189,6 +211,8 @@ export const updateNote = mutation({
             await requireMembership(ctx, note.squadId);
         }
 
+        await assertRateLimit(ctx, ["updateNote", note.squadId, userId], SECURITY_LIMITS.rate.noteUpdate);
+
         const now = Date.now();
         const updates: Record<string, unknown> = {
             updatedAt: now,
@@ -235,6 +259,7 @@ export const getNotesFeed = query({
     },
     handler: async (ctx, args) => {
         const { userId } = await requireMembership(ctx, args.squadId);
+        assertPaginationLimit("Notes", args.paginationOpts);
         const normalizedFilter = args.filter;
 
         let sourcePage: any[] = [];
@@ -253,7 +278,7 @@ export const getNotesFeed = query({
             isDone = mineResult.isDone;
             continueCursor = mineResult.continueCursor;
         } else {
-            const overfetchCount = Math.max(args.paginationOpts.numItems * 4, 40);
+            const overfetchCount = Math.min(Math.max(args.paginationOpts.numItems * 4, 40), SECURITY_LIMITS.query.maxPageSize * 4);
             const broadResult = await ctx.db
                 .query("notes")
                 .withIndex("by_squad_and_updatedAt", (q) => q.eq("squadId", args.squadId))
@@ -346,7 +371,7 @@ export const deleteNote = mutation({
         const bookmarks = await ctx.db
             .query("bookmarks")
             .withIndex("by_note", (q) => q.eq("noteId", args.noteId))
-            .collect();
+            .take(SECURITY_LIMITS.query.maxReactionRead);
         for (const b of bookmarks) await ctx.db.delete(b._id);
 
         await ctx.db.delete(args.noteId);
@@ -362,6 +387,7 @@ export const getPersonalNotes = query({
     },
     handler: async (ctx, args) => {
         const { userId } = await requireMembership(ctx, args.squadId);
+        assertPaginationLimit("Personal notes", args.paginationOpts);
 
         // Use compound index so pagination returns correctly-sized pages
         // (no post-filter needed — only the user's own notes for this squad)
@@ -442,6 +468,7 @@ export const getJournals = query({
     },
     handler: async (ctx, args) => {
         const { userId } = await requireMembership(ctx, args.squadId);
+        assertPaginationLimit("Journals", args.paginationOpts);
 
         const result = await ctx.db
             .query("notes")
@@ -462,6 +489,7 @@ export const getSharedNotes = query({
     },
     handler: async (ctx, args) => {
         await requireMembership(ctx, args.squadId);
+        assertPaginationLimit("Shared notes", args.paginationOpts);
 
         const result = await ctx.db
             .query("notes")
@@ -501,7 +529,7 @@ export const getNotes = query({
     },
 
     handler: async (ctx, args) => {
-        const limit = args.limit ?? 30;
+        const limit = Math.min(Math.max(args.limit ?? 30, 1), SECURITY_LIMITS.query.maxPageSize);
 
         const { userId } = await requireMembership(ctx, args.squadId);
 

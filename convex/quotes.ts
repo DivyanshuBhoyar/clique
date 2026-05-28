@@ -1,8 +1,9 @@
 import { v } from "convex/values";
 import { Doc, Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
+import { SECURITY_LIMITS, assertRateLimit } from "./security";
 import { requireMembership } from "./users";
-import { assertLength } from "./validators";
+import { assertLength, assertNonEmpty } from "./validators";
 
 export const createQuote = mutation({
     args: {
@@ -14,7 +15,17 @@ export const createQuote = mutation({
     handler: async (ctx, args) => {
         const { userId } = await requireMembership(ctx, args.squadId);
 
+        await assertRateLimit(ctx, ["createQuote", args.squadId, userId], SECURITY_LIMITS.rate.contentCreate);
+        assertNonEmpty("Quote", args.content);
         assertLength("Quote", args.content, 500);
+
+        const existingQuotes = await ctx.db
+            .query("quotes")
+            .withIndex("by_squad", (q) => q.eq("squadId", args.squadId))
+            .take(SECURITY_LIMITS.content.maxQuotesPerSquad);
+        if (existingQuotes.length >= SECURITY_LIMITS.content.maxQuotesPerSquad) {
+            throw new Error(`A squad can have up to ${SECURITY_LIMITS.content.maxQuotesPerSquad} quotes`);
+        }
 
         if (args.messageId) {
             const message = await ctx.db.get(args.messageId);
@@ -26,7 +37,7 @@ export const createQuote = mutation({
 
         return await ctx.db.insert("quotes", {
             squadId: args.squadId,
-            content: args.content,
+            content: args.content.trim(),
             createdBy: userId,
             messageId: args.messageId,
             createdAt: Date.now(),
@@ -42,7 +53,7 @@ export const getQuotes = query({
     },
 
     handler: async (ctx, args) => {
-        const limit = args.limit ?? 30;
+        const limit = Math.min(Math.max(args.limit ?? 30, 1), SECURITY_LIMITS.query.maxPageSize);
         await requireMembership(ctx, args.squadId);
 
         let q = ctx.db

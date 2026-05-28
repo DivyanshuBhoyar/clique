@@ -3,7 +3,8 @@ import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
-import { enrichUser, requireMembership } from "./users";
+import { assertPaginationLimit } from "./security";
+import { requireMembership } from "./users";
 
 export const toggleBookmark = mutation({
     args: {
@@ -28,6 +29,14 @@ export const toggleBookmark = mutation({
             const msg = await ctx.db.get(args.messageId);
             if (!msg) throw new Error("Message not found");
             squadId = msg.squadId;
+            const channel = await ctx.db.get(msg.channelId);
+            if (channel?.type === "private") {
+                const channelMembership = await ctx.db
+                    .query("channelMemberships")
+                    .withIndex("by_user_channel", (q) => q.eq("userId", userId).eq("channelId", msg.channelId))
+                    .first();
+                if (!channelMembership) throw new Error("Not a member of this channel");
+            }
         } else if (args.dropId) {
             const drop = await ctx.db.get(args.dropId);
             if (!drop) throw new Error("Drop not found");
@@ -36,6 +45,12 @@ export const toggleBookmark = mutation({
             const note = await ctx.db.get(args.noteId);
             if (!note) throw new Error("Note not found");
             squadId = note.squadId;
+            if (note.type === "personal" || note.type === "journal") {
+                if (note.ownerId !== userId) throw new Error("Unauthorized");
+            }
+            if (note.type === "friend") {
+                if (note.ownerId !== userId && note.targetUserId !== userId) throw new Error("Unauthorized");
+            }
         } else if (args.memoryId) {
             const memory = await ctx.db.get(args.memoryId);
             if (!memory) throw new Error("Memory not found");
@@ -86,6 +101,8 @@ export const getBookmarks = query({
     },
     handler: async (ctx, args) => {
         const { userId } = await requireMembership(ctx, args.squadId);
+        assertPaginationLimit("Bookmarks", args.paginationOpts);
+        // Bookmarks only expose items the user explicitly bookmarked after passing target visibility checks.
 
         const result = await ctx.db
             .query("bookmarks")

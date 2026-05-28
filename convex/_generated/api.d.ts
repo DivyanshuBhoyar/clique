@@ -29,6 +29,7 @@ import type * as presence from "../presence.js";
 import type * as questions from "../questions.js";
 import type * as quotes from "../quotes.js";
 import type * as reaction from "../reaction.js";
+import type * as security from "../security.js";
 import type * as squad from "../squad.js";
 import type * as typing from "../typing.js";
 import type * as users from "../users.js";
@@ -63,6 +64,7 @@ declare const fullApi: ApiFromModules<{
   questions: typeof questions;
   quotes: typeof quotes;
   reaction: typeof reaction;
+  security: typeof security;
   squad: typeof squad;
   typing: typeof typing;
   users: typeof users;
