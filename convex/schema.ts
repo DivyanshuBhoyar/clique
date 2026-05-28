@@ -4,6 +4,15 @@ import { v } from "convex/values";
 
 export default defineSchema({
     ...authTables,
+    rateLimits: defineTable({
+        key: v.string(),
+        windowStartedAt: v.number(),
+        count: v.number(),
+        updatedAt: v.number(),
+    })
+        .index("by_key", ["key"])
+        .index("by_updatedAt", ["updatedAt"]),
+
     userAvatars: defineTable({
         userId: v.id("users"),
         storageId: v.id("_storage"),
@@ -36,6 +45,7 @@ export default defineSchema({
     channels: defineTable({
         squadId: v.id("squads"),
         name: v.string(),
+        emoji: v.optional(v.string()),
         type: v.union(
             v.literal("main"),
             v.literal("topic"),
@@ -61,11 +71,17 @@ export default defineSchema({
 
         content: v.string(),
 
-        type: v.union(v.literal("text"), v.literal("image"), v.literal("system")),
+        type: v.union(v.literal("text"), v.literal("image"), v.literal("gif"), v.literal("system")),
 
         parentMessageId: v.optional(v.id("messages")),
 
         storageId: v.optional(v.id("_storage")),
+
+        // GIF metadata (populated when type === "gif")
+        gifUrl: v.optional(v.string()),
+        gifPreviewUrl: v.optional(v.string()),
+        gifId: v.optional(v.string()),
+        gifTitle: v.optional(v.string()),
 
         nickname: v.optional(v.string()),
         avatarUrl: v.optional(v.string()),
@@ -256,7 +272,8 @@ export default defineSchema({
         createdAt: v.number(),
     })
         .index("by_squad", ["squadId", "createdAt"])
-        .index("by_user", ["userId", "createdAt"]),
+        .index("by_user", ["userId", "createdAt"])
+        .index("by_user_squad", ["userId", "squadId", "createdAt"]),
 
     dropReactions: defineTable({
         dropId: v.id("drops"),
@@ -272,6 +289,10 @@ export default defineSchema({
         dropId: v.id("drops"),
         userId: v.id("users"),
         content: v.string(),
+        gifUrl: v.optional(v.string()),
+        gifPreviewUrl: v.optional(v.string()),
+        gifId: v.optional(v.string()),
+        gifTitle: v.optional(v.string()),
         createdAt: v.number(),
     }).index("by_drop", ["dropId", "createdAt"]),
 
@@ -306,6 +327,10 @@ export default defineSchema({
         memoryId: v.id("memories"),
         userId: v.id("users"),
         content: v.string(),
+        gifUrl: v.optional(v.string()),
+        gifPreviewUrl: v.optional(v.string()),
+        gifId: v.optional(v.string()),
+        gifTitle: v.optional(v.string()),
         createdAt: v.number(),
     })
         .index("by_memory", ["memoryId", "createdAt"]),
@@ -323,6 +348,10 @@ export default defineSchema({
         itemId: v.id("memoryItems"),
         userId: v.id("users"),
         content: v.string(),
+        gifUrl: v.optional(v.string()),
+        gifPreviewUrl: v.optional(v.string()),
+        gifId: v.optional(v.string()),
+        gifTitle: v.optional(v.string()),
         createdAt: v.number(),
     })
         .index("by_item", ["itemId", "createdAt"]),
