@@ -1,9 +1,10 @@
 import { ThumbsDown, ThumbsUp, Trash2 } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { GifAttachment } from '@/components/giphy/gif-attachment';
 import { ThemedText } from '@/components/themed-text';
 import { UserAvatar } from '@/components/user-avatar';
-import { Radius, Spacing, Weight, LineHeight, Typography } from '@/constants/theme';
+import { LineHeight, Radius, Spacing, Typography, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { formatRelativeTime } from '@/utils/time';
 
@@ -11,6 +12,8 @@ interface CommentCardProps {
   avatarUrl?: string | null;
   nickname: string;
   content: string;
+  gifUrl?: string | null;
+  gifTitle?: string | null;
   createdAt: number;
   upvotes: number;
   downvotes: number;
@@ -25,6 +28,8 @@ export function CommentCard({
   avatarUrl,
   nickname,
   content,
+  gifUrl,
+  gifTitle,
   createdAt,
   upvotes,
   downvotes,
@@ -64,7 +69,14 @@ export function CommentCard({
         )}
       </View>
       <View style={styles.bodyRow}>
-        <ThemedText style={styles.content} selectable>{content}</ThemedText>
+        <View style={styles.bodyLeft}>
+          {gifUrl && (
+            <GifAttachment gifUrl={gifUrl} gifTitle={gifTitle} maxWidth={200} />
+          )}
+          {content ? (
+            <ThemedText style={styles.content} selectable>{content}</ThemedText>
+          ) : null}
+        </View>
         <View style={styles.votes}>
           <Pressable
             onPress={() => onVote('up')}
@@ -145,12 +157,15 @@ const styles = StyleSheet.create({
   },
   bodyRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: Spacing.sm,
     paddingLeft: 26 + Spacing.xs,
   },
-  content: {
+  bodyLeft: {
     flex: 1,
+    gap: Spacing.xs,
+  },
+  content: {
     fontSize: Typography.small,
     lineHeight: LineHeight.small,
   },
