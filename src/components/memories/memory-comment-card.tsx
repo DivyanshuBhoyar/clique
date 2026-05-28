@@ -1,6 +1,7 @@
 import { Heart } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 
+import { GifAttachment } from '@/components/giphy/gif-attachment';
 import { ThemedText } from '@/components/themed-text';
 import { LinkPreviewCard } from '@/components/ui/link-preview-card';
 import { LinkifiedText } from '@/components/ui/linkified-text';
@@ -14,12 +15,14 @@ interface MemoryCommentCardProps {
     avatarUrl?: string | null;
     nickname: string;
     content: string;
+    gifUrl?: string | null;
+    gifTitle?: string | null;
     createdAt: number;
 }
 
-export function MemoryCommentCard({ avatarUrl, nickname, content, createdAt }: MemoryCommentCardProps) {
+export function MemoryCommentCard({ avatarUrl, nickname, content, gifUrl, gifTitle, createdAt }: MemoryCommentCardProps) {
     const theme = useTheme();
-    const firstUrl = extractUrls(content)[0]?.url;
+    const firstUrl = content ? extractUrls(content)[0]?.url : undefined;
 
     return (
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.outline }]}>
@@ -30,7 +33,8 @@ export function MemoryCommentCard({ avatarUrl, nickname, content, createdAt }: M
                     {formatRelativeTime(createdAt)}
                 </ThemedText>
             </View>
-            <LinkifiedText style={styles.content}>{content}</LinkifiedText>
+            {gifUrl && <GifAttachment gifUrl={gifUrl} gifTitle={gifTitle} maxWidth={220} />}
+            {content ? <LinkifiedText style={styles.content}>{content}</LinkifiedText> : null}
             {firstUrl ? <LinkPreviewCard url={firstUrl} compact /> : null}
             <View style={styles.footer}>
                 <View style={styles.heartRow}>
