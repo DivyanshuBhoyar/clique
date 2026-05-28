@@ -57,6 +57,8 @@ export function ChatMessageList({
                 reactions={item.reactions}
                 currentUserId={currentUserId}
                 imageUrl={item.imageUrl}
+                gifUrl={item.gifUrl}
+                gifTitle={item.gifTitle}
                 seenByText={seenByText}
                 onToggleReaction={onToggleReaction}
                 onLongPress={() => onSelectMessage(item)}
@@ -100,5 +102,5 @@ export function ChatMessageList({
 
 const styles = StyleSheet.create({
     inner: { flex: 1 },
-    listContent: { paddingVertical: Spacing.sm },
+    listContent: { paddingTop: Spacing.lg, paddingBottom: Spacing.sm },
 });

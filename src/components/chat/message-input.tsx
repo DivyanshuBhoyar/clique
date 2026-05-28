@@ -2,11 +2,14 @@ import { Plus, Send, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
+import { GifAttachment } from '@/components/giphy/gif-attachment';
+import { GifPickerModal } from '@/components/giphy/gif-picker-modal';
 import { ThemedText } from '@/components/themed-text';
-import { LineHeight, Radius, Spacing, Typography } from '@/constants/theme';
+import { LineHeight, Radius, Spacing, Typography, Weight } from '@/constants/theme';
 import { Id } from '@/convex/_generated/dataModel';
 import { useImageUpload } from '@/hooks/use-image-upload';
 import { useTheme } from '@/hooks/use-theme';
+import { type GiphyGif, pingGiphy } from '@/lib/giphy';
 import { successNotification } from '@/utils/haptics';
 
 interface ReplyTarget {
@@ -17,6 +20,7 @@ interface ReplyTarget {
 interface MessageInputProps {
   onSend: (content: string) => Promise<void>;
   onSendImage: (storageId: Id<"_storage">, caption?: string) => Promise<void>;
+  onSendGif: (gif: GiphyGif) => Promise<void>;
   onEdit?: (content: string) => Promise<void>;
   onTyping?: () => void;
   replyTo?: ReplyTarget | null;
@@ -25,9 +29,11 @@ interface MessageInputProps {
   onCancelEdit?: () => void;
 }
 
-export function MessageInput({ onSend, onSendImage, onEdit, onTyping, replyTo, onCancelReply, editContent, onCancelEdit }: MessageInputProps) {
+export function MessageInput({ onSend, onSendImage, onSendGif, onEdit, onTyping, replyTo, onCancelReply, editContent, onCancelEdit }: MessageInputProps) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const [gifPickerVisible, setGifPickerVisible] = useState(false);
+  const [pendingGif, setPendingGif] = useState<GiphyGif | null>(null);
   const theme = useTheme();
   const { previewUri, storageId, uploading, pickAndUpload, reset } = useImageUpload();
   const isEditing = editContent !== undefined && editContent !== null;
@@ -35,11 +41,12 @@ export function MessageInput({ onSend, onSendImage, onEdit, onTyping, replyTo, o
   useEffect(() => {
     if (isEditing) {
       reset();
+      setPendingGif(null);
       setText(editContent ?? '');
     }
   }, [editContent, isEditing, reset]);
 
-  const canSend = (isEditing ? text.trim().length > 0 : (text.trim().length > 0 || (previewUri && storageId))) && !sending && !uploading;
+  const canSend = (isEditing ? text.trim().length > 0 : (text.trim().length > 0 || (previewUri && storageId) || pendingGif !== null)) && !sending && !uploading;
 
   const handleSend = async () => {
     if (!canSend) return;
@@ -48,6 +55,10 @@ export function MessageInput({ onSend, onSendImage, onEdit, onTyping, replyTo, o
     try {
       if (isEditing && onEdit) {
         await onEdit(text.trim());
+      } else if (pendingGif) {
+        pingGiphy('onsent', pendingGif);
+        await onSendGif(pendingGif);
+        setPendingGif(null);
       } else if (previewUri && storageId) {
         await onSendImage(storageId, text.trim() || undefined);
         reset();
@@ -65,6 +76,7 @@ export function MessageInput({ onSend, onSendImage, onEdit, onTyping, replyTo, o
   };
 
   return (
+    <>
     <View
       style={[
         styles.container,
@@ -133,21 +145,46 @@ export function MessageInput({ onSend, onSendImage, onEdit, onTyping, replyTo, o
         </View>
       )}
 
+      {/* GIF preview */}
+      {!isEditing && pendingGif && (
+        <View style={styles.previewRow}>
+          <View style={styles.previewWrap}>
+            <GifAttachment gifUrl={pendingGif.previewUrl} gifTitle={pendingGif.title} maxWidth={80} />
+            <Pressable onPress={() => setPendingGif(null)} style={styles.previewClose}>
+              <X size={14} color="#fff" />
+            </Pressable>
+          </View>
+        </View>
+      )}
+
       <View style={styles.inputRow}>
         {/* Attachment button */}
         {!isEditing ? (
           <Pressable
             accessibilityLabel="Add attachment"
             accessibilityRole="button"
-            style={styles.sideBtn}
+            style={[styles.sideBtn, { backgroundColor: theme.surface, borderColor: theme.outlineLight }]}
             onPress={pickAndUpload}
             disabled={uploading}
           >
             {uploading ? (
               <ActivityIndicator size="small" color={theme.textSecondary} />
             ) : (
-              <Plus size={20} color={theme.textSecondary} strokeWidth={2} />
+              <Plus size={16} color={theme.textSecondary} strokeWidth={2} />
             )}
+          </Pressable>
+        ) : null}
+
+        {/* GIF button */}
+        {!isEditing ? (
+          <Pressable
+            accessibilityLabel="Send a GIF"
+            accessibilityRole="button"
+            style={[styles.gifBtn, { backgroundColor: theme.surface, borderColor: theme.outlineLight }]}
+            onPress={() => setGifPickerVisible(true)}
+            disabled={uploading}
+          >
+            <ThemedText style={[styles.gifBtnLabel, { color: theme.textSecondary }]}>GIF</ThemedText>
           </Pressable>
         ) : null}
 
@@ -157,14 +194,14 @@ export function MessageInput({ onSend, onSendImage, onEdit, onTyping, replyTo, o
             styles.inputWrap,
             {
               backgroundColor: theme.surface,
-              borderColor: theme.outline,
+              borderColor: theme.outlineLight,
             },
           ]}
         >
           <TextInput
             value={text}
             onChangeText={(v) => { setText(v); onTyping?.(); }}
-            placeholder={isEditing ? "Edit message..." : previewUri ? "Add a caption..." : "Say something cozy..."}
+            placeholder={isEditing ? "Edit message..." : previewUri ? "Add a caption..." : "Say something..."}
             placeholderTextColor={theme.placeholder}
             style={[
               styles.input,
@@ -188,33 +225,42 @@ export function MessageInput({ onSend, onSendImage, onEdit, onTyping, replyTo, o
           style={({ pressed }) => [
             styles.sendBtn,
             {
-              backgroundColor: canSend ? theme.accent : theme.backgroundElement,
-              borderColor: canSend ? theme.outline : theme.outlineLight,
+              backgroundColor: canSend ? '#7357E8' : theme.backgroundElement,
+              borderColor: canSend ? '#7357E8' : theme.outlineLight,
             },
             pressed && canSend && styles.sendBtnPressed,
           ]}
         >
           <Send
-            size={16}
-            color={canSend ? theme.text : theme.textSecondary}
+            size={14}
+            color={canSend ? theme.surface : theme.textSecondary}
             strokeWidth={2.5}
           />
         </Pressable>
       </View>
     </View>
+    <GifPickerModal
+      visible={gifPickerVisible}
+      onClose={() => setGifPickerVisible(false)}
+      onSelect={(gif) => {
+        setPendingGif(gif);
+        pingGiphy('onload', gif);
+      }}
+    />
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    borderTopWidth: 1.5,
+    borderTopWidth: 1,
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 6,
-    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    gap: Spacing.sm,
   },
   previewRow: {
     flexDirection: 'row',
@@ -278,24 +324,40 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sideBtn: {
-    width: 44,
-    height: 44,
+    width: 32,
+    height: 32,
+    borderRadius: Radius.full,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
+  },
+  gifBtn: {
+    height: 32,
+    paddingHorizontal: Spacing.xs,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  gifBtnLabel: {
+    fontSize: 11,
+    fontWeight: Weight.bold,
+    lineHeight: 14,
   },
   inputWrap: {
     flex: 1,
     justifyContent: 'center',
-    borderRadius: Radius.lg,
-    borderWidth: 1.5,
+    borderRadius: Radius.full,
+    borderWidth: 1,
     paddingHorizontal: Spacing.md,
-    paddingVertical: 7,
-    minHeight: 40,
+    paddingVertical: Spacing.xs,
     maxHeight: 104,
   },
   input: {
-    fontSize: Typography.body,
-    lineHeight: LineHeight.body,
+    fontSize: Typography.small,
+    lineHeight: LineHeight.small,
     paddingTop: 0,
     paddingBottom: 0,
     textAlignVertical: 'center',
@@ -304,12 +366,13 @@ const styles = StyleSheet.create({
     outlineWidth: 0,
   },
   sendBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 1.5,
+    width: 36,
+    height: 36,
+    borderRadius: Radius.full,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   sendBtnPressed: {
     transform: [{ scale: 0.92 }],

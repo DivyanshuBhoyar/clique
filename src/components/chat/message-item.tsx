@@ -16,6 +16,7 @@
 import { useMemo, useRef } from 'react';
 import { Animated, Image, PanResponder, Pressable, StyleSheet, View } from 'react-native';
 
+import { GifAttachment } from '@/components/giphy/gif-attachment';
 import { ThemedText } from '@/components/themed-text';
 import { EmojiReactionStrip } from '@/components/ui/emoji-reaction-strip';
 import { LinkPreviewCard } from '@/components/ui/link-preview-card';
@@ -34,7 +35,7 @@ interface Reaction {
 interface ParentMessagePreview {
   nickname?: string;
   content: string;
-  type?: 'text' | 'image' | 'system';
+  type?: 'text' | 'image' | 'gif' | 'system';
   deleted?: boolean;
 }
 
@@ -51,6 +52,8 @@ interface MessageItemProps {
   reactions?: Reaction[];
   currentUserId?: string;
   imageUrl?: string | null;
+  gifUrl?: string | null;
+  gifTitle?: string | null;
   seenByText?: string | null;
   onToggleReaction?: (messageId: string, emoji: string) => void;
   onLongPress?: () => void;
@@ -71,6 +74,8 @@ export function MessageItem({
   reactions = [],
   currentUserId,
   imageUrl,
+  gifUrl,
+  gifTitle,
   seenByText,
   onToggleReaction,
   onLongPress,
@@ -161,7 +166,7 @@ export function MessageItem({
         {/* Avatar — only shown for others' messages */}
         {!isOwnMessage && (
           <View style={styles.avatarWrap}>
-            <UserAvatar uri={avatarUrl} size={30} fallbackText={nickname} />
+            <UserAvatar uri={avatarUrl} size={32} fallbackText={nickname} />
           </View>
         )}
 
@@ -182,13 +187,14 @@ export function MessageItem({
               styles.bubble,
               {
                 backgroundColor: isOwnMessage ? theme.bubbleOwn : theme.bubbleOther,
-                borderWidth: isOwnMessage ? 0 : 1.5,
-                borderColor: theme.outline,
+                borderWidth: isOwnMessage ? 0 : 1,
+                borderColor: theme.outlineLight,
+                shadowColor: theme.shadow,
                 // Rounded except the corner nearest the avatar/sender
-                borderTopLeftRadius: Radius.lg,
-                borderTopRightRadius: Radius.lg,
-                borderBottomLeftRadius: isOwnMessage ? Radius.lg : 4,
-                borderBottomRightRadius: isOwnMessage ? 4 : Radius.lg,
+                borderTopLeftRadius: Radius.xl,
+                borderTopRightRadius: Radius.xl,
+                borderBottomLeftRadius: isOwnMessage ? Radius.xl : Radius.sm,
+                borderBottomRightRadius: isOwnMessage ? Radius.sm : Radius.xl,
               },
             ]}
           >
@@ -217,7 +223,9 @@ export function MessageItem({
                     ? 'Message deleted'
                     : parentMessage.type === 'image'
                       ? parentMessage.content || '📷 Photo'
-                      : parentMessage.content}
+                      : parentMessage.type === 'gif'
+                        ? '🎞 GIF'
+                        : parentMessage.content}
                 </ThemedText>
               </View>
             ) : null}
@@ -229,6 +237,8 @@ export function MessageItem({
               >
                 Message deleted
               </ThemedText>
+            ) : gifUrl ? (
+              <GifAttachment gifUrl={gifUrl} gifTitle={gifTitle} maxWidth={220} />
             ) : imageUrl ? (
               <Pressable onPress={() => onImagePress?.(imageUrl)}>
                 <Image
@@ -331,9 +341,9 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: Spacing.xs,
-    marginBottom: Spacing.sm,
-    paddingHorizontal: Spacing.md,
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+    paddingHorizontal: Spacing.lg,
   },
   rowRight: {
     justifyContent: 'flex-end',
@@ -342,19 +352,24 @@ const styles = StyleSheet.create({
     marginBottom: 18, // align with bottom of bubble (above time)
   },
   bubbleCol: {
-    maxWidth: '75%',
-    gap: 2,
+    maxWidth: '78%',
+    gap: 3,
   },
   bubbleColRight: {
     alignItems: 'flex-end',
   },
   nickname: {
     marginLeft: Spacing.sm,
-    marginBottom: 2,
+    marginBottom: 1,
+    fontWeight: Weight.semibold,
   },
   bubble: {
-    paddingVertical: Spacing.sm,
+    paddingVertical: 10,
     paddingHorizontal: Spacing.md,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    elevation: 1,
   },
   replyPreview: {
     marginBottom: Spacing.sm,
@@ -395,7 +410,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
   },
   time: {
-    marginTop: 1,
+    marginTop: 0,
     marginLeft: Spacing.xs,
   },
   timeRight: {

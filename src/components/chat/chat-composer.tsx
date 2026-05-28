@@ -7,6 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Spacing, Weight } from '@/constants/theme';
 import { Id } from '@/convex/_generated/dataModel';
 import { useTheme } from '@/hooks/use-theme';
+import { type GiphyGif } from '@/lib/giphy';
 import { formatDeleteIn } from '@/utils/time';
 
 interface ChannelExpiryState {
@@ -25,6 +26,7 @@ interface ChatComposerProps {
     onCancelEdit?: () => void;
     onSend: (content: string, parentMessageId?: Id<'messages'>) => Promise<void>;
     onSendImage: (storageId: Id<'_storage'>, caption?: string, parentMessageId?: Id<'messages'>) => Promise<void>;
+    onSendGif: (gif: GiphyGif, parentMessageId?: Id<'messages'>) => Promise<void>;
     onEdit?: (content: string) => Promise<void>;
 }
 
@@ -38,6 +40,7 @@ export function ChatComposer({
     onCancelEdit,
     onSend,
     onSendImage,
+    onSendGif,
     onEdit,
 }: ChatComposerProps) {
     const theme = useTheme();
@@ -68,6 +71,7 @@ export function ChatComposer({
                 onCancelEdit={onCancelEdit}
                 onSend={(content) => onSend(content, replyTarget?.id)}
                 onSendImage={(storageId, caption) => onSendImage(storageId, caption, replyTarget?.id)}
+                onSendGif={(gif) => onSendGif(gif, replyTarget?.id)}
                 onEdit={onEdit}
             />
 
