@@ -92,14 +92,14 @@ async function idbSet(key: string, value: string): Promise<void> {
 // Unified get/set that picks the right backend per platform
 // ---------------------------------------------------------------------------
 
-async function secureGet(key: string): Promise<string | null> {
+export async function secureGet(key: string): Promise<string | null> {
     if (Platform.OS === "web") {
         return idbGet(key);
     }
     return SecureStore.getItemAsync(key);
 }
 
-async function secureSet(key: string, value: string): Promise<void> {
+export async function secureSet(key: string, value: string): Promise<void> {
     if (Platform.OS === "web") {
         return idbSet(key, value);
     }

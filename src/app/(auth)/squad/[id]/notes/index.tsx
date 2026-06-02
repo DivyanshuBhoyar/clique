@@ -1,8 +1,17 @@
 import { useMutation, usePaginatedQuery, useQuery } from 'convex/react';
 import { Link, useGlobalSearchParams, useRouter } from 'expo-router';
 import { Globe, Plus, SlidersHorizontal } from 'lucide-react-native';
-import { useCallback, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import {
+    ActivityIndicator,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    Pressable,
+    StyleSheet,
+    TextInput,
+    View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { JournalCard } from '@/components/notes/journal-card';
@@ -21,6 +30,7 @@ import { Radius, Spacing, Weight } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { Doc, Id } from '@/convex/_generated/dataModel';
 import { useBookmarkToggle } from '@/hooks/use-bookmark-mutation';
+import { useJournalKey } from '@/hooks/use-journal-key';
 import { useTheme } from '@/hooks/use-theme';
 
 const PAGE_SIZE = 20;
@@ -52,6 +62,17 @@ export default function NotesScreen() {
     const theme = useTheme();
     const [activeFilter, setActiveFilter] = useState(0);
     const [searchText, setSearchText] = useState('');
+    const { status: keyStatus, setup: setupKey, unlock: unlockKey } = useJournalKey();
+
+    // Journal password modal state
+    const [showSetupModal, setShowSetupModal] = useState(false);
+    const [showUnlockModal, setShowUnlockModal] = useState(false);
+    const [passwordInput, setPasswordInput] = useState('');
+    const [confirmInput, setConfirmInput] = useState('');
+    const [modalWorking, setModalWorking] = useState(false);
+    const [modalError, setModalError] = useState<string | null>(null);
+    // Callback to run after modal resolves (e.g. open journal after unlock)
+    const pendingActionRef = useRef<(() => void) | null>(null);
 
     const createNote = useMutation(api.notes.createNote);
     const toggleNotePin = useMutation(api.notes.toggleNotePin);
@@ -76,7 +97,7 @@ export default function NotesScreen() {
         { initialNumItems: PAGE_SIZE },
     );
 
-    const handleJournalPress = useCallback(async () => {
+    const openJournal = useCallback(async () => {
         if (!squadId) return;
         if (todayJournal) {
             router.push(`/squad/${squadId}/notes/${todayJournal._id}`);
@@ -84,9 +105,70 @@ export default function NotesScreen() {
         }
         const today = new Date();
         const dateStr = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-        const noteId = await createNote({ squadId, title: `Journal — ${dateStr}`, content: '', type: 'journal' });
+        const noteId = await createNote({ squadId, title: `Journal — ${dateStr}`, content: '', type: 'journal', encrypted: true });
         router.push(`/squad/${squadId}/notes/${noteId}`);
     }, [squadId, todayJournal, createNote, router]);
+
+    const handleJournalPress = useCallback(() => {
+        if (keyStatus === 'unlocked') {
+            openJournal();
+        } else if (keyStatus === 'not_setup') {
+            setPasswordInput('');
+            setConfirmInput('');
+            setModalError(null);
+            setShowSetupModal(true);
+            pendingActionRef.current = openJournal;
+        } else if (keyStatus === 'locked') {
+            setPasswordInput('');
+            setModalError(null);
+            setShowUnlockModal(true);
+            pendingActionRef.current = openJournal;
+        }
+        // 'loading' state: ignore tap until ready
+    }, [keyStatus, openJournal]);
+
+    const handleSetupSubmit = useCallback(async () => {
+        if (passwordInput.length < 4) {
+            setModalError('Password must be at least 4 characters.');
+            return;
+        }
+        if (passwordInput !== confirmInput) {
+            setModalError('Passwords do not match.');
+            return;
+        }
+        setModalWorking(true);
+        setModalError(null);
+        try {
+            await setupKey(passwordInput);
+            setShowSetupModal(false);
+            pendingActionRef.current?.();
+            pendingActionRef.current = null;
+        } catch {
+            setModalError('Setup failed. Please try again.');
+        } finally {
+            setModalWorking(false);
+        }
+    }, [passwordInput, confirmInput, setupKey]);
+
+    const handleUnlockSubmit = useCallback(async () => {
+        setModalWorking(true);
+        setModalError(null);
+        try {
+            const ok = await unlockKey(passwordInput);
+            if (!ok) {
+                setModalError('Wrong password. Try again.');
+                setModalWorking(false);
+                return;
+            }
+            setShowUnlockModal(false);
+            pendingActionRef.current?.();
+            pendingActionRef.current = null;
+        } catch {
+            setModalError('Something went wrong. Please try again.');
+        } finally {
+            setModalWorking(false);
+        }
+    }, [passwordInput, unlockKey]);
 
     const handleNotePress = useCallback((noteId: string) => {
         if (!squadId) return;
@@ -115,6 +197,11 @@ export default function NotesScreen() {
     if (isInitialLoading) {
         return <LoadingState message="Finding the notes worth rereading…" />;
     }
+
+    const journalLockBadgeLabel =
+        keyStatus === 'not_setup' ? '🔒 Lock your journals' :
+        keyStatus === 'locked'    ? '🔑 Journals are locked' :
+        null;
 
     return (
         <ThemedView style={styles.container}>
@@ -173,6 +260,22 @@ export default function NotesScreen() {
 
                             {showJournalHero && (
                                 <View style={styles.heroSection}>
+                                    {journalLockBadgeLabel && (
+                                        <Pressable
+                                            onPress={handleJournalPress}
+                                            style={[styles.lockBadge, { backgroundColor: theme.surface, borderColor: theme.outline }]}
+                                        >
+                                            <ThemedText type="small" style={{ fontWeight: Weight.bold }}>
+                                                {journalLockBadgeLabel}
+                                            </ThemedText>
+                                            <ThemedText type="caption" themeColor="textSecondary">
+                                                {keyStatus === 'not_setup'
+                                                    ? 'Set a password to keep your journal private.'
+                                                    : 'Tap to enter your journal password.'}
+                                            </ThemedText>
+                                        </Pressable>
+                                    )}
+
                                     <Pressable onPress={handleJournalPress} hitSlop={4}>
                                         <JournalCard hasEntry={todayJournal != null} lastUpdated={todayJournal?.updatedAt} />
                                     </Pressable>
@@ -212,7 +315,7 @@ export default function NotesScreen() {
                                 <NoteCard
                                     noteId={item._id}
                                     title={item.title}
-                                    content={item.content}
+                                    content={item.type === 'journal' && item.encrypted ? '🔒 Open to read' : item.content}
                                     updatedAt={item.updatedAt}
                                     tag={item.tag}
                                     type={item.type as 'personal' | 'journal' | 'friend'}
@@ -254,6 +357,109 @@ export default function NotesScreen() {
                     </Link>
                 )}
             </SafeAreaView>
+
+            {/* Journal password setup modal */}
+            <Modal visible={showSetupModal} animationType="slide" transparent onRequestClose={() => !modalWorking && setShowSetupModal(false)}>
+                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
+                    <View style={[styles.modalSheet, { backgroundColor: theme.background, borderColor: theme.outline }]}>
+                        <ThemedText type="heading" style={styles.modalTitle}>Lock your journals 🔒</ThemedText>
+                        <ThemedText type="small" themeColor="textSecondary" style={styles.modalSubtitle}>
+                            Set a password to encrypt your journal entries. There is no recovery — if you forget it, your journals cannot be read.
+                        </ThemedText>
+
+                        <TextInput
+                            style={[styles.passwordInput, { color: theme.text, borderColor: theme.outline, backgroundColor: theme.surface }]}
+                            placeholder="Password"
+                            placeholderTextColor={theme.placeholder}
+                            secureTextEntry
+                            value={passwordInput}
+                            onChangeText={setPasswordInput}
+                            autoFocus
+                            editable={!modalWorking}
+                        />
+                        <TextInput
+                            style={[styles.passwordInput, { color: theme.text, borderColor: theme.outline, backgroundColor: theme.surface }]}
+                            placeholder="Confirm password"
+                            placeholderTextColor={theme.placeholder}
+                            secureTextEntry
+                            value={confirmInput}
+                            onChangeText={setConfirmInput}
+                            editable={!modalWorking}
+                            onSubmitEditing={handleSetupSubmit}
+                        />
+
+                        {modalError && (
+                            <ThemedText type="caption" style={[styles.modalError, { color: theme.accent }]}>
+                                {modalError}
+                            </ThemedText>
+                        )}
+
+                        <Pressable
+                            onPress={handleSetupSubmit}
+                            disabled={modalWorking}
+                            style={[styles.modalButton, { backgroundColor: theme.accent }]}
+                        >
+                            {modalWorking
+                                ? <ActivityIndicator color={theme.text} size="small" />
+                                : <ThemedText type="smallBold">Set password & encrypt</ThemedText>
+                            }
+                        </Pressable>
+
+                        {!modalWorking && (
+                            <Pressable onPress={() => setShowSetupModal(false)} style={styles.modalCancel}>
+                                <ThemedText type="small" themeColor="textSecondary">Not now</ThemedText>
+                            </Pressable>
+                        )}
+                    </View>
+                </KeyboardAvoidingView>
+            </Modal>
+
+            {/* Journal unlock modal (new device) */}
+            <Modal visible={showUnlockModal} animationType="slide" transparent onRequestClose={() => !modalWorking && setShowUnlockModal(false)}>
+                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
+                    <View style={[styles.modalSheet, { backgroundColor: theme.background, borderColor: theme.outline }]}>
+                        <ThemedText type="heading" style={styles.modalTitle}>Unlock journals 🔑</ThemedText>
+                        <ThemedText type="small" themeColor="textSecondary" style={styles.modalSubtitle}>
+                            Enter your journal password to unlock on this device.
+                        </ThemedText>
+
+                        <TextInput
+                            style={[styles.passwordInput, { color: theme.text, borderColor: theme.outline, backgroundColor: theme.surface }]}
+                            placeholder="Password"
+                            placeholderTextColor={theme.placeholder}
+                            secureTextEntry
+                            value={passwordInput}
+                            onChangeText={setPasswordInput}
+                            autoFocus
+                            editable={!modalWorking}
+                            onSubmitEditing={handleUnlockSubmit}
+                        />
+
+                        {modalError && (
+                            <ThemedText type="caption" style={[styles.modalError, { color: theme.accent }]}>
+                                {modalError}
+                            </ThemedText>
+                        )}
+
+                        <Pressable
+                            onPress={handleUnlockSubmit}
+                            disabled={modalWorking}
+                            style={[styles.modalButton, { backgroundColor: theme.accent }]}
+                        >
+                            {modalWorking
+                                ? <ActivityIndicator color={theme.text} size="small" />
+                                : <ThemedText type="smallBold">Unlock</ThemedText>
+                            }
+                        </Pressable>
+
+                        {!modalWorking && (
+                            <Pressable onPress={() => setShowUnlockModal(false)} style={styles.modalCancel}>
+                                <ThemedText type="small" themeColor="textSecondary">Cancel</ThemedText>
+                            </Pressable>
+                        )}
+                    </View>
+                </KeyboardAvoidingView>
+            </Modal>
         </ThemedView>
     );
 }
@@ -278,6 +484,12 @@ const styles = StyleSheet.create({
         paddingTop: Spacing.sm,
         gap: Spacing.md,
     },
+    lockBadge: {
+        borderWidth: 1.5,
+        borderRadius: Radius.md,
+        padding: Spacing.md,
+        gap: Spacing.xs,
+    },
     listContent: {
         paddingBottom: 100,
     },
@@ -285,5 +497,47 @@ const styles = StyleSheet.create({
         width: '100%',
         paddingHorizontal: Spacing.lg,
         paddingVertical: Spacing.xs,
+    },
+    // Modal styles
+    modalOverlay: {
+        flex: 1,
+        justifyContent: 'flex-end',
+        backgroundColor: 'rgba(0,0,0,0.4)',
+    },
+    modalSheet: {
+        borderTopLeftRadius: Radius.xl,
+        borderTopRightRadius: Radius.xl,
+        borderWidth: 1.5,
+        borderBottomWidth: 0,
+        padding: Spacing.xl,
+        gap: Spacing.sm,
+        paddingBottom: Spacing.xl + 20, // extra space for home indicator
+    },
+    modalTitle: {
+        marginBottom: Spacing.xs,
+    },
+    modalSubtitle: {
+        marginBottom: Spacing.sm,
+    },
+    passwordInput: {
+        borderWidth: 2,
+        borderRadius: Radius.md,
+        padding: Spacing.md,
+        fontSize: 16,
+    },
+    modalError: {
+        marginTop: Spacing.xs,
+    },
+    modalButton: {
+        borderRadius: Radius.md,
+        paddingVertical: Spacing.md,
+        alignItems: 'center',
+        marginTop: Spacing.sm,
+        minHeight: 48,
+        justifyContent: 'center',
+    },
+    modalCancel: {
+        alignItems: 'center',
+        paddingVertical: Spacing.sm,
     },
 });

@@ -1,11 +1,13 @@
-import type { PRNG, randomBytes as randomBytesType } from "tweetnacl";
+type NaclModule = typeof import("tweetnacl");
+type NaclPrng = Parameters<NaclModule["setPRNG"]>[0];
+type NaclRandomBytes = NaclModule["randomBytes"];
 
 // Use ordered CommonJS requires here on purpose. With ESM imports, Metro can
 // evaluate independent dependencies before this module body runs, which is
 // exactly how TweetNaCl can end up initialized without a React Native PRNG.
 require("react-native-get-random-values");
 
-const nacl = require("tweetnacl") as typeof import("tweetnacl");
+const nacl = require("tweetnacl") as NaclModule;
 
 /**
  * Central TweetNaCl import.
@@ -31,7 +33,7 @@ function installPrng() {
 
     nacl.setPRNG(((bytes: Uint8Array, length: number) => {
         cryptoApi.getRandomValues(bytes.subarray(0, length));
-    }) as PRNG);
+    }) as NaclPrng);
 }
 
 export function secureRandomBytes(length: number): Uint8Array {
@@ -48,7 +50,7 @@ export function secureRandomBytes(length: number): Uint8Array {
 
 installPrng();
 
-const randomBytes = nacl.randomBytes.bind(nacl) as typeof randomBytesType;
+const randomBytes = nacl.randomBytes.bind(nacl) as NaclRandomBytes;
 
 // If a native reload or import-order edge resets TweetNaCl's internal PRNG,
 // repair it at the call site instead of letting `no PRNG` reach the composer.
@@ -62,6 +64,6 @@ nacl.randomBytes = ((length: number) => {
         }
         throw error;
     }
-}) as typeof randomBytesType;
+}) as NaclRandomBytes;
 
 export default nacl;

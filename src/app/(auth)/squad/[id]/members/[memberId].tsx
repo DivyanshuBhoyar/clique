@@ -62,7 +62,7 @@ export default function MemberProfileScreen() {
                 <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
                     <View style={[styles.heroCard, { backgroundColor: theme.surface, borderColor: theme.outline, shadowColor: theme.shadow }]}>
                         <View style={styles.avatarWrap}>
-                            <UserAvatar uri={profile.avatarUrl} size={88} fallbackText={profile.nickname} />
+                            <UserAvatar uri={profile.avatarUrl} size={88} fallbackText={profile.nickname} vibeEmoji={profile.vibe ?? undefined} />
                             <View style={[styles.statusDot, { backgroundColor: profile.isOnline ? theme.success : theme.textTertiary, borderColor: theme.surface }]} />
                         </View>
                         <View style={styles.nameBlock}>
@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
     statusDot: {
         position: 'absolute',
         right: 4,
-        bottom: 4,
+        top: 4,
         width: 18,
         height: 18,
         borderRadius: 9,

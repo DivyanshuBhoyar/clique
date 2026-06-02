@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from 'convex/react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Crown, MessageCircle, Settings, UserMinus } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -13,6 +14,7 @@ import { Radius, Shadows, Spacing, Weight } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { useTheme } from '@/hooks/use-theme';
+import { getMyDeviceId } from '@/lib/keyStore';
 import { backOrReplace } from '@/utils/navigation';
 import { formatRelativeTime } from '@/utils/time';
 
@@ -26,6 +28,14 @@ export default function MembersScreen() {
     const getOrCreateDm = useMutation(api.dm.getOrCreateConversation);
     const onlineCount = members?.filter((member) => member.isOnline).length ?? 0;
     const canManageMembers = members?.some((member) => member.isMe && member.isOwner) ?? false;
+
+    // DM unread badges
+    const [deviceId, setDeviceId] = useState<string | null>(null);
+    useEffect(() => { getMyDeviceId().then(setDeviceId).catch(() => {}); }, []);
+    const pendingDms = useQuery(api.dm.pendingForDevice, deviceId ? { recipientDeviceId: deviceId } : 'skip');
+    const dmSenderIds = new Set(
+        (pendingDms ?? []).filter(e => e.payloadType === 'message').map(e => e.senderId)
+    );
 
     if (members === undefined) return <LoadingState message="Gathering the squad…" />;
 
@@ -70,7 +80,7 @@ export default function MembersScreen() {
                             accessibilityLabel={`View ${member.nickname}'s profile`}
                         >
                             <View style={styles.avatarWrap}>
-                                <UserAvatar uri={member.avatarUrl} size={48} fallbackText={member.nickname} />
+                                <UserAvatar uri={member.avatarUrl} size={48} fallbackText={member.nickname} vibeEmoji={member.vibe ?? undefined} />
                                 <View style={[styles.statusDot, { backgroundColor: member.isOnline ? theme.success : theme.textTertiary, borderColor: theme.surface }]} />
                             </View>
 
@@ -97,24 +107,29 @@ export default function MembersScreen() {
                                     <ThemedText type="caption" style={{ color: theme.error, fontWeight: Weight.bold }}>Manage</ThemedText>
                                 </View>
                             ) : !member.isMe ? (
-                                <Pressable
-                                    hitSlop={8}
-                                    accessibilityLabel={`Message ${member.nickname}`}
-                                    onPress={async (e) => {
-                                        e.stopPropagation?.();
-                                        const convId = await getOrCreateDm({
-                                            otherUserId: member.userId as Id<'users'>,
-                                        });
-                                        router.push(`/(auth)/dm/${convId}` as any);
-                                    }}
-                                    style={({ pressed }) => [
-                                        styles.chatBtn,
-                                        { borderColor: theme.outline, backgroundColor: theme.background },
-                                        pressed && { transform: [{ scale: 0.9 }] },
-                                    ]}
-                                >
-                                    <MessageCircle size={16} color={theme.text} strokeWidth={2} />
-                                </Pressable>
+                                <View>
+                                    <Pressable
+                                        hitSlop={8}
+                                        accessibilityLabel={`Message ${member.nickname}`}
+                                        onPress={async (e) => {
+                                            e.stopPropagation?.();
+                                            const convId = await getOrCreateDm({
+                                                otherUserId: member.userId as Id<'users'>,
+                                            });
+                                            router.push(`/(auth)/dm/${convId}` as any);
+                                        }}
+                                        style={({ pressed }) => [
+                                            styles.chatBtn,
+                                            { borderColor: theme.outline, backgroundColor: theme.background },
+                                            pressed && { transform: [{ scale: 0.9 }] },
+                                        ]}
+                                    >
+                                        <MessageCircle size={16} color={theme.text} strokeWidth={2} />
+                                    </Pressable>
+                                    {dmSenderIds.has(member.userId) ? (
+                                        <View style={[styles.badge, { backgroundColor: theme.error, borderColor: theme.surface }]} />
+                                    ) : null}
+                                </View>
                             ) : null}
                         </Pressable>
                     ))}
@@ -150,7 +165,7 @@ const styles = StyleSheet.create({
     statusDot: {
         position: 'absolute',
         right: -1,
-        bottom: -1,
+        top: -1,
         width: 14,
         height: 14,
         borderRadius: 7,
@@ -197,5 +212,14 @@ const styles = StyleSheet.create({
         borderWidth: 1.5,
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    badge: {
+        position: 'absolute',
+        top: -2,
+        right: -2,
+        width: 9,
+        height: 9,
+        borderRadius: 5,
+        borderWidth: 1.5,
     },
 });

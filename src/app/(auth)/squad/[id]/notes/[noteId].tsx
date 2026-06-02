@@ -27,8 +27,10 @@ import { ScreenHeader } from '@/components/ui/screen-header';
 import { LineHeight, Radius, Spacing, Typography, Weight } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
+import { useJournalKey } from '@/hooks/use-journal-key';
 import { useMarkdownInsert } from '@/hooks/use-markdown-insert';
 import { useTheme } from '@/hooks/use-theme';
+import { decryptContent, encryptContent } from '@/lib/journalCrypto';
 import { backOrReplace } from '@/utils/navigation';
 import { formatRelativeTime } from '@/utils/time';
 
@@ -38,6 +40,7 @@ export default function NoteEditorScreen() {
     const { id, noteId } = useLocalSearchParams<{ id: string; noteId: string }>();
     const squadId = id as Id<'squads'>;
     const typedNoteId = noteId as Id<'notes'>;
+    const { key: journalKey } = useJournalKey();
 
     const note = useQuery(api.notes.getNote, { noteId: typedNoteId });
     const updateNote = useMutation(api.notes.updateNote);
@@ -58,27 +61,48 @@ export default function NoteEditorScreen() {
     contentRef.current = content;
 
     useEffect(() => {
-        if (note && !initialized) {
-            setTitle(note.title);
-            setContent(note.content);
-            setInitialized(true);
+        if (!note || initialized) return;
+
+        let displayContent = note.content;
+
+        // Decrypt journal content if it was encrypted — wait for key to be ready
+        if (note.type === 'journal' && note.encrypted && note.nonce) {
+            if (!journalKey) return; // key not yet loaded from SecureStore; wait
+            const decrypted = decryptContent(note.content, note.nonce, journalKey);
+            displayContent = decrypted ?? ''; // null means corrupted/wrong key; show blank
         }
-    }, [note, initialized]);
+
+        setTitle(note.title);
+        setContent(displayContent);
+        setInitialized(true);
+    }, [note, initialized, journalKey]);
 
     const scheduleSave = useCallback(() => {
         if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
         setSaveStatus('saving');
         saveTimerRef.current = setTimeout(async () => {
-            if (typedNoteId) {
+            if (!typedNoteId || !note) return;
+
+            if (note.type === 'journal' && journalKey) {
+                // Encrypt content before persisting — title stays plaintext
+                const { ct, nonce } = encryptContent(contentRef.current, journalKey);
+                await updateNote({
+                    noteId: typedNoteId,
+                    title: titleRef.current,
+                    content: ct,
+                    nonce,
+                    encrypted: true,
+                });
+            } else {
                 await updateNote({
                     noteId: typedNoteId,
                     title: titleRef.current,
                     content: contentRef.current,
                 });
-                setSaveStatus('saved');
             }
+            setSaveStatus('saved');
         }, 500);
-    }, [typedNoteId, updateNote]);
+    }, [typedNoteId, note, journalKey, updateNote]);
 
     useEffect(() => {
         return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };

@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from 'convex/react';
 import { useGlobalSearchParams, useRouter } from 'expo-router';
 import { Globe, Users } from 'lucide-react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -20,6 +20,7 @@ import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { useTheme } from '@/hooks/use-theme';
 import { useToast } from '@/hooks/use-toast';
+import { getMyDeviceId } from '@/lib/keyStore';
 
 type ChannelType = 'topic' | 'mood' | 'ephemeral' | 'private';
 
@@ -34,6 +35,15 @@ export default function ChatScreen() {
     const squadMembers = useQuery(api.squad.getSquadMembers, squadId ? { squadId } : "skip");
     const createChannel = useMutation(api.channel.createChannel);
     const leaveSquad = useMutation(api.squad.leaveSquad);
+
+    // Notification badge data
+    const otherSquadsUnread = useQuery(api.channel.getOtherSquadsUnreadCount, squadId ? { excludeSquadId: squadId } : "skip");
+    const [deviceId, setDeviceId] = useState<string | null>(null);
+    useEffect(() => {
+        getMyDeviceId().then(setDeviceId).catch(() => setDeviceId(null));
+    }, []);
+    const pendingDms = useQuery(api.dm.pendingForDevice, deviceId ? { recipientDeviceId: deviceId } : "skip");
+    const hasDmBadge = (pendingDms ?? []).some(e => e.payloadType === 'message');
 
     const [showCreate, setShowCreate] = useState(false);
     const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
@@ -82,8 +92,10 @@ export default function ChatScreen() {
                     title={squad ? `🏠 ${squad.name}` : 'Squad Name'}
                     leftIcon={Globe}
                     onLeftPress={() => router.navigate('/?switcher=1' as any)}
+                    leftBadge={!!otherSquadsUnread && otherSquadsUnread > 0}
                     rightIcon={Users}
                     onRightPress={() => router.push(`/squad/${squadId}/members` as any)}
+                    rightBadge={hasDmBadge}
                 />
                 <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
                     <View style={styles.searchWrap}>

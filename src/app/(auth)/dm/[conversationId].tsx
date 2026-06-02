@@ -17,6 +17,7 @@ import {
 } from "@/hooks/use-dm-messages";
 import { useDmSend } from "@/hooks/use-dm-send";
 import { useDmTypingThrottle } from "@/hooks/use-dm-typing-throttle";
+import { useNotificationPresenceHeartbeat } from "@/hooks/use-notification-presence-heartbeat";
 import { useTheme } from "@/hooks/use-theme";
 import { useToast } from "@/hooks/use-toast";
 import { copyToClipboard } from "@/utils/clipboard";
@@ -56,6 +57,11 @@ export default function DmChatScreen() {
     const conversations = useQuery(api.dm.listConversations);
     const conversation = conversations?.find((c) => c._id === convId);
     const headerName = conversation?.otherUserRealName ?? conversation?.otherUserName ?? "Message";
+    const notificationPresenceContext = useMemo(() => ({
+        kind: "dm" as const,
+        conversationId: convId,
+    }), [convId]);
+    useNotificationPresenceHeartbeat(notificationPresenceContext);
 
     // Typing indicator
     const typingUsers = useQuery(api.dmTyping.getDmTypingUser, { conversationId: convId });

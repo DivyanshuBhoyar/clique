@@ -1,9 +1,10 @@
-import { useMutation, usePaginatedQuery, useQuery } from 'convex/react';
+import { useAction, useMutation, usePaginatedQuery, useQuery } from 'convex/react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { CallSheet } from '@/components/call/call-sheet';
 import { ChannelMembersModal } from '@/components/chat/channel-members-modal';
 import { ChannelSwitcher } from '@/components/chat/channel-switcher';
 import { ChatComposer } from '@/components/chat/chat-composer';
@@ -20,6 +21,7 @@ import { Id } from '@/convex/_generated/dataModel';
 import { useAutoScroll } from '@/hooks/use-auto-scroll';
 import { useChatPresenceHeartbeat } from '@/hooks/use-chat-presence-heartbeat';
 import { useChatReplyTarget } from '@/hooks/use-chat-reply-target';
+import { useNotificationPresenceHeartbeat } from '@/hooks/use-notification-presence-heartbeat';
 import { useOtherChannelUnreadBubble } from '@/hooks/use-other-channel-unread-bubble';
 import { useTheme } from '@/hooks/use-theme';
 import { useTypingThrottle } from '@/hooks/use-typing-throttle';
@@ -41,6 +43,9 @@ export default function ChannelChatScreen() {
     const toggleBookmark = useMutation(api.bookmarks.toggleBookmark);
     const markChannelRead = useMutation(api.channel.markChannelRead);
     const updatePresence = useMutation(api.presence.updatePresence);
+    const joinCallMutation = useMutation(api.calls.joinCall);
+    const leaveCallMutation = useMutation(api.calls.leaveCall);
+    const createCallRoom = useAction(api.calls.createCallRoom);
 
     const currentUser = useQuery(api.users.current);
     const channels = useQuery(
@@ -61,6 +66,10 @@ export default function ChannelChatScreen() {
     );
     const readReceipts = useQuery(
         api.channel.getChannelReadReceipts,
+        channelId ? { channelId: channelId as Id<"channels"> } : "skip"
+    );
+    const activeCall = useQuery(
+        api.calls.getActiveChannelCall,
         channelId ? { channelId: channelId as Id<"channels"> } : "skip"
     );
 
@@ -106,8 +115,18 @@ export default function ChannelChatScreen() {
         squadId as Id<"squads"> | undefined,
         channelId as Id<"channels"> | undefined
     );
+    const notificationPresenceContext = useMemo(() => (
+        squadId && channelId
+            ? {
+                kind: 'channel' as const,
+                squadId: squadId as Id<'squads'>,
+                channelId: channelId as Id<'channels'>,
+            }
+            : null
+    ), [channelId, squadId]);
     useAutoScroll(flatListRef, messages?.length ?? 0);
     useChatPresenceHeartbeat(squadId, updatePresence);
+    useNotificationPresenceHeartbeat(notificationPresenceContext);
 
     useEffect(() => {
         if (channelId) {
@@ -208,11 +227,23 @@ export default function ChannelChatScreen() {
                 onlineCount={onlineCount}
                 otherUnreadCount={otherUnreadSummary?.totalUnread ?? 0}
                 onTitlePress={() => setShowSwitcher(true)}
+                onCallPress={async () => {
+                    if (activeCall) return; // already active — user can join via sheet
+                    await createCallRoom({ channelId: channelId as Id<"channels"> });
+                }}
                 onSettingsPress={
                     currentChannel?.type === 'private' && currentChannel.createdBy === currentUser?._id
                         ? () => setShowMembers(true)
                         : undefined
                 }
+            />
+
+            <CallSheet
+                callRoom={activeCall}
+                currentUserId={currentUser?._id}
+                displayName={currentUser?.name ?? 'Anonymous'}
+                onJoin={(callRoomId) => joinCallMutation({ callRoomId, displayName: currentUser?.name ?? 'Anonymous' })}
+                onLeave={(callRoomId) => leaveCallMutation({ callRoomId })}
             />
 
             <NewMessageBubble

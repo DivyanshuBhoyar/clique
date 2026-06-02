@@ -16,6 +16,9 @@ import { Id } from '@/convex/_generated/dataModel';
 import { backOrReplace } from '@/utils/navigation';
 
 const PAGE_SIZE = 20;
+// Placeholder shown for encrypted journal entries in the list view.
+// The full content is decrypted when the user opens the note.
+const ENCRYPTED_PREVIEW = '🔒 Open to read';
 
 export default function JournalsScreen() {
     const { id } = useGlobalSearchParams<{ id: string }>();
@@ -55,7 +58,7 @@ export default function JournalsScreen() {
                         <Pressable onPress={() => handlePress(item._id)} hitSlop={4} style={styles.cardLink}>
                             <NoteCard
                                 title={item.title}
-                                content={item.content}
+                                content={item.encrypted ? ENCRYPTED_PREVIEW : item.content}
                                 updatedAt={item.updatedAt}
                                 tag={item.tag}
                                 type="journal"

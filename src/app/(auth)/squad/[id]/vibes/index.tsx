@@ -15,10 +15,11 @@ import { Radius, Spacing, Weight } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { useTheme } from '@/hooks/use-theme';
+import { getMyDeviceId } from '@/lib/keyStore';
 import { useMutation, usePaginatedQuery, useQuery } from 'convex/react';
 import { useGlobalSearchParams, useRouter } from 'expo-router';
 import { Globe, History, Plus } from 'lucide-react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -40,6 +41,14 @@ export default function VibesScreen() {
     const polls = useQuery(api.polls.getPolls, squadId ? { squadId } : 'skip');
     const currentUser = useQuery(api.users.current);
     const currentAvatarUrl = useQuery(api.users.currentAvatarUrl);
+
+    // DM unread badges — fetch pending envelopes for this device
+    const [deviceId, setDeviceId] = useState<string | null>(null);
+    useEffect(() => { getMyDeviceId().then(setDeviceId).catch(() => {}); }, []);
+    const pendingDms = useQuery(api.dm.pendingForDevice, deviceId ? { recipientDeviceId: deviceId } : 'skip');
+    const dmSenderIds = new Set(
+        (pendingDms ?? []).filter(e => e.payloadType === 'message').map(e => e.senderId)
+    );
 
     const {
         results: confessions,
@@ -118,6 +127,7 @@ export default function VibesScreen() {
                                 <SquadVibeCard
                                     key={member.userId}
                                     member={member}
+                                    hasDmBadge={dmSenderIds.has(member.userId)}
                                     onChat={async () => {
                                         const convId = await getOrCreateDm({
                                             otherUserId: member.userId as Id<'users'>,

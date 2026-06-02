@@ -67,6 +67,7 @@ export default function HomeScreen() {
 
     const joinSquad = useMutation(api.squad.joinSquad);
     const userSquads = useQuery(api.squad.getUserSquads);
+    const squadsUnreadSummary = useQuery(api.channel.getSquadsUnreadSummary);
 
     useEffect(() => {
         if (hasRedirected) return;
@@ -156,6 +157,7 @@ export default function HomeScreen() {
                         <>
                             <SquadPickerList
                                 userSquads={userSquads}
+                                squadsUnreadSummary={squadsUnreadSummary ?? []}
                                 onSelect={(squadId) => router.push(`/squad/${squadId}/chat` as any)}
                                 onCreate={() => router.push('/create-squad')}
                             />
@@ -241,12 +243,14 @@ export default function HomeScreen() {
     );
 }
 
-function SquadPickerList({ userSquads, onSelect, onCreate }: {
+function SquadPickerList({ userSquads, squadsUnreadSummary, onSelect, onCreate }: {
     userSquads: { squad: { _id: string; name: string } | null }[];
+    squadsUnreadSummary: { squadId: string; hasUnread: boolean }[];
     onSelect: (squadId: string) => void;
     onCreate: () => void;
 }) {
     const theme = useTheme();
+    const unreadSet = new Set(squadsUnreadSummary.filter(s => s.hasUnread).map(s => s.squadId));
     return (
         <View style={switcherStyles.container}>
             <ThemedText type="title" style={switcherStyles.heading}>Your Squads</ThemedText>
@@ -257,6 +261,7 @@ function SquadPickerList({ userSquads, onSelect, onCreate }: {
             <View style={switcherStyles.list}>
                 {userSquads.map((entry) => {
                     if (!entry.squad) return null;
+                    const hasUnread = unreadSet.has(entry.squad._id);
                     return (
                         <Pressable
                             key={entry.squad._id}
@@ -270,8 +275,13 @@ function SquadPickerList({ userSquads, onSelect, onCreate }: {
                                 },
                             ]}
                         >
-                            <View style={[switcherStyles.cardIcon, { backgroundColor: theme.accent, borderColor: theme.outline }]}>
-                                <ThemedText style={{ fontSize: Typography.title }}>🏠</ThemedText>
+                            <View>
+                                <View style={[switcherStyles.cardIcon, { backgroundColor: theme.accent, borderColor: theme.outline }]}>
+                                    <ThemedText style={{ fontSize: Typography.title }}>🏠</ThemedText>
+                                </View>
+                                {hasUnread ? (
+                                    <View style={[switcherStyles.badge, { backgroundColor: theme.error, borderColor: theme.surface }]} />
+                                ) : null}
                             </View>
                             <ThemedText type="bodyBold" style={{ flex: 1 }}>{entry.squad.name}</ThemedText>
                             <ThemedText themeColor="textTertiary">→</ThemedText>
@@ -333,6 +343,15 @@ const switcherStyles = StyleSheet.create({
         borderWidth: 2,
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    badge: {
+        position: 'absolute',
+        top: -3,
+        right: -3,
+        width: 11,
+        height: 11,
+        borderRadius: 6,
+        borderWidth: 2,
     },
     createCard: {
         flexDirection: 'row',
