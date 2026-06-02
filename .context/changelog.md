@@ -1,5 +1,6 @@
 # Changelog
 
+- 2026-06-01: Added Expo push notification infrastructure: per-device token storage, Convex push action bridge, client registration/tap deep links, event triggers, and app/chat active heartbeats that suppress group chat + DM pushes while the recipient is active.
 - 2026-05-27: Planned low-maintenance GIPHY GIF support via REST + `expo-image`, covering channel chat and comment surfaces while deferring native keyboard ingestion and E2EE DM GIFs.
 - 2026-05-27: Added Convex security hardening: centralized limits, transactional rate limits, squad resource caps, pagination caps, private-read guards, and safer E2EE device key lookup.
 - 2026-05-27: Reworked the wide Lounge hero into explicit left identity/presence and right preview/action columns to avoid floating, unaligned content.

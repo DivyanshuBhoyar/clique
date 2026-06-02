@@ -9,6 +9,7 @@
 - Expo Router `back()` warns if a screen was deep-linked/refreshed with no stack history; use `backOrReplace(router, fallback)` for headers/actions.
 - Convex public APIs are internet-facing; new mutations should use `SECURITY_LIMITS` + `assertRateLimit`, and new feeds must cap pagination/read amplification.
 - GIPHY REST integration needs visible attribution plus `onload`/`onclick`/`onsent` pingbacks; do not send app user IDs, use GIPHY random ID.
+- Chat/DM push notifications must check fresh `notificationPresence` app/chat heartbeats before scheduling; do not notify users actively using the app.
 - TweetNaCl can keep `no PRNG` if imported before random polyfill setup; import through `src/lib/nacl.ts` only and use `secureRandomBytes()` for nonces.
 - Convex queries are data-driven, not timer-driven; typing indicators must expire client-side by typing-event version (`lastTypingAt`) so stale mobile rows do not reappear.
 - Full cascade deletes are incomplete; clean dependents when touching destructive flows.

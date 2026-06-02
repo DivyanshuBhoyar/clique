@@ -8,22 +8,29 @@
     "scheme": "clique",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "bundleIdentifier": "com.anonymous.cliquecove"
     },
     "android": {
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#FAF7F2"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.cliquecove"
+      "package": "com.anonymous.cliquecove",
+      "permissions": [
+        "ACCESS_NETWORK_STATE",
+        "CHANGE_NETWORK_STATE",
+        "MODIFY_AUDIO_SETTINGS",
+        "BLUETOOTH",
+        "BLUETOOTH_CONNECT",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/icon.png"
     },
     "plugins": [
       [
@@ -43,6 +50,24 @@
             "image": "./assets/images/splash-icon.png",
             "imageWidth": 76
           }
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 24
+          },
+          "ios": {
+            "deploymentTarget": "16.4"
+          }
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "microphonePermission": "Allow Clique Cove to use your microphone for calls",
+          "recordAudioAndroid": true
         }
       ],
       "expo-secure-store",
