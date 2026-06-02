@@ -1,6 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { schedulePushToUser } from "./push";
 import { SECURITY_LIMITS, assertArrayLimit, assertRateLimit, assertUsersShareSquad } from "./security";
 import { getAvatarUrl } from "./users";
 import { assertLength, assertNonEmpty } from "./validators";
@@ -111,6 +112,26 @@ export const sendFanOut = mutation({
                 sequenceNumber:  seq,
                 delivered:       false,
             });
+        }
+
+        const messageRecipientIds = [...new Set(
+            envelopes
+                .filter((envelope) => envelope.payloadType === "message")
+                .map((envelope) => envelope.recipientId),
+        )];
+        if (messageRecipientIds.length > 0) {
+            const sender = await ctx.db.get(userId);
+            const senderName = sender?.name ?? sender?.email ?? "Someone";
+            for (const recipientId of messageRecipientIds) {
+                await schedulePushToUser(ctx, {
+                    userId: recipientId,
+                    excludeUserId: userId,
+                    suppressIfActiveConversationId: conversationId,
+                    title: `New message from ${senderName}`,
+                    body: "Open the app to read",
+                    data: { path: `/dm/${conversationId}` },
+                });
+            }
         }
 
         return { sequenceNumber: seq, serverTimestamp };

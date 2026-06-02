@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { QueryCtx } from "./_generated/server";
 import { mutation, query } from "./_generated/server";
+import { schedulePushToSquad } from "./push";
 import { SECURITY_LIMITS, assertArrayLimit, assertRateLimit } from "./security";
 import { requireMembership } from "./users";
 import { assertLength, assertNonEmpty } from "./validators";
@@ -43,7 +44,7 @@ export const createPoll = mutation({
         expiresAt: v.optional(v.number()),
     },
     handler: async (ctx, args) => {
-        const { userId } = await requireMembership(ctx, args.squadId);
+        const { userId, membership } = await requireMembership(ctx, args.squadId);
 
         await assertRateLimit(ctx, ["createPoll", args.squadId, userId], SECURITY_LIMITS.rate.contentCreate);
 
@@ -81,6 +82,14 @@ export const createPoll = mutation({
                 text: text.trim(),
             });
         }
+
+        await schedulePushToSquad(ctx, {
+            squadId: args.squadId,
+            excludeUserId: userId,
+            title: "Homie Squad",
+            body: `${membership.nickname} started a poll`,
+            data: { path: `/squad/${args.squadId}/vibes` },
+        });
 
         return pollId;
     },

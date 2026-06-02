@@ -1,6 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation } from "./_generated/server";
+import { schedulePushToUser } from "./push";
 import { SECURITY_LIMITS, assertRateLimit } from "./security";
 import { requireMembership } from "./users";
 import { assertLength } from "./validators";
@@ -20,7 +21,7 @@ export const toggleReaction = mutation({
         const message = await ctx.db.get(args.messageId);
         if (!message) throw new Error("Message not found");
 
-        await requireMembership(ctx, message.squadId);
+        const { membership } = await requireMembership(ctx, message.squadId);
 
         const channel = await ctx.db.get(message.channelId);
         if (channel?.type === "private") {
@@ -50,6 +51,15 @@ export const toggleReaction = mutation({
             userId,
             emoji: args.emoji,
             createdAt: Date.now(),
+        });
+
+        await schedulePushToUser(ctx, {
+            userId: message.userId,
+            excludeUserId: userId,
+            suppressIfActiveChannelId: message.channelId,
+            title: "Homie Squad",
+            body: `${membership.nickname} reacted ${args.emoji} to your message`,
+            data: { path: `/squad/${message.squadId}/chat/${message.channelId}` },
         });
 
         return { added: true };

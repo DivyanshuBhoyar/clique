@@ -2,6 +2,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { schedulePushToSquad, schedulePushToUser } from "./push";
 import { SECURITY_LIMITS, assertPaginationLimit, assertRateLimit } from "./security";
 import { enrichUser, requireMembership } from "./users";
 import { assertLength, assertNonEmpty } from "./validators";
@@ -24,7 +25,7 @@ export const createDrop = mutation({
         content: v.string(),
     },
     handler: async (ctx, args) => {
-        const { userId } = await requireMembership(ctx, args.squadId);
+        const { userId, membership } = await requireMembership(ctx, args.squadId);
 
         await assertRateLimit(ctx, ["createDrop", args.squadId, userId], SECURITY_LIMITS.rate.contentCreate);
 
@@ -41,13 +42,23 @@ export const createDrop = mutation({
             throw new Error(`You can create up to ${SECURITY_LIMITS.content.maxDropsPerUserPerSquad} drops in one squad`);
         }
 
-        return await ctx.db.insert("drops", {
+        const dropId = await ctx.db.insert("drops", {
             squadId: args.squadId,
             userId,
             category: args.category.trim(),
             content: args.content.trim(),
             createdAt: Date.now(),
         });
+
+        await schedulePushToSquad(ctx, {
+            squadId: args.squadId,
+            excludeUserId: userId,
+            title: "Homie Squad",
+            body: `${membership.nickname} dropped a ${args.category.trim()}`,
+            data: { path: `/squad/${args.squadId}/drops` },
+        });
+
+        return dropId;
     },
 });
 
@@ -172,7 +183,7 @@ export const toggleDropReaction = mutation({
         const drop = await ctx.db.get(args.dropId);
         if (!drop) throw new Error("Drop not found");
 
-        await requireMembership(ctx, drop.squadId);
+        const { membership } = await requireMembership(ctx, drop.squadId);
 
         await assertRateLimit(ctx, ["dropReaction", args.dropId, userId], SECURITY_LIMITS.rate.reaction);
         assertLength("Emoji", args.emoji, 10);
@@ -196,6 +207,14 @@ export const toggleDropReaction = mutation({
             createdAt: Date.now(),
         });
 
+        await schedulePushToUser(ctx, {
+            userId: drop.userId,
+            excludeUserId: userId,
+            title: "Homie Squad",
+            body: `${membership.nickname} reacted ${args.emoji} to your drop`,
+            data: { path: `/squad/${drop.squadId}/drops/${args.dropId}` },
+        });
+
         return { added: true };
     },
 });
@@ -216,7 +235,7 @@ export const addDropComment = mutation({
         const drop = await ctx.db.get(args.dropId);
         if (!drop) throw new Error("Drop not found");
 
-        await requireMembership(ctx, drop.squadId);
+        const { membership } = await requireMembership(ctx, drop.squadId);
 
         await assertRateLimit(ctx, ["dropComment", args.dropId, userId], SECURITY_LIMITS.rate.comment);
         assertLength("Comment", args.content, 500);
@@ -239,7 +258,7 @@ export const addDropComment = mutation({
             throw new Error("This drop has reached the comment limit");
         }
 
-        return await ctx.db.insert("dropComments", {
+        const commentId = await ctx.db.insert("dropComments", {
             dropId: args.dropId,
             userId,
             content: args.content.trim(),
@@ -249,6 +268,16 @@ export const addDropComment = mutation({
             gifTitle: args.gifTitle,
             createdAt: Date.now(),
         });
+
+        await schedulePushToUser(ctx, {
+            userId: drop.userId,
+            excludeUserId: userId,
+            title: "Homie Squad",
+            body: `${membership.nickname} commented on your drop`,
+            data: { path: `/squad/${drop.squadId}/drops/${args.dropId}` },
+        });
+
+        return commentId;
     },
 });
 

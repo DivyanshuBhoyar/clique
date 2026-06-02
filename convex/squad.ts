@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { schedulePushToSquad } from "./push";
 import { SECURITY_LIMITS, assertRateLimit } from "./security";
 import { requireMembership } from "./users";
 import { assertLength, assertNonEmpty } from "./validators";
@@ -157,6 +158,14 @@ export const joinSquad = mutation({
             ...(args.vibe ? { vibe: args.vibe.trim(), vibeUpdatedAt: joinedAt } : {}),
             ...(args.statusText ? { statusText: args.statusText.trim() } : {}),
             joinedAt,
+        });
+
+        await schedulePushToSquad(ctx, {
+            squadId,
+            excludeUserId: userId,
+            title: "Homie Squad",
+            body: `${args.nickname.trim()} joined the squad 👋`,
+            data: { path: `/squad/${squadId}/members` },
         });
 
         return squadId;

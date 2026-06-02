@@ -522,3 +522,102 @@ export const getChannelReadReceipts = query({
         );
     },
 });
+
+// Returns per-squad unread status for ALL user squads (for the squad picker list).
+export const getSquadsUnreadSummary = query({
+    args: {},
+    handler: async (ctx) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) return [];
+
+        const memberships = await ctx.db
+            .query("memberships")
+            .withIndex("by_user", (q) => q.eq("userId", userId))
+            .take(SECURITY_LIMITS.squads.maxPerUser + 1);
+
+        if (memberships.length === 0) return [];
+
+        const readStatuses = await ctx.db
+            .query("channelReadStatus")
+            .withIndex("by_user", (q) => q.eq("userId", userId))
+            .take(SECURITY_LIMITS.query.maxChannelList);
+        const readMap = new Map(readStatuses.map(r => [r.channelId, r.lastReadAt]));
+
+        const result: { squadId: string; hasUnread: boolean }[] = [];
+
+        for (const { squadId } of memberships) {
+            const channels = await ctx.db
+                .query("channels")
+                .withIndex("by_squad", (q) => q.eq("squadId", squadId))
+                .take(SECURITY_LIMITS.query.maxChannelList);
+
+            let hasUnread = false;
+            for (const channel of channels) {
+                if (channel.type === "private") continue;
+                const lastReadAt = readMap.get(channel._id) ?? 0;
+                const firstUnread = await ctx.db
+                    .query("messages")
+                    .withIndex("by_channel", (q) =>
+                        q.eq("channelId", channel._id).gt("createdAt", lastReadAt)
+                    )
+                    .first();
+                if (firstUnread) { hasUnread = true; break; }
+            }
+
+            result.push({ squadId, hasUnread });
+        }
+
+        return result;
+    },
+});
+
+// Returns the number of channels with unread messages across all squads except the given one.
+// Used to show a notification bubble on the squad-switcher (globe) icon.
+export const getOtherSquadsUnreadCount = query({
+    args: { excludeSquadId: v.id("squads") },
+    handler: async (ctx, { excludeSquadId }) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) return 0;
+
+        const memberships = await ctx.db
+            .query("memberships")
+            .withIndex("by_user", (q) => q.eq("userId", userId))
+            .take(SECURITY_LIMITS.squads.maxPerUser + 1);
+
+        const otherSquadIds = memberships
+            .map(m => m.squadId)
+            .filter(id => id !== excludeSquadId);
+
+        if (otherSquadIds.length === 0) return 0;
+
+        // Read statuses for all this user's channels in one pass
+        const readStatuses = await ctx.db
+            .query("channelReadStatus")
+            .withIndex("by_user", (q) => q.eq("userId", userId))
+            .take(SECURITY_LIMITS.query.maxChannelList);
+        const readMap = new Map(readStatuses.map(r => [r.channelId, r.lastReadAt]));
+
+        let total = 0;
+
+        for (const squadId of otherSquadIds) {
+            const channels = await ctx.db
+                .query("channels")
+                .withIndex("by_squad", (q) => q.eq("squadId", squadId))
+                .take(SECURITY_LIMITS.query.maxChannelList);
+
+            for (const channel of channels) {
+                if (channel.type === "private") continue; // skip — membership check too expensive here
+                const lastReadAt = readMap.get(channel._id) ?? 0;
+                const firstUnread = await ctx.db
+                    .query("messages")
+                    .withIndex("by_channel", (q) =>
+                        q.eq("channelId", channel._id).gt("createdAt", lastReadAt)
+                    )
+                    .first();
+                if (firstUnread) total++;
+            }
+        }
+
+        return total;
+    },
+});

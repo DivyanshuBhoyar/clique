@@ -1,11 +1,102 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
-import { mutation, query } from "./_generated/server";
+import { MutationCtx, mutation, query } from "./_generated/server";
+import { schedulePush } from "./push";
 import { SECURITY_LIMITS, assertPaginationLimit, assertRateLimit } from "./security";
 import { enrichUser, requireMembership } from "./users";
 import { assertLength, assertNonEmpty } from "./validators";
+
+type ChatMessageKind = "text" | "image" | "gif";
+
+type ChannelPushRecipient = {
+    userId: Id<"users">;
+    tokens: string[];
+};
+
+function truncateForNotification(value: string, maxLength = 90) {
+    if (value.length <= maxLength) return value;
+    return `${value.slice(0, maxLength - 1)}…`;
+}
+
+function previewForChatMessage(kind: ChatMessageKind, nickname: string, content: string) {
+    if (kind === "image") return `${nickname} sent a photo`;
+    if (kind === "gif") return `${nickname} sent a GIF`;
+    return `${nickname}: ${truncateForNotification(content)}`;
+}
+
+function extractMentionHandles(content: string) {
+    const handles = new Set<string>();
+    for (const match of content.matchAll(/@(\w+)/g)) {
+        const handle = match[1]?.toLowerCase();
+        if (handle) handles.add(handle);
+    }
+    return handles;
+}
+
+async function getMentionedUserIds(
+    ctx: MutationCtx,
+    squadId: Id<"squads">,
+    content: string,
+) {
+    const handles = extractMentionHandles(content);
+    if (handles.size === 0) return new Set<Id<"users">>();
+
+    const memberships = await ctx.db
+        .query("memberships")
+        .withIndex("by_squad", (q) => q.eq("squadId", squadId))
+        .take(SECURITY_LIMITS.query.maxSquadMembersRead);
+
+    return new Set(
+        memberships
+            .filter((membership) => handles.has(membership.nickname.toLowerCase()))
+            .map((membership) => membership.userId),
+    );
+}
+
+async function scheduleChatMessagePushes(
+    ctx: MutationCtx,
+    args: {
+        squadId: Id<"squads">;
+        channelId: Id<"channels">;
+        senderId: Id<"users">;
+        senderNickname: string;
+        kind: ChatMessageKind;
+        content: string;
+        parentMessageId?: Id<"messages">;
+    },
+) {
+    const recipients: ChannelPushRecipient[] = await ctx.runQuery(internal.push.getRecipientsForChannel, {
+        squadId: args.squadId,
+        channelId: args.channelId,
+        excludeUserId: args.senderId,
+    });
+    if (recipients.length === 0) return;
+
+    const parentMessage = args.parentMessageId
+        ? await ctx.db.get(args.parentMessageId)
+        : null;
+    const mentionedUserIds = await getMentionedUserIds(ctx, args.squadId, args.content);
+    const path = `/squad/${args.squadId}/chat/${args.channelId}`;
+
+    for (const recipient of recipients) {
+        let body = previewForChatMessage(args.kind, args.senderNickname, args.content);
+        if (parentMessage?.userId === recipient.userId) {
+            body = `${args.senderNickname} replied to your message`;
+        } else if (mentionedUserIds.has(recipient.userId)) {
+            body = `${args.senderNickname} mentioned you`;
+        }
+
+        await schedulePush(ctx, {
+            tokens: recipient.tokens,
+            title: "Homie Squad",
+            body,
+            data: { path },
+        });
+    }
+}
 
 export const sendMessage = mutation({
     args: {
@@ -49,7 +140,7 @@ export const sendMessage = mutation({
             }
         }
 
-        return await ctx.db.insert("messages", {
+        const messageId = await ctx.db.insert("messages", {
             squadId: args.squadId,
             channelId: args.channelId,
             userId,
@@ -59,6 +150,18 @@ export const sendMessage = mutation({
             parentMessageId: args.parentMessageId,
             createdAt: Date.now(),
         });
+
+        await scheduleChatMessagePushes(ctx, {
+            squadId: args.squadId,
+            channelId: args.channelId,
+            senderId: userId,
+            senderNickname: membership.nickname,
+            kind: "text",
+            content: args.content.trim(),
+            parentMessageId: args.parentMessageId,
+        });
+
+        return messageId;
     },
 });
 
@@ -103,7 +206,7 @@ export const sendImageMessage = mutation({
             }
         }
 
-        return await ctx.db.insert("messages", {
+        const messageId = await ctx.db.insert("messages", {
             squadId: args.squadId,
             channelId: args.channelId,
             userId,
@@ -114,6 +217,18 @@ export const sendImageMessage = mutation({
             parentMessageId: args.parentMessageId,
             createdAt: Date.now(),
         });
+
+        await scheduleChatMessagePushes(ctx, {
+            squadId: args.squadId,
+            channelId: args.channelId,
+            senderId: userId,
+            senderNickname: membership.nickname,
+            kind: "image",
+            content: args.content?.trim() ?? "",
+            parentMessageId: args.parentMessageId,
+        });
+
+        return messageId;
     },
 });
 
@@ -185,7 +300,7 @@ export const sendGifMessage = mutation({
             }
         }
 
-        return await ctx.db.insert("messages", {
+        const messageId = await ctx.db.insert("messages", {
             squadId: args.squadId,
             channelId: args.channelId,
             userId,
@@ -199,6 +314,18 @@ export const sendGifMessage = mutation({
             parentMessageId: args.parentMessageId,
             createdAt: Date.now(),
         });
+
+        await scheduleChatMessagePushes(ctx, {
+            squadId: args.squadId,
+            channelId: args.channelId,
+            senderId: userId,
+            senderNickname: membership.nickname,
+            kind: "gif",
+            content: args.gifTitle?.trim() ?? "",
+            parentMessageId: args.parentMessageId,
+        });
+
+        return messageId;
     },
 });
 

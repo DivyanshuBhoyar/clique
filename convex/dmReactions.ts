@@ -1,6 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { schedulePushToUser } from "./push";
 import { SECURITY_LIMITS, assertRateLimit } from "./security";
 import { assertLength } from "./validators";
 
@@ -58,6 +59,18 @@ export const toggle = mutation({
             userId,
             emoji,
             createdAt: Date.now(),
+        });
+
+        const recipientId = conv.participantA === userId ? conv.participantB : conv.participantA;
+        const sender = await ctx.db.get(userId);
+        const senderName = sender?.name ?? sender?.email ?? "Someone";
+        await schedulePushToUser(ctx, {
+            userId: recipientId,
+            excludeUserId: userId,
+            suppressIfActiveConversationId: conversationId,
+            title: "Homie Squad",
+            body: `${senderName} reacted ${emoji} to a DM`,
+            data: { path: `/dm/${conversationId}` },
         });
 
         return { added: true };

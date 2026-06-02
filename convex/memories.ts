@@ -2,6 +2,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { schedulePushToSquad, schedulePushToUser } from "./push";
 import { SECURITY_LIMITS, assertPaginationLimit, assertRateLimit } from "./security";
 import { enrichUser, requireMembership } from "./users";
 import { assertLength, assertNonEmpty } from "./validators";
@@ -16,7 +17,7 @@ export const createMemory = mutation({
         type: v.union(v.literal("wall"), v.literal("event")),
     },
     handler: async (ctx, args) => {
-        const { userId } = await requireMembership(ctx, args.squadId);
+        const { userId, membership } = await requireMembership(ctx, args.squadId);
 
         await assertRateLimit(ctx, ["createMemory", args.squadId, userId], SECURITY_LIMITS.rate.contentCreate);
 
@@ -38,7 +39,7 @@ export const createMemory = mutation({
             throw new Error("Event memory requires a title");
         }
 
-        return await ctx.db.insert("memories", {
+        const memoryId = await ctx.db.insert("memories", {
             squadId: args.squadId,
             title: args.title?.trim(),
             content: args.content?.trim(),
@@ -47,6 +48,16 @@ export const createMemory = mutation({
             createdBy: userId,
             createdAt: Date.now(),
         });
+
+        await schedulePushToSquad(ctx, {
+            squadId: args.squadId,
+            excludeUserId: userId,
+            title: "Homie Squad",
+            body: `${membership.nickname} added a memory`,
+            data: { path: `/squad/${args.squadId}/memories` },
+        });
+
+        return memoryId;
     },
 });
 
@@ -336,7 +347,7 @@ export const toggleMemoryReaction = mutation({
         const memory = await ctx.db.get(args.memoryId);
         if (!memory) throw new Error("Memory not found");
 
-        await requireMembership(ctx, memory.squadId);
+        const { membership } = await requireMembership(ctx, memory.squadId);
 
         await assertRateLimit(ctx, ["memoryReaction", args.memoryId, userId], SECURITY_LIMITS.rate.reaction);
         assertLength("Emoji", args.emoji, 10);
@@ -355,6 +366,13 @@ export const toggleMemoryReaction = mutation({
 
         if (existing) {
             await ctx.db.patch(existing._id, { emoji: args.emoji });
+            await schedulePushToUser(ctx, {
+                userId: memory.createdBy,
+                excludeUserId: userId,
+                title: "Homie Squad",
+                body: `${membership.nickname} reacted ${args.emoji} to your memory`,
+                data: { path: `/squad/${memory.squadId}/memories/${args.memoryId}` },
+            });
             return { updated: true };
         }
 
@@ -363,6 +381,14 @@ export const toggleMemoryReaction = mutation({
             userId,
             emoji: args.emoji,
             createdAt: Date.now(),
+        });
+
+        await schedulePushToUser(ctx, {
+            userId: memory.createdBy,
+            excludeUserId: userId,
+            title: "Homie Squad",
+            body: `${membership.nickname} reacted ${args.emoji} to your memory`,
+            data: { path: `/squad/${memory.squadId}/memories/${args.memoryId}` },
         });
 
         return { added: true };
@@ -385,7 +411,7 @@ export const toggleMemoryItemReaction = mutation({
         const memory = await ctx.db.get(item.memoryId);
         if (!memory) throw new Error("Memory not found");
 
-        await requireMembership(ctx, memory.squadId);
+        const { membership } = await requireMembership(ctx, memory.squadId);
 
         await assertRateLimit(ctx, ["memoryItemReaction", args.itemId, userId], SECURITY_LIMITS.rate.reaction);
         assertLength("Emoji", args.emoji, 10);
@@ -404,6 +430,13 @@ export const toggleMemoryItemReaction = mutation({
 
         if (existing) {
             await ctx.db.patch(existing._id, { emoji: args.emoji });
+            await schedulePushToUser(ctx, {
+                userId: item.userId,
+                excludeUserId: userId,
+                title: "Homie Squad",
+                body: `${membership.nickname} reacted ${args.emoji} to your memory item`,
+                data: { path: `/squad/${memory.squadId}/memories/${item.memoryId}` },
+            });
             return { updated: true };
         }
 
@@ -412,6 +445,14 @@ export const toggleMemoryItemReaction = mutation({
             userId,
             emoji: args.emoji,
             createdAt: Date.now(),
+        });
+
+        await schedulePushToUser(ctx, {
+            userId: item.userId,
+            excludeUserId: userId,
+            title: "Homie Squad",
+            body: `${membership.nickname} reacted ${args.emoji} to your memory item`,
+            data: { path: `/squad/${memory.squadId}/memories/${item.memoryId}` },
         });
 
         return { added: true };
@@ -487,7 +528,7 @@ export const addMemoryComment = mutation({
         const memory = await ctx.db.get(args.memoryId);
         if (!memory) throw new Error("Memory not found");
 
-        await requireMembership(ctx, memory.squadId);
+        const { membership } = await requireMembership(ctx, memory.squadId);
 
         await assertRateLimit(ctx, ["memoryComment", args.memoryId, userId], SECURITY_LIMITS.rate.comment);
         assertLength("Comment", args.content, 500);
@@ -509,7 +550,7 @@ export const addMemoryComment = mutation({
             throw new Error("This memory has reached the comment limit");
         }
 
-        return await ctx.db.insert("memoryComments", {
+        const commentId = await ctx.db.insert("memoryComments", {
             memoryId: args.memoryId,
             userId,
             content: args.content.trim(),
@@ -519,6 +560,16 @@ export const addMemoryComment = mutation({
             gifTitle: args.gifTitle,
             createdAt: Date.now(),
         });
+
+        await schedulePushToUser(ctx, {
+            userId: memory.createdBy,
+            excludeUserId: userId,
+            title: "Homie Squad",
+            body: `${membership.nickname} commented on your memory`,
+            data: { path: `/squad/${memory.squadId}/memories/${args.memoryId}` },
+        });
+
+        return commentId;
     },
 });
 

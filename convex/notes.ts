@@ -129,6 +129,9 @@ export const createNote = mutation({
         channelId: v.optional(v.id("channels")),
         tag: v.optional(v.string()),
         pinned: v.optional(v.boolean()),
+        // Journal encryption: content is ciphertext when encrypted === true
+        encrypted: v.optional(v.boolean()),
+        nonce: v.optional(v.string()),
     },
 
     handler: async (ctx, args) => {
@@ -174,6 +177,8 @@ export const createNote = mutation({
             channelId: args.channelId,
             tag: args.tag,
             pinned: args.pinned,
+            encrypted: args.encrypted,
+            nonce: args.nonce,
             createdAt: now,
             updatedAt: now,
         });
@@ -191,6 +196,9 @@ export const updateNote = mutation({
         content: v.optional(v.string()),
         tag: v.optional(v.string()),
         pinned: v.optional(v.boolean()),
+        // Journal encryption: pass when saving encrypted content
+        encrypted: v.optional(v.boolean()),
+        nonce: v.optional(v.string()),
     },
 
     handler: async (ctx, args) => {
@@ -222,6 +230,8 @@ export const updateNote = mutation({
         if (args.content !== undefined) updates.content = args.content;
         if (args.tag !== undefined) updates.tag = args.tag;
         if (args.pinned !== undefined) updates.pinned = args.pinned;
+        if (args.encrypted !== undefined) updates.encrypted = args.encrypted;
+        if (args.nonce !== undefined) updates.nonce = args.nonce;
 
         await ctx.db.patch(args.noteId, updates);
         await touchNoteCollaborator(ctx, args.noteId, note.squadId, userId, now);
@@ -479,6 +489,26 @@ export const getJournals = query({
             .paginate(args.paginationOpts);
 
         return result;
+    },
+});
+
+// Used during journal encryption migration: returns all unencrypted journals the user
+// owns across all squads. Bounded to SECURITY_LIMITS.content.maxNotesPerUserPerSquad
+// multiplied by a reasonable max squads cap — kept intentionally small.
+export const getUnencryptedJournals = query({
+    args: {},
+    handler: async (ctx) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) return [];
+
+        // by_owner returns all notes for the user; we filter to journal type only
+        const notes = await ctx.db
+            .query("notes")
+            .withIndex("by_owner", (q) => q.eq("ownerId", userId))
+            .order("desc")
+            .take(500); // generous cap — users won't have more than this
+
+        return notes.filter((n) => n.type === "journal" && !n.encrypted);
     },
 });
 

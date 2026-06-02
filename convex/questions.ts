@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { schedulePushToSquad } from "./push";
 import { SECURITY_LIMITS, assertRateLimit } from "./security";
 import { enrichUser, requireMembership } from "./users";
 import { assertLength, assertNonEmpty } from "./validators";
@@ -31,12 +32,22 @@ export const createWeeklyQuestion = mutation({
             if (!channel || channel.squadId !== args.squadId) throw new Error("Invalid channel");
         }
 
-        return await ctx.db.insert("weeklyQuestions", {
+        const questionId = await ctx.db.insert("weeklyQuestions", {
             squadId: args.squadId,
             question: args.question.trim(),
             channelId: args.channelId,
             createdAt: Date.now(),
         });
+
+        await schedulePushToSquad(ctx, {
+            squadId: args.squadId,
+            excludeUserId: userId,
+            title: "Homie Squad",
+            body: "Weekly question is here ❓",
+            data: { path: `/squad/${args.squadId}/vibes` },
+        });
+
+        return questionId;
     },
 });
 

@@ -124,6 +124,18 @@ export default defineSchema({
         .index("by_user", ["userId"])
         .index("by_channel", ["channelId"]),
 
+    notificationPresence: defineTable({
+        userId: v.id("users"),
+        kind: v.union(v.literal("app"), v.literal("channel"), v.literal("dm")),
+        channelId: v.optional(v.id("channels")),
+        conversationId: v.optional(v.id("dmConversations")),
+        lastSeenAt: v.number(),
+    })
+        .index("by_user_kind", ["userId", "kind"])
+        .index("by_user_channel", ["userId", "channelId"])
+        .index("by_user_conversation", ["userId", "conversationId"])
+        .index("by_lastSeenAt", ["lastSeenAt"]),
+
     notes: defineTable({
         squadId: v.id("squads"),
         title: v.string(),
@@ -142,6 +154,9 @@ export default defineSchema({
         lastEditedBy: v.optional(v.id("users")),
         createdAt: v.number(),
         updatedAt: v.number(),
+        // Journal encryption fields (only set when encrypted === true)
+        encrypted: v.optional(v.boolean()),
+        nonce: v.optional(v.string()), // base64, 24-byte NaCl secretbox nonce
     })
         .index("by_owner", ["ownerId"])
         .index("by_squad", ["squadId"])
@@ -162,6 +177,15 @@ export default defineSchema({
         .index("by_note_and_lastEditedAt", ["noteId", "lastEditedAt"])
         .index("by_user_and_note", ["userId", "noteId"])
         .index("by_squad", ["squadId"]),
+
+    // Stores the PBKDF2 salt and verification token for journal password-based encryption.
+    // One row per user. No secrets here — salt is not sensitive, key is never stored server-side.
+    journalKeyConfig: defineTable({
+        userId: v.id("users"),
+        salt: v.string(),              // base64, 32-byte PBKDF2 salt
+        verificationCt: v.string(),    // base64, nacl.secretbox of sentinel string
+        verificationNonce: v.string(), // base64, nonce for the verification ciphertext
+    }).index("by_user", ["userId"]),
 
     quotes: defineTable({
         squadId: v.id("squads"),
@@ -395,6 +419,7 @@ export default defineSchema({
         deviceId:   v.string(),        //  once per app install
         publicKey:  v.string(),        
         deviceName: v.string(),        
+        pushToken:  v.optional(v.string()),
         createdAt:  v.number(),
         lastSeen:   v.number(),        
     })
@@ -464,5 +489,30 @@ export default defineSchema({
         .index("by_conversation", ["conversationId"])
         .index("by_message", ["messageId"])
         .index("by_user_and_message", ["userId", "messageId"]),
+
+    // ─── Audio Calls ───────────────────────────────────────────────────
+    callRooms: defineTable({
+        channelId: v.optional(v.id("channels")),
+        dmConversationId: v.optional(v.id("dmConversations")),
+        hmsRoomId: v.string(),
+        moderatorRoomCode: v.string(),
+        participantRoomCode: v.string(),
+        isActive: v.boolean(),
+        startedBy: v.id("users"),
+        startedAt: v.number(),
+        endedAt: v.optional(v.number()),
+    })
+        .index("by_channel_and_isActive", ["channelId", "isActive"])
+        .index("by_dmConversationId_and_isActive", ["dmConversationId", "isActive"]),
+
+    callParticipants: defineTable({
+        callRoomId: v.id("callRooms"),
+        userId: v.id("users"),
+        displayName: v.string(),
+        joinedAt: v.number(),
+        leftAt: v.optional(v.number()),
+    })
+        .index("by_callRoomId", ["callRoomId"])
+        .index("by_callRoomId_and_userId", ["callRoomId", "userId"]),
 
 });
