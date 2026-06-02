@@ -13,7 +13,7 @@
  * the newest message appears at the bottom without needing to scroll.
  * The list data is still ordered newest-first from Convex.
  */
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Animated, Image, PanResponder, Pressable, StyleSheet, View } from 'react-native';
 
 import { GifAttachment } from '@/components/giphy/gif-attachment';
@@ -85,6 +85,41 @@ export function MessageItem({
   const theme = useTheme();
   const translateX = useRef(new Animated.Value(0)).current;
   const didTriggerReply = useRef(false);
+
+  // Entrance animation: same spring lift as DM bubbles
+  const entranceScale = useRef(new Animated.Value(0.94)).current;
+  const entranceOpacity = useRef(new Animated.Value(0)).current;
+  const entranceTranslateY = useRef(new Animated.Value(10)).current;
+  const entranceTranslateX = useRef(new Animated.Value(isOwnMessage ? 10 : -10)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(entranceScale, {
+        toValue: 1,
+        useNativeDriver: true,
+        tension: 170,
+        friction: 12,
+      }),
+      Animated.spring(entranceTranslateX, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 170,
+        friction: 12,
+      }),
+      Animated.spring(entranceTranslateY, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 170,
+        friction: 12,
+      }),
+      Animated.timing(entranceOpacity, {
+        toValue: 1,
+        duration: 120,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const replyCueOpacity = translateX.interpolate({
     inputRange: [0, 24, 64],
@@ -170,7 +205,16 @@ export function MessageItem({
           </View>
         )}
 
-        <View style={[styles.bubbleCol, isOwnMessage && styles.bubbleColRight]}>
+        <Animated.View
+          style={[
+            styles.bubbleCol,
+            isOwnMessage && styles.bubbleColRight,
+            {
+              transform: [{ scale: entranceScale }, { translateX: entranceTranslateX }, { translateY: entranceTranslateY }],
+              opacity: entranceOpacity,
+            },
+          ]}
+        >
           {/* Nickname label above bubble (others only) */}
           {!isOwnMessage && nickname && (
             <ThemedText
@@ -314,7 +358,7 @@ export function MessageItem({
               👁 {seenByText}
             </ThemedText>
           ) : null}
-        </View>
+        </Animated.View>
           </View>
         </Pressable>
       </Animated.View>

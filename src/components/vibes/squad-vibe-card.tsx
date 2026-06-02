@@ -17,6 +17,7 @@ interface SquadVibeMember {
 interface SquadVibeCardProps {
     member: SquadVibeMember;
     onChat?: () => void;
+    hasDmBadge?: boolean;
 }
 
 function timeAgo(timestamp: number): string {
@@ -29,7 +30,7 @@ function timeAgo(timestamp: number): string {
     return '1d';
 }
 
-export function SquadVibeCard({ member, onChat }: SquadVibeCardProps) {
+export function SquadVibeCard({ member, onChat, hasDmBadge }: SquadVibeCardProps) {
     const theme = useTheme();
 
     return (
@@ -66,19 +67,24 @@ export function SquadVibeCard({ member, onChat }: SquadVibeCardProps) {
             </View>
 
             {onChat && (
-                <Pressable
-                    onPress={onChat}
-                    hitSlop={8}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Message ${member.nickname}`}
-                    style={({ pressed }) => [
-                        styles.chatBtn,
-                        { borderColor: theme.outline, backgroundColor: theme.background },
-                        pressed && { transform: [{ scale: 0.92 }] },
-                    ]}
-                >
-                    <MessageCircle size={16} color={theme.text} strokeWidth={2} />
-                </Pressable>
+                <View>
+                    <Pressable
+                        onPress={onChat}
+                        hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Message ${member.nickname}`}
+                        style={({ pressed }) => [
+                            styles.chatBtn,
+                            { borderColor: theme.outline, backgroundColor: theme.background },
+                            pressed && { transform: [{ scale: 0.92 }] },
+                        ]}
+                    >
+                        <MessageCircle size={16} color={theme.text} strokeWidth={2} />
+                    </Pressable>
+                    {hasDmBadge ? (
+                        <View style={[styles.badge, { backgroundColor: theme.error, borderColor: theme.surface }]} />
+                    ) : null}
+                </View>
             )}
 
             <ThemedText
@@ -117,5 +123,14 @@ const styles = StyleSheet.create({
         borderWidth: 1.5,
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    badge: {
+        position: 'absolute',
+        top: -2,
+        right: -2,
+        width: 9,
+        height: 9,
+        borderRadius: 5,
+        borderWidth: 1.5,
     },
 });

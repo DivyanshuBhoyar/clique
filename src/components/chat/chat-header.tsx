@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { ChevronLeft, Settings } from 'lucide-react-native';
+import { ChevronLeft, Phone, Settings } from 'lucide-react-native';
 import { useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring } from 'react-native-reanimated';
@@ -17,9 +17,10 @@ interface ChatHeaderProps {
   otherUnreadCount?: number;
   onTitlePress?: () => void;
   onSettingsPress?: () => void;
+  onCallPress?: () => void;
 }
 
-export function ChatHeader({ channelName, channelEmoji, onlineCount, otherUnreadCount = 0, onTitlePress, onSettingsPress }: ChatHeaderProps) {
+export function ChatHeader({ channelName, channelEmoji, onlineCount, otherUnreadCount = 0, onTitlePress, onSettingsPress, onCallPress }: ChatHeaderProps) {
   const theme = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -102,7 +103,18 @@ export function ChatHeader({ channelName, channelEmoji, onlineCount, otherUnread
         ) : null}
       </Pressable>
 
-      <View style={styles.side}>
+      <View style={[styles.side, styles.rightSide]}>
+        {onCallPress && (
+          <Pressable
+            onPress={onCallPress}
+            accessibilityRole="button"
+            accessibilityLabel="Start audio call"
+            hitSlop={8}
+            style={[styles.iconButton, { backgroundColor: theme.surface, borderColor: theme.outlineLight }]}
+          >
+            <Phone size={20} color={theme.text} strokeWidth={2} />
+          </Pressable>
+        )}
         {onSettingsPress && (
           <Pressable
             onPress={onSettingsPress}
@@ -131,6 +143,11 @@ const styles = StyleSheet.create({
     width: 44,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  rightSide: {
+    width: 'auto',
+    flexDirection: 'row',
+    gap: 6,
   },
   iconButton: {
     width: 38,

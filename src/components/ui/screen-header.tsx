@@ -20,8 +20,12 @@ interface ScreenHeaderProps {
   onBack?: () => void;
   leftIcon?: LucideIcon;
   onLeftPress?: () => void;
+  /** Show a notification dot on the left icon */
+  leftBadge?: boolean;
   rightIcon?: LucideIcon;
   onRightPress?: () => void;
+  /** Show a notification dot on the right icon */
+  rightBadge?: boolean;
   style?: ViewStyle;
   /** Optional subtitle shown below title (e.g. "● 5 online") */
   subtitle?: string;
@@ -32,8 +36,10 @@ export function ScreenHeader({
   onBack,
   leftIcon: LeftIcon,
   onLeftPress,
+  leftBadge,
   rightIcon: RightIcon,
   onRightPress,
+  rightBadge,
   style,
   subtitle,
 }: ScreenHeaderProps) {
@@ -72,15 +78,18 @@ export function ScreenHeader({
             <ChevronLeft size={20} color={theme.text} strokeWidth={2.5} />
           </Pressable>
         ) : LeftIcon && onLeftPress ? (
-          <Pressable
-            onPress={onLeftPress}
-            accessibilityRole="button"
-            accessibilityLabel="Switch squad"
-            hitSlop={8}
-            style={styles.leftIconBtn}
-          >
-            <LeftIcon size={18} color={theme.textSecondary} strokeWidth={2} />
-          </Pressable>
+          <View>
+            <Pressable
+              onPress={onLeftPress}
+              accessibilityRole="button"
+              accessibilityLabel="Switch squad"
+              hitSlop={8}
+              style={styles.leftIconBtn}
+            >
+              <LeftIcon size={18} color={theme.textSecondary} strokeWidth={2} />
+            </Pressable>
+            {leftBadge ? <View style={[styles.badge, { backgroundColor: theme.error, borderColor: theme.headerBackground }]} /> : null}
+          </View>
         ) : null}
       </View>
 
@@ -99,21 +108,24 @@ export function ScreenHeader({
       {/* Right — action button or placeholder */}
       <View style={styles.side}>
         {RightIcon && onRightPress ? (
-          <Pressable
-            onPress={onRightPress}
-            accessibilityRole="button"
-            hitSlop={8}
-            style={({ pressed }) => [
-              styles.iconBtn,
-              {
-                borderColor: theme.outline,
-                backgroundColor: theme.surface,
-              },
-              pressed && styles.iconBtnPressed,
-            ]}
-          >
-            <RightIcon size={18} color={theme.text} strokeWidth={2.5} />
-          </Pressable>
+          <View>
+            <Pressable
+              onPress={onRightPress}
+              accessibilityRole="button"
+              hitSlop={8}
+              style={({ pressed }) => [
+                styles.iconBtn,
+                {
+                  borderColor: theme.outline,
+                  backgroundColor: theme.surface,
+                },
+                pressed && styles.iconBtnPressed,
+              ]}
+            >
+              <RightIcon size={18} color={theme.text} strokeWidth={2.5} />
+            </Pressable>
+            {rightBadge ? <View style={[styles.badge, { backgroundColor: theme.error, borderColor: theme.headerBackground }]} /> : null}
+          </View>
         ) : null}
       </View>
     </View>
@@ -161,5 +173,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     opacity: 0.75,
+  },
+  badge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    borderWidth: 1.5,
   },
 });

@@ -63,10 +63,10 @@ const palette = {
   quoteBg: '#FFE8B0',   quoteText: '#5E4A1A',   // honey
   randomBg: '#EDE4FF',  randomText: '#4A2880',  // soft lavender
 
-  // Chat bubbles
-  bubbleOwn: '#6B4EE0',               // purple own-message bubble
-  bubbleOwnText: '#FFFFFF',
-  bubbleOther: '#FFFFFF',
+  // Chat bubbles — yellow & purple for playful contrast
+  bubbleOwn: '#FFDB63',                // bright yellow own-message
+  bubbleOwnText: '#1A1A1A',            // dark text for contrast
+  bubbleOther: '#F0EAFF',              // soft lavender other-message
   bubbleOtherText: '#1A1A1A',
 
   // Input

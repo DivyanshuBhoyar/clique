@@ -21,6 +21,7 @@ type LoungeMemberPreview = {
   avatarUrl?: string | null;
   nickname: string;
   isOnline?: boolean;
+  vibe?: string | null;
 };
 
 type LoungeChannel = {
@@ -70,7 +71,7 @@ export function LoungeHeroCard({ channel, squadId, members = [] }: LoungeHeroCar
                 },
               ]}
             >
-              <UserAvatar uri={member.avatarUrl} size={34} fallbackText={member.nickname} />
+              <UserAvatar uri={member.avatarUrl} size={34} fallbackText={member.nickname} vibeEmoji={member.vibe ?? undefined} />
             </View>
           ))}
           {extraCount > 0 ? (
@@ -102,13 +103,13 @@ export function LoungeHeroCard({ channel, squadId, members = [] }: LoungeHeroCar
   );
 
   const messagePreview = (
-    <View style={[styles.messageStack, isWide && styles.messageStackWide]}>
+    <View style={[styles.messageStack, isWide ? styles.messageStackWide : styles.messageStackNarrow]}>
       {previewMessages.map((message, index) => (
         <View
           key={`${message.nickname}-${message.content}-${index}`}
           style={[
             styles.messagePill,
-            index === 1 && styles.messagePillLower,
+            isWide && index === 1 && styles.messagePillLower,
             {
               backgroundColor: PILL_COLORS[index % PILL_COLORS.length],
             },
@@ -322,7 +323,7 @@ const styles = StyleSheet.create({
     minWidth: 116,
   },
   avatarStack: {
-    height: 36,
+    height: 42,
     minWidth: 92,
     position: 'relative',
   },
@@ -330,7 +331,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     borderWidth: BorderWidth.medium,
     borderRadius: Radius.full,
-    overflow: 'hidden',
   },
   avatarMore: {
     position: 'absolute',
@@ -359,6 +359,13 @@ const styles = StyleSheet.create({
   },
   messageStackWide: {
     width: '100%',
+  },
+  messageStackNarrow: {
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    justifyContent: 'flex-start',
+    gap: Spacing.xs,
+    flexShrink: 1,
   },
   messagePill: {
     flexDirection: 'row',
