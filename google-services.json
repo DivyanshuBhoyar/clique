@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "851582590618",
+    "project_id": "clique-nest",
+    "storage_bucket": "clique-nest.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:851582590618:android:07b499f4520890e0720923",
+        "android_client_info": {
+          "package_name": "com.anonymous.clique"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC0Apm7IeK8kOAQSn5qBqfX2jeCKYEIMGc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -30,6 +30,14 @@ yarn-error.*
 .DS_Store
 *.pem
 
+# Firebase — contains project ID, not a secret but not needed in source control
+android/app/google-services.json
+ios/GoogleService-Info.plist
+
+# lock files for other package managers (project uses bun)
+package-lock.json
+yarn.lock
+
 # local env files
 .env*.local
 
