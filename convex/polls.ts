@@ -86,7 +86,7 @@ export const createPoll = mutation({
         await schedulePushToSquad(ctx, {
             squadId: args.squadId,
             excludeUserId: userId,
-            title: "Homie Squad",
+            title: "Clique",
             body: `${membership.nickname} started a poll`,
             data: { path: `/squad/${args.squadId}/vibes` },
         });

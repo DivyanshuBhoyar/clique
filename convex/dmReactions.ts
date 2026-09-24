@@ -1,7 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { schedulePushToUser } from "./push";
+import { ANDROID_NOTIFICATION_CHANNELS, schedulePushToUser } from "./push";
 import { SECURITY_LIMITS, assertRateLimit } from "./security";
 import { assertLength } from "./validators";
 
@@ -63,13 +63,14 @@ export const toggle = mutation({
 
         const recipientId = conv.participantA === userId ? conv.participantB : conv.participantA;
         const sender = await ctx.db.get(userId);
-        const senderName = sender?.name ?? sender?.email ?? "Someone";
+        const senderName = sender?.name?.trim() || sender?.email?.trim() || "Someone";
         await schedulePushToUser(ctx, {
             userId: recipientId,
             excludeUserId: userId,
             suppressIfActiveConversationId: conversationId,
-            title: "Homie Squad",
-            body: `${senderName} reacted ${emoji} to a DM`,
+            title: `${senderName} reacted ${emoji}`,
+            body: "to your DM",
+            androidChannelId: ANDROID_NOTIFICATION_CHANNELS.social,
             data: { path: `/dm/${conversationId}` },
         });
 

@@ -10,7 +10,7 @@ export const cleanupExpiredChannels = internalMutation({
 
         const channels = await ctx.db
             .query("channels")
-            .withIndex("by_type", (q) => q.eq("type", "ephemeral"))
+            .withIndex("by_type", (q) => q.eq("type", "timed"))
             .collect();
 
         const expired = channels.filter((c) => {
@@ -80,6 +80,7 @@ export const cleanupEmptyJournals = internalMutation({
 });
 
 const crons = cronJobs();
-crons.interval("cleanup expired ephemeral channels", { minutes: 10 }, internal.crons.cleanupExpiredChannels, {});
+crons.interval("cleanup expired timed channels", { minutes: 10 }, internal.crons.cleanupExpiredChannels, {});
 crons.interval("cleanup empty journals", { hours: 24 }, internal.crons.cleanupEmptyJournals, {});
+crons.interval("abort empty active calls", { minutes: 1 }, internal.calls.abortEmptyActiveCalls, {});
 export default crons;

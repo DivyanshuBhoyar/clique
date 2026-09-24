@@ -13,25 +13,82 @@ const ACTIVE_CONTEXT_STALE_MS = 30_000;
 
 const pushDataValidator = v.record(v.string(), v.string());
 
+const pushRegistrationStageValidator = v.union(
+    v.literal("notifications_import"),
+    v.literal("not_physical_device"),
+    v.literal("permission_denied"),
+    v.literal("missing_project_id"),
+    v.literal("token_request"),
+    v.literal("missing_device_id"),
+    v.literal("register_token"),
+    v.literal("saved"),
+);
+
+const androidNotificationChannelValidator = v.union(
+    v.literal("default"),
+    v.literal("messages"),
+    v.literal("direct"),
+    v.literal("replies"),
+    v.literal("social"),
+    v.literal("calls"),
+);
+
+export const ANDROID_NOTIFICATION_CHANNELS = {
+    default: "default",
+    messages: "messages",
+    direct: "direct",
+    replies: "replies",
+    social: "social",
+    calls: "calls",
+} as const;
+
 type PushData = Record<string, string>;
+type AndroidNotificationChannelId = typeof ANDROID_NOTIFICATION_CHANNELS[keyof typeof ANDROID_NOTIFICATION_CHANNELS];
 
 type PushPayload = {
     title: string;
     body: string;
     data?: PushData;
+    androidChannelId?: AndroidNotificationChannelId;
+};
+
+export type WebPushSubscription = {
+    endpoint: string;
+    p256dh: string;
+    auth: string;
+};
+
+type PushTargets = {
+    tokens: string[];
+    webSubscriptions: WebPushSubscription[];
 };
 
 type ChannelPushRecipient = {
     userId: Id<"users">;
     tokens: string[];
+    webSubscriptions: WebPushSubscription[];
 };
 
 function uniqueTokens(tokens: string[]) {
     return [...new Set(tokens.filter((token) => token.trim().length > 0))];
 }
 
-async function getTokensForUsers(ctx: QueryCtx | MutationCtx, userIds: Id<"users">[]) {
+function uniqueWebSubscriptions(subs: WebPushSubscription[]) {
+    const byEndpoint = new Map<string, WebPushSubscription>();
+    for (const sub of subs) {
+        const endpoint = sub.endpoint.trim();
+        const p256dh = sub.p256dh.trim();
+        const auth = sub.auth.trim();
+        if (!endpoint || !p256dh || !auth) continue;
+        byEndpoint.set(endpoint, { endpoint, p256dh, auth });
+    }
+    return [...byEndpoint.values()];
+}
+
+async function getPushTargetsForUsers(ctx: QueryCtx | MutationCtx, userIds: Id<"users">[]): Promise<PushTargets> {
     const tokens: string[] = [];
+    const webSubscriptions: WebPushSubscription[] = [];
+
     for (const userId of userIds) {
         const devices = await ctx.db
             .query("deviceKeys")
@@ -40,9 +97,24 @@ async function getTokensForUsers(ctx: QueryCtx | MutationCtx, userIds: Id<"users
 
         for (const device of devices) {
             if (device.pushToken) tokens.push(device.pushToken);
+            if (device.webPushEndpoint && device.webPushP256dh && device.webPushAuth) {
+                webSubscriptions.push({
+                    endpoint: device.webPushEndpoint,
+                    p256dh: device.webPushP256dh,
+                    auth: device.webPushAuth,
+                });
+            }
         }
     }
-    return uniqueTokens(tokens);
+
+    return {
+        tokens: uniqueTokens(tokens),
+        webSubscriptions: uniqueWebSubscriptions(webSubscriptions),
+    };
+}
+
+async function getTokensForUsers(ctx: QueryCtx | MutationCtx, userIds: Id<"users">[]) {
+    return (await getPushTargetsForUsers(ctx, userIds)).tokens;
 }
 
 async function isUserActiveInChannel(
@@ -82,17 +154,33 @@ async function isUserActiveInConversation(
 
 export async function schedulePush(
     ctx: MutationCtx,
-    args: PushPayload & { tokens: string[] },
+    args: PushPayload & {
+        tokens?: string[];
+        webSubscriptions?: WebPushSubscription[];
+    },
 ) {
-    const tokens = uniqueTokens(args.tokens);
-    if (tokens.length === 0) return;
+    const tokens = uniqueTokens(args.tokens ?? []);
+    const webSubscriptions = uniqueWebSubscriptions(args.webSubscriptions ?? []);
+    if (tokens.length === 0 && webSubscriptions.length === 0) return;
 
-    await ctx.scheduler.runAfter(0, internal.push.sendPush, {
-        tokens,
-        title: args.title,
-        body: args.body,
-        ...(args.data ? { data: args.data } : {}),
-    });
+    if (tokens.length > 0) {
+        await ctx.scheduler.runAfter(0, internal.push.sendPush, {
+            tokens,
+            title: args.title,
+            body: args.body,
+            ...(args.data ? { data: args.data } : {}),
+            ...(args.androidChannelId ? { androidChannelId: args.androidChannelId } : {}),
+        });
+    }
+
+    if (webSubscriptions.length > 0) {
+        await ctx.scheduler.runAfter(0, internal.webPush.sendWebPush, {
+            subscriptions: webSubscriptions,
+            title: args.title,
+            body: args.body,
+            ...(args.data ? { data: args.data } : {}),
+        });
+    }
 }
 
 export async function schedulePushToUser(
@@ -127,10 +215,14 @@ export async function schedulePushToUser(
         if (isActive) return;
     }
 
-    const tokens: string[] = await ctx.runQuery(internal.push.getTokensForUser, {
+    const targets: PushTargets = await ctx.runQuery(internal.push.getPushTargetsForUser, {
         userId: args.userId,
     });
-    await schedulePush(ctx, { ...args, tokens });
+    await schedulePush(ctx, {
+        ...args,
+        tokens: targets.tokens,
+        webSubscriptions: targets.webSubscriptions,
+    });
 }
 
 export const markAppActive = mutation({
@@ -247,11 +339,15 @@ export async function schedulePushToSquad(
         excludeUserId?: Id<"users">;
     },
 ) {
-    const tokens: string[] = await ctx.runQuery(internal.push.getTokensForSquad, {
+    const targets: PushTargets = await ctx.runQuery(internal.push.getPushTargetsForSquad, {
         squadId: args.squadId,
         ...(args.excludeUserId ? { excludeUserId: args.excludeUserId } : {}),
     });
-    await schedulePush(ctx, { ...args, tokens });
+    await schedulePush(ctx, {
+        ...args,
+        tokens: targets.tokens,
+        webSubscriptions: targets.webSubscriptions,
+    });
 }
 
 export const registerToken = mutation({
@@ -275,6 +371,62 @@ export const registerToken = mutation({
             pushToken: args.pushToken,
         });
         return result;
+    },
+});
+
+export const registerWebPushSubscription = mutation({
+    args: {
+        deviceId: v.string(),
+        endpoint: v.string(),
+        p256dh: v.string(),
+        auth: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) throw new Error("Unauthenticated");
+
+        await assertRateLimit(ctx, ["registerWebPush", userId], SECURITY_LIMITS.rate.registerDevice);
+        assertNonEmpty("Device id", args.deviceId);
+        assertLength("Device id", args.deviceId, 100);
+        assertNonEmpty("Web push endpoint", args.endpoint);
+        assertLength("Web push endpoint", args.endpoint, 2048);
+        assertNonEmpty("Web push p256dh", args.p256dh);
+        assertLength("Web push p256dh", args.p256dh, 200);
+        assertNonEmpty("Web push auth", args.auth);
+        assertLength("Web push auth", args.auth, 200);
+
+        const result: { saved: boolean } = await ctx.runMutation(internal.push.saveWebPushSubscription, {
+            userId,
+            deviceId: args.deviceId,
+            endpoint: args.endpoint,
+            p256dh: args.p256dh,
+            auth: args.auth,
+        });
+        return result;
+    },
+});
+
+export const reportRegistrationIssue = mutation({
+    args: {
+        stage: pushRegistrationStageValidator,
+        message: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) throw new Error("Unauthenticated");
+
+        await assertRateLimit(ctx, ["reportPushRegistrationIssue", userId], SECURITY_LIMITS.rate.registerDevice);
+        assertNonEmpty("Push registration message", args.message);
+        assertLength("Push registration message", args.message, 500);
+
+        console.warn("Push registration issue", {
+            userId,
+            stage: args.stage,
+            message: args.message,
+            timestamp: Date.now(),
+        });
+
+        return { reported: true };
     },
 });
 
@@ -303,10 +455,81 @@ export const savePushToken = internalMutation({
     },
 });
 
+export const saveWebPushSubscription = internalMutation({
+    args: {
+        userId: v.id("users"),
+        deviceId: v.string(),
+        endpoint: v.string(),
+        p256dh: v.string(),
+        auth: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const device = await ctx.db
+            .query("deviceKeys")
+            .withIndex("by_device", (q) => q.eq("deviceId", args.deviceId))
+            .first();
+
+        if (!device || device.userId !== args.userId) {
+            throw new Error("FORBIDDEN");
+        }
+
+        // One endpoint should map to one device row — clear duplicates first.
+        const existingWithEndpoint = await ctx.db
+            .query("deviceKeys")
+            .withIndex("by_web_push_endpoint", (q) => q.eq("webPushEndpoint", args.endpoint))
+            .take(SECURITY_LIMITS.dm.maxUserDevices);
+
+        for (const other of existingWithEndpoint) {
+            if (other._id === device._id) continue;
+            await ctx.db.patch(other._id, {
+                webPushEndpoint: undefined,
+                webPushP256dh: undefined,
+                webPushAuth: undefined,
+            });
+        }
+
+        await ctx.db.patch(device._id, {
+            webPushEndpoint: args.endpoint,
+            webPushP256dh: args.p256dh,
+            webPushAuth: args.auth,
+            lastSeen: Date.now(),
+        });
+
+        return { saved: true };
+    },
+});
+
+export const clearWebPushSubscriptionByEndpoint = internalMutation({
+    args: { endpoint: v.string() },
+    handler: async (ctx, args) => {
+        const devices = await ctx.db
+            .query("deviceKeys")
+            .withIndex("by_web_push_endpoint", (q) => q.eq("webPushEndpoint", args.endpoint))
+            .take(SECURITY_LIMITS.dm.maxUserDevices);
+
+        for (const device of devices) {
+            await ctx.db.patch(device._id, {
+                webPushEndpoint: undefined,
+                webPushP256dh: undefined,
+                webPushAuth: undefined,
+            });
+        }
+
+        return { cleared: devices.length };
+    },
+});
+
 export const getTokensForUser = internalQuery({
     args: { userId: v.id("users") },
     handler: async (ctx, args) => {
         return getTokensForUsers(ctx, [args.userId]);
+    },
+});
+
+export const getPushTargetsForUser = internalQuery({
+    args: { userId: v.id("users") },
+    handler: async (ctx, args): Promise<PushTargets> => {
+        return getPushTargetsForUsers(ctx, [args.userId]);
     },
 });
 
@@ -326,6 +549,25 @@ export const getTokensForSquad = internalQuery({
             .filter((userId) => userId !== args.excludeUserId);
 
         return getTokensForUsers(ctx, recipientIds);
+    },
+});
+
+export const getPushTargetsForSquad = internalQuery({
+    args: {
+        squadId: v.id("squads"),
+        excludeUserId: v.optional(v.id("users")),
+    },
+    handler: async (ctx, args): Promise<PushTargets> => {
+        const memberships = await ctx.db
+            .query("memberships")
+            .withIndex("by_squad", (q) => q.eq("squadId", args.squadId))
+            .take(SECURITY_LIMITS.query.maxSquadMembersRead);
+
+        const recipientIds = memberships
+            .map((membership) => membership.userId)
+            .filter((userId) => userId !== args.excludeUserId);
+
+        return getPushTargetsForUsers(ctx, recipientIds);
     },
 });
 
@@ -356,8 +598,14 @@ export const getRecipientsForChannel = internalQuery({
             if (userId === args.excludeUserId) continue;
             if (await isUserActiveInApp(ctx, userId)) continue;
             if (await isUserActiveInChannel(ctx, userId, args.channelId)) continue;
-            const tokens = await getTokensForUsers(ctx, [userId]);
-            if (tokens.length > 0) recipients.push({ userId, tokens });
+            const targets = await getPushTargetsForUsers(ctx, [userId]);
+            if (targets.tokens.length > 0 || targets.webSubscriptions.length > 0) {
+                recipients.push({
+                    userId,
+                    tokens: targets.tokens,
+                    webSubscriptions: targets.webSubscriptions,
+                });
+            }
         }
 
         return recipients;
@@ -397,6 +645,7 @@ export const sendPush = internalAction({
         title: v.string(),
         body: v.string(),
         data: v.optional(pushDataValidator),
+        androidChannelId: v.optional(androidNotificationChannelValidator),
     },
     handler: async (_ctx, args) => {
         const tokens = uniqueTokens(args.tokens);
@@ -411,6 +660,7 @@ export const sendPush = internalAction({
                 body: args.body,
                 data: args.data ?? {},
                 sound: "default",
+                ...(args.androidChannelId ? { channelId: args.androidChannelId } : {}),
             }));
 
             try {

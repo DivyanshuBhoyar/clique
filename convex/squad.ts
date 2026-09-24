@@ -32,6 +32,7 @@ export const createSquad = mutation({
         name: v.string(),
         password: v.string(),
         nickname: v.string(),
+        avatarStorageId: v.optional(v.id("_storage")),
     },
 
     handler: async (ctx, args) => {
@@ -64,6 +65,7 @@ export const createSquad = mutation({
             passwordHash,
             createdBy: userId,
             createdAt: now,
+            ...(args.avatarStorageId ? { avatarStorageId: args.avatarStorageId } : {}),
         });
 
         await ctx.db.insert("memberships", {
@@ -112,7 +114,7 @@ export const joinSquad = mutation({
             .withIndex("by_name", (q) => q.eq("name", args.squadName.trim()))
             .first();
 
-        if (!squad) throw new Error("Squad not found");
+        if (!squad) throw new Error("Space not found");
 
         const squadId = squad._id;
 
@@ -163,7 +165,7 @@ export const joinSquad = mutation({
         await schedulePushToSquad(ctx, {
             squadId,
             excludeUserId: userId,
-            title: "Homie Squad",
+            title: "Clique",
             body: `${args.nickname.trim()} joined the squad 👋`,
             data: { path: `/squad/${squadId}/members` },
         });
@@ -198,9 +200,15 @@ export const getUserSquads = query({
             if (s) squadMap.set(s._id, s);
         }
 
-        return memberships.map((m) => ({
-            squad: squadMap.get(m.squadId) || null,
-            membership: m,
+        return await Promise.all(memberships.map(async (m) => {
+            const squad = squadMap.get(m.squadId) ?? null;
+            const avatarUrl = squad?.avatarStorageId
+                ? await ctx.storage.getUrl(squad.avatarStorageId)
+                : null;
+            return {
+                squad: squad ? { ...squad, avatarUrl } : null,
+                membership: m,
+            };
         }));
     },
 });
@@ -231,9 +239,15 @@ export const getCurrentUserSquads = query({
             if (s) squadMap.set(s._id, s);
         }
 
-        return memberships.map((m) => ({
-            squad: squadMap.get(m.squadId) || null,
-            membership: m,
+        return await Promise.all(memberships.map(async (m) => {
+            const squad = squadMap.get(m.squadId) ?? null;
+            const avatarUrl = squad?.avatarStorageId
+                ? await ctx.storage.getUrl(squad.avatarStorageId)
+                : null;
+            return {
+                squad: squad ? { ...squad, avatarUrl } : null,
+                membership: m,
+            };
         }));
     },
 });
@@ -252,7 +266,14 @@ export const getSquad = query({
             .first();
         if (!membership) throw new Error("Not a member of this squad");
 
-        return await ctx.db.get(args.id);
+        const squad = await ctx.db.get(args.id);
+        if (!squad) return null;
+
+        const avatarUrl = squad.avatarStorageId
+            ? await ctx.storage.getUrl(squad.avatarStorageId)
+            : null;
+
+        return { ...squad, avatarUrl };
     },
 });
 
@@ -263,7 +284,7 @@ export const leaveSquad = mutation({
         if (!userId) throw new Error("Unauthenticated");
 
         const squad = await ctx.db.get(args.squadId);
-        if (!squad) throw new Error("Squad not found");
+        if (!squad) throw new Error("Space not found");
 
         const membership = await ctx.db
             .query("memberships")
@@ -289,7 +310,7 @@ export const removeSquadMember = mutation({
     handler: async (ctx, args) => {
         const { userId } = await requireMembership(ctx, args.squadId);
         const squad = await ctx.db.get(args.squadId);
-        if (!squad) throw new Error("Squad not found");
+        if (!squad) throw new Error("Space not found");
         if (squad.createdBy !== userId) throw new Error("Only the squad creator can remove members");
         if (args.memberUserId === userId) throw new Error("Use Leave Squad for your own membership");
         if (args.memberUserId === squad.createdBy) throw new Error("The squad creator cannot be removed");
@@ -419,7 +440,7 @@ export const updateSquadSettings = mutation({
     handler: async (ctx, args) => {
         const { userId } = await requireMembership(ctx, args.squadId);
         const squad = await ctx.db.get(args.squadId);
-        if (!squad) throw new Error("Squad not found");
+        if (!squad) throw new Error("Space not found");
         if (squad.createdBy !== userId) throw new Error("Only the squad creator can update settings");
 
         const updates: { name?: string; passwordHash?: string } = {};

@@ -25,6 +25,7 @@ import type * as http from "../http.js";
 import type * as journalKey from "../journalKey.js";
 import type * as memories from "../memories.js";
 import type * as message from "../message.js";
+import type * as migrations from "../migrations.js";
 import type * as notes from "../notes.js";
 import type * as polls from "../polls.js";
 import type * as presence from "../presence.js";
@@ -38,6 +39,7 @@ import type * as typing from "../typing.js";
 import type * as users from "../users.js";
 import type * as validators from "../validators.js";
 import type * as vibes from "../vibes.js";
+import type * as webPush from "../webPush.js";
 
 import type {
   ApiFromModules,
@@ -63,6 +65,7 @@ declare const fullApi: ApiFromModules<{
   journalKey: typeof journalKey;
   memories: typeof memories;
   message: typeof message;
+  migrations: typeof migrations;
   notes: typeof notes;
   polls: typeof polls;
   presence: typeof presence;
@@ -76,6 +79,7 @@ declare const fullApi: ApiFromModules<{
   users: typeof users;
   validators: typeof validators;
   vibes: typeof vibes;
+  webPush: typeof webPush;
 }>;
 
 /**

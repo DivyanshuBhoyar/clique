@@ -1,7 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { schedulePushToUser } from "./push";
+import { ANDROID_NOTIFICATION_CHANNELS, schedulePushToUser } from "./push";
 import { SECURITY_LIMITS, assertArrayLimit, assertRateLimit, assertUsersShareSquad } from "./security";
 import { getAvatarUrl } from "./users";
 import { assertLength, assertNonEmpty } from "./validators";
@@ -121,14 +121,15 @@ export const sendFanOut = mutation({
         )];
         if (messageRecipientIds.length > 0) {
             const sender = await ctx.db.get(userId);
-            const senderName = sender?.name ?? sender?.email ?? "Someone";
+            const senderName = sender?.name?.trim() || sender?.email?.trim() || "Someone";
             for (const recipientId of messageRecipientIds) {
                 await schedulePushToUser(ctx, {
                     userId: recipientId,
                     excludeUserId: userId,
                     suppressIfActiveConversationId: conversationId,
-                    title: `New message from ${senderName}`,
-                    body: "Open the app to read",
+                    title: `${senderName} sent a DM`,
+                    body: "Open Clique to read it",
+                    androidChannelId: ANDROID_NOTIFICATION_CHANNELS.direct,
                     data: { path: `/dm/${conversationId}` },
                 });
             }

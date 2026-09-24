@@ -15,7 +15,6 @@ export const registerDevice = mutation({
         const userId = await getAuthUserId(ctx);
         if (!userId) throw new Error("Unauthenticated");
 
-        await assertRateLimit(ctx, ["registerDevice", userId], SECURITY_LIMITS.rate.registerDevice);
         assertNonEmpty("Device id", args.deviceId);
         assertLength("Device id", args.deviceId, 100);
         assertNonEmpty("Public key", args.publicKey);
@@ -33,8 +32,13 @@ export const registerDevice = mutation({
             return;
         }
 
+        await assertRateLimit(ctx, ["registerDevice", userId], SECURITY_LIMITS.rate.registerDevice);
+
         if (existing.length >= SECURITY_LIMITS.dm.maxUserDevices) {
-            throw new Error("MAX_DEVICES_REACHED");
+            // Evict the least-recently-seen device to make room.
+            // Sorted ascending by lastSeen — first element is the oldest.
+            const oldest = existing.slice().sort((a, b) => a.lastSeen - b.lastSeen)[0];
+            await ctx.db.delete(oldest._id);
         }
 
         await ctx.db.insert("deviceKeys", {

@@ -53,7 +53,7 @@ export const createDrop = mutation({
         await schedulePushToSquad(ctx, {
             squadId: args.squadId,
             excludeUserId: userId,
-            title: "Homie Squad",
+            title: "Clique",
             body: `${membership.nickname} dropped a ${args.category.trim()}`,
             data: { path: `/squad/${args.squadId}/drops` },
         });
@@ -210,7 +210,7 @@ export const toggleDropReaction = mutation({
         await schedulePushToUser(ctx, {
             userId: drop.userId,
             excludeUserId: userId,
-            title: "Homie Squad",
+            title: "Clique",
             body: `${membership.nickname} reacted ${args.emoji} to your drop`,
             data: { path: `/squad/${drop.squadId}/drops/${args.dropId}` },
         });
@@ -272,7 +272,7 @@ export const addDropComment = mutation({
         await schedulePushToUser(ctx, {
             userId: drop.userId,
             excludeUserId: userId,
-            title: "Homie Squad",
+            title: "Clique",
             body: `${membership.nickname} commented on your drop`,
             data: { path: `/squad/${drop.squadId}/drops/${args.dropId}` },
         });

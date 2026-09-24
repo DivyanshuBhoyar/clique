@@ -247,7 +247,13 @@ export const toggleNotePin = mutation({
         if (!userId) throw new Error("Unauthenticated");
         const note = await ctx.db.get(args.noteId);
         if (!note) throw new Error("Note not found");
-        if (note.ownerId !== userId) throw new Error("Unauthorized");
+
+        if (note.type === "shared") {
+            await requireMembership(ctx, note.squadId);
+        } else if (note.ownerId !== userId) {
+            throw new Error("Unauthorized");
+        }
+
         const now = Date.now();
         const pinned = !note.pinned;
         await ctx.db.patch(args.noteId, {

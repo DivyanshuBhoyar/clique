@@ -52,7 +52,7 @@ export const createMemory = mutation({
         await schedulePushToSquad(ctx, {
             squadId: args.squadId,
             excludeUserId: userId,
-            title: "Homie Squad",
+            title: "Clique",
             body: `${membership.nickname} added a memory`,
             data: { path: `/squad/${args.squadId}/memories` },
         });
@@ -369,7 +369,7 @@ export const toggleMemoryReaction = mutation({
             await schedulePushToUser(ctx, {
                 userId: memory.createdBy,
                 excludeUserId: userId,
-                title: "Homie Squad",
+                title: "Clique",
                 body: `${membership.nickname} reacted ${args.emoji} to your memory`,
                 data: { path: `/squad/${memory.squadId}/memories/${args.memoryId}` },
             });
@@ -386,7 +386,7 @@ export const toggleMemoryReaction = mutation({
         await schedulePushToUser(ctx, {
             userId: memory.createdBy,
             excludeUserId: userId,
-            title: "Homie Squad",
+            title: "Clique",
             body: `${membership.nickname} reacted ${args.emoji} to your memory`,
             data: { path: `/squad/${memory.squadId}/memories/${args.memoryId}` },
         });
@@ -433,7 +433,7 @@ export const toggleMemoryItemReaction = mutation({
             await schedulePushToUser(ctx, {
                 userId: item.userId,
                 excludeUserId: userId,
-                title: "Homie Squad",
+                title: "Clique",
                 body: `${membership.nickname} reacted ${args.emoji} to your memory item`,
                 data: { path: `/squad/${memory.squadId}/memories/${item.memoryId}` },
             });
@@ -450,7 +450,7 @@ export const toggleMemoryItemReaction = mutation({
         await schedulePushToUser(ctx, {
             userId: item.userId,
             excludeUserId: userId,
-            title: "Homie Squad",
+            title: "Clique",
             body: `${membership.nickname} reacted ${args.emoji} to your memory item`,
             data: { path: `/squad/${memory.squadId}/memories/${item.memoryId}` },
         });
@@ -564,7 +564,7 @@ export const addMemoryComment = mutation({
         await schedulePushToUser(ctx, {
             userId: memory.createdBy,
             excludeUserId: userId,
-            title: "Homie Squad",
+            title: "Clique",
             body: `${membership.nickname} commented on your memory`,
             data: { path: `/squad/${memory.squadId}/memories/${args.memoryId}` },
         });

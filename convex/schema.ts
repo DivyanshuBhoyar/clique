@@ -22,6 +22,7 @@ export default defineSchema({
         passwordHash: v.string(),
         createdBy: v.id("users"),
         createdAt: v.number(),
+        avatarStorageId: v.optional(v.id("_storage")),
     })
         .index("by_created", ["createdAt"])
         .index("by_name", ["name"]),
@@ -51,7 +52,7 @@ export default defineSchema({
             v.literal("topic"),
             v.literal("mood"),
             v.literal("thread"),
-            v.literal("ephemeral"),
+            v.literal("timed"),
             v.literal("private"),
         ),
         parentChannelId: v.optional(v.id("channels")),
@@ -272,7 +273,8 @@ export default defineSchema({
     weeklyQuestions: defineTable({
         squadId: v.id("squads"),
         question: v.string(),
-        channelId: v.optional(v.id("channels")),
+        channelId: v.optional(v.id("channels")), // deprecated: remove after backfill migration
+        createdBy: v.optional(v.id("users")),    // widen: will become required after migration
         createdAt: v.number(),
     })
         .index("by_squad", ["squadId"])
@@ -420,11 +422,16 @@ export default defineSchema({
         publicKey:  v.string(),        
         deviceName: v.string(),        
         pushToken:  v.optional(v.string()),
+        // Web Push subscription (browser). Separate from Expo pushToken.
+        webPushEndpoint: v.optional(v.string()),
+        webPushP256dh: v.optional(v.string()),
+        webPushAuth: v.optional(v.string()),
         createdAt:  v.number(),
         lastSeen:   v.number(),        
     })
         .index("by_user", ["userId"])      
-        .index("by_device", ["deviceId"]),
+        .index("by_device", ["deviceId"])
+        .index("by_web_push_endpoint", ["webPushEndpoint"]),
 
    dmConversations: defineTable({
         participantA: v.id("users"),   
@@ -503,13 +510,15 @@ export default defineSchema({
         endedAt: v.optional(v.number()),
     })
         .index("by_channel_and_isActive", ["channelId", "isActive"])
-        .index("by_dmConversationId_and_isActive", ["dmConversationId", "isActive"]),
+        .index("by_dmConversationId_and_isActive", ["dmConversationId", "isActive"])
+        .index("by_isActive", ["isActive"]),
 
     callParticipants: defineTable({
         callRoomId: v.id("callRooms"),
         userId: v.id("users"),
         displayName: v.string(),
         joinedAt: v.number(),
+        lastSeenAt: v.optional(v.number()),
         leftAt: v.optional(v.number()),
     })
         .index("by_callRoomId", ["callRoomId"])

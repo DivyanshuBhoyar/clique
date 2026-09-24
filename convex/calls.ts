@@ -2,47 +2,152 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { action, internalMutation, mutation, query } from "./_generated/server";
+
+const MAX_ACTIVE_CALLS_TO_CHECK = 20;
+const MAX_CALL_PARTICIPANTS = 50;
+const STARTING_GRACE_MS = 20_000;
+const LIVE_PARTICIPANT_TTL_MS = 30_000;
+const AUTO_ABORT_MS = 30_000; // abort quickly if the starter never joins
+
+type CallDbCtx = QueryCtx | MutationCtx;
+
+async function getOpenParticipantRows(ctx: CallDbCtx, callRoomId: Id<"callRooms">) {
+    return await ctx.db
+        .query("callParticipants")
+        .withIndex("by_callRoomId", (q) => q.eq("callRoomId", callRoomId))
+        .take(MAX_CALL_PARTICIPANTS);
+}
+
+function isParticipantLive(participant: { joinedAt: number; lastSeenAt?: number; leftAt?: number }, now: number) {
+    if (participant.leftAt !== undefined) return false;
+    return (participant.lastSeenAt ?? participant.joinedAt) >= now - LIVE_PARTICIPANT_TTL_MS;
+}
+
+async function getActiveParticipants(ctx: CallDbCtx, callRoomId: Id<"callRooms">, now = Date.now()) {
+    const participants = await getOpenParticipantRows(ctx, callRoomId);
+
+    return participants.filter((p) => isParticipantLive(p, now));
+}
+
+async function closeStaleParticipants(ctx: MutationCtx, callRoomId: Id<"callRooms">, now = Date.now()) {
+    const participants = await getOpenParticipantRows(ctx, callRoomId);
+    const staleParticipants = participants.filter((p) => p.leftAt === undefined && !isParticipantLive(p, now));
+
+    for (const participant of staleParticipants) {
+        await ctx.db.patch(participant._id, { leftAt: now });
+    }
+}
+
+async function getVisibleActiveCall(
+    ctx: QueryCtx,
+    scope:
+        | { kind: "channel"; channelId: Id<"channels"> }
+        | { kind: "dm"; dmConversationId: Id<"dmConversations"> },
+) {
+    const userId = await getAuthUserId(ctx);
+    const now = Date.now();
+    const rooms = scope.kind === "channel"
+        ? await ctx.db
+            .query("callRooms")
+            .withIndex("by_channel_and_isActive", (q) =>
+                q.eq("channelId", scope.channelId).eq("isActive", true),
+            )
+            .order("desc")
+            .take(MAX_ACTIVE_CALLS_TO_CHECK)
+        : await ctx.db
+            .query("callRooms")
+            .withIndex("by_dmConversationId_and_isActive", (q) =>
+                q.eq("dmConversationId", scope.dmConversationId).eq("isActive", true),
+            )
+            .order("desc")
+            .take(MAX_ACTIVE_CALLS_TO_CHECK);
+
+    for (const room of rooms) {
+        const activeParticipantCount = (await getActiveParticipants(ctx, room._id)).length;
+        if (activeParticipantCount > 0) {
+            return { ...room, activeParticipantCount, isStarting: false };
+        }
+
+        const starterCanAutoJoin =
+            userId === room.startedBy && now - room.startedAt <= STARTING_GRACE_MS;
+        if (starterCanAutoJoin) {
+            return { ...room, activeParticipantCount: 0, isStarting: true };
+        }
+    }
+
+    return null;
+}
 
 // ─── Queries ───────────────────────────────────────────────────────────────────
 
 export const getActiveChannelCall = query({
     args: { channelId: v.id("channels") },
     handler: async (ctx, args) => {
-        return ctx.db
-            .query("callRooms")
-            .withIndex("by_channel_and_isActive", (q) =>
-                q.eq("channelId", args.channelId).eq("isActive", true),
-            )
-            .first();
+        return getVisibleActiveCall(ctx, { kind: "channel", channelId: args.channelId });
     },
 });
 
 export const getActiveDmCall = query({
     args: { dmConversationId: v.id("dmConversations") },
     handler: async (ctx, args) => {
-        return ctx.db
-            .query("callRooms")
-            .withIndex("by_dmConversationId_and_isActive", (q) =>
-                q.eq("dmConversationId", args.dmConversationId).eq("isActive", true),
-            )
-            .first();
+        return getVisibleActiveCall(ctx, { kind: "dm", dmConversationId: args.dmConversationId });
     },
 });
 
 export const getCallParticipants = query({
     args: { callRoomId: v.id("callRooms") },
     handler: async (ctx, args) => {
-        const participants = await ctx.db
-            .query("callParticipants")
-            .withIndex("by_callRoomId", (q) => q.eq("callRoomId", args.callRoomId))
-            .take(50);
-        // Only return active participants (haven't left yet)
-        return participants.filter((p) => p.leftAt === undefined);
+        return getActiveParticipants(ctx, args.callRoomId);
     },
 });
 
 // ─── Mutations ─────────────────────────────────────────────────────────────────
+
+export const autoAbortIfEmpty = internalMutation({
+    args: { callRoomId: v.id("callRooms") },
+    handler: async (ctx, args) => {
+        const room = await ctx.db.get(args.callRoomId);
+        if (!room || !room.isActive) return; // already ended, nothing to do
+
+        const now = Date.now();
+        await closeStaleParticipants(ctx, args.callRoomId, now);
+
+        const activeCount = (await getActiveParticipants(ctx, args.callRoomId, now)).length;
+        if (activeCount === 0) {
+            await ctx.db.patch(args.callRoomId, {
+                isActive: false,
+                endedAt: now,
+            });
+        }
+    },
+});
+
+export const abortEmptyActiveCalls = internalMutation({
+    args: {},
+    handler: async (ctx) => {
+        const now = Date.now();
+        const cutoff = now - STARTING_GRACE_MS;
+        const activeRooms = await ctx.db
+            .query("callRooms")
+            .withIndex("by_isActive", (q) => q.eq("isActive", true))
+            .take(50);
+
+        for (const room of activeRooms) {
+            if (room.startedAt > cutoff) continue;
+
+            await closeStaleParticipants(ctx, room._id, now);
+            const activeCount = (await getActiveParticipants(ctx, room._id, now)).length;
+            if (activeCount === 0) {
+                await ctx.db.patch(room._id, {
+                    isActive: false,
+                    endedAt: now,
+                });
+            }
+        }
+    },
+});
 
 export const insertCallRoom = internalMutation({
     args: {
@@ -54,7 +159,7 @@ export const insertCallRoom = internalMutation({
         startedBy: v.id("users"),
     },
     handler: async (ctx, args) => {
-        return ctx.db.insert("callRooms", {
+        const callRoomId = await ctx.db.insert("callRooms", {
             channelId: args.channelId,
             dmConversationId: args.dmConversationId,
             hmsRoomId: args.hmsRoomId,
@@ -64,6 +169,11 @@ export const insertCallRoom = internalMutation({
             startedBy: args.startedBy,
             startedAt: Date.now(),
         });
+
+        // Auto-abort if nobody joins within the timeout window
+        await ctx.scheduler.runAfter(AUTO_ABORT_MS, internal.calls.autoAbortIfEmpty, { callRoomId });
+
+        return callRoomId;
     },
 });
 
@@ -76,17 +186,21 @@ export const joinCall = mutation({
         const userId = await getAuthUserId(ctx);
         if (!userId) throw new Error("Not authenticated");
 
+        const room = await ctx.db.get(args.callRoomId);
+        if (!room || !room.isActive) throw new Error("This call has ended.");
+
         // Check if already in the call (rejoining)
-        const existing = await ctx.db
+        const existingRows = await ctx.db
             .query("callParticipants")
             .withIndex("by_callRoomId_and_userId", (q) =>
                 q.eq("callRoomId", args.callRoomId).eq("userId", userId),
             )
-            .first();
+            .take(20);
+        const activeParticipant = existingRows.find((p) => p.leftAt === undefined);
 
-        if (existing && existing.leftAt === undefined) {
+        if (activeParticipant) {
             // Already in the call
-            return existing._id;
+            return activeParticipant._id;
         }
 
         return ctx.db.insert("callParticipants", {
@@ -94,7 +208,32 @@ export const joinCall = mutation({
             userId,
             displayName: args.displayName,
             joinedAt: Date.now(),
+            lastSeenAt: Date.now(),
         });
+    },
+});
+
+export const touchCallParticipant = mutation({
+    args: { callRoomId: v.id("callRooms") },
+    handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) throw new Error("Not authenticated");
+
+        const room = await ctx.db.get(args.callRoomId);
+        if (!room || !room.isActive) return { active: false };
+
+        const participantRows = await ctx.db
+            .query("callParticipants")
+            .withIndex("by_callRoomId_and_userId", (q) =>
+                q.eq("callRoomId", args.callRoomId).eq("userId", userId),
+            )
+            .take(20);
+        const participant = participantRows.find((p) => p.leftAt === undefined);
+
+        if (!participant) return { active: true, touched: false };
+
+        await ctx.db.patch(participant._id, { lastSeenAt: Date.now() });
+        return { active: true, touched: true };
     },
 });
 
@@ -105,23 +244,22 @@ export const leaveCall = mutation({
         if (!userId) throw new Error("Not authenticated");
 
         // Mark this participant as left
-        const participant = await ctx.db
+        const participantRows = await ctx.db
             .query("callParticipants")
             .withIndex("by_callRoomId_and_userId", (q) =>
                 q.eq("callRoomId", args.callRoomId).eq("userId", userId),
             )
-            .first();
+            .take(20);
+        const participant = participantRows.find((p) => p.leftAt === undefined);
 
-        if (participant && participant.leftAt === undefined) {
+        if (participant) {
             await ctx.db.patch(participant._id, { leftAt: Date.now() });
         }
 
         // Check if this was the last active participant
-        const remaining = await ctx.db
-            .query("callParticipants")
-            .withIndex("by_callRoomId", (q) => q.eq("callRoomId", args.callRoomId))
-            .take(50);
-        const activeRemaining = remaining.filter(
+        const now = Date.now();
+        await closeStaleParticipants(ctx, args.callRoomId, now);
+        const activeRemaining = (await getActiveParticipants(ctx, args.callRoomId, now)).filter(
             (p) => p.leftAt === undefined && p._id !== participant?._id,
         );
 
@@ -129,7 +267,7 @@ export const leaveCall = mutation({
             // Last person left — end the call
             await ctx.db.patch(args.callRoomId, {
                 isActive: false,
-                endedAt: Date.now(),
+                endedAt: now,
             });
         }
     },

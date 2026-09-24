@@ -3,10 +3,10 @@ import type { MutationCtx, QueryCtx } from "./_generated/server";
 
 export const SECURITY_LIMITS = {
     squads: {
-        maxPerUser: 5,
+        maxPerUser: 50,
         maxMembers: 50,
         maxChannels: 100,
-        maxPrivateChannelMembers: 25,
+        maxPrivateChannelMembers: 50,
     },
     content: {
         maxNotesPerUserPerSquad: 500,
@@ -27,7 +27,7 @@ export const SECURITY_LIMITS = {
         maxEnvelopesPerFanOut: 12,
         maxPendingPerDevice: 50,
         maxReactionsPerConversationRead: 500,
-        maxUserDevices: 3,
+        maxUserDevices: 5,
     },
     query: {
         maxPageSize: 50,

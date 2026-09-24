@@ -4,56 +4,83 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 import { MutationCtx, mutation, query } from "./_generated/server";
-import { schedulePush } from "./push";
+import { ANDROID_NOTIFICATION_CHANNELS, schedulePush } from "./push";
 import { SECURITY_LIMITS, assertPaginationLimit, assertRateLimit } from "./security";
 import { enrichUser, requireMembership } from "./users";
 import { assertLength, assertNonEmpty } from "./validators";
 
 type ChatMessageKind = "text" | "image" | "gif";
+type ChatChannelType = "main" | "topic" | "mood" | "thread" | "timed" | "private";
 
 type ChannelPushRecipient = {
     userId: Id<"users">;
     tokens: string[];
+    webSubscriptions: {
+        endpoint: string;
+        p256dh: string;
+        auth: string;
+    }[];
 };
 
-function truncateForNotification(value: string, maxLength = 90) {
-    if (value.length <= maxLength) return value;
-    return `${value.slice(0, maxLength - 1)}…`;
+function formatSenderName(nickname: string) {
+    const trimmed = nickname.trim();
+    return trimmed.length > 0 ? trimmed : "Someone";
 }
 
-function previewForChatMessage(kind: ChatMessageKind, nickname: string, content: string) {
-    if (kind === "image") return `${nickname} sent a photo`;
-    if (kind === "gif") return `${nickname} sent a GIF`;
-    return `${nickname}: ${truncateForNotification(content)}`;
+function formatChannelLabel(args: {
+    channelName: string;
+    channelEmoji?: string;
+    channelType: ChatChannelType;
+}) {
+    const name = args.channelName.trim() || "your space";
+    if (args.channelType === "private") return `🔒 ${name}`;
+    if (args.channelType === "timed") return `⏳ ${name}`;
+    const emoji = args.channelEmoji?.trim();
+    return emoji ? `${emoji} ${name}` : name;
 }
 
-function extractMentionHandles(content: string) {
-    const handles = new Set<string>();
-    for (const match of content.matchAll(/@(\w+)/g)) {
-        const handle = match[1]?.toLowerCase();
-        if (handle) handles.add(handle);
+function composeChatPush(args: {
+    senderNickname: string;
+    channelName: string;
+    channelEmoji?: string;
+    channelType: ChatChannelType;
+    kind: ChatMessageKind;
+    isReplyToRecipient: boolean;
+}) {
+    const sender = formatSenderName(args.senderNickname);
+    const channelLabel = formatChannelLabel(args);
+
+    if (args.isReplyToRecipient) {
+        return {
+            title: `${sender} replied in ${channelLabel}`,
+            body: "Open to catch up",
+            androidChannelId: ANDROID_NOTIFICATION_CHANNELS.replies,
+        };
     }
-    return handles;
-}
 
-async function getMentionedUserIds(
-    ctx: MutationCtx,
-    squadId: Id<"squads">,
-    content: string,
-) {
-    const handles = extractMentionHandles(content);
-    if (handles.size === 0) return new Set<Id<"users">>();
+    if (args.kind === "image") {
+        return {
+            title: `${sender} dropped a photo`,
+            body: `in ${channelLabel}`,
+            androidChannelId: ANDROID_NOTIFICATION_CHANNELS.messages,
+        };
+    }
 
-    const memberships = await ctx.db
-        .query("memberships")
-        .withIndex("by_squad", (q) => q.eq("squadId", squadId))
-        .take(SECURITY_LIMITS.query.maxSquadMembersRead);
+    if (args.kind === "gif") {
+        return {
+            title: `${sender} dropped a GIF`,
+            body: `in ${channelLabel}`,
+            androidChannelId: ANDROID_NOTIFICATION_CHANNELS.messages,
+        };
+    }
 
-    return new Set(
-        memberships
-            .filter((membership) => handles.has(membership.nickname.toLowerCase()))
-            .map((membership) => membership.userId),
-    );
+    return {
+        title: `${sender} in ${channelLabel}`,
+        body: args.channelType === "timed"
+            ? "New message before it disappears"
+            : "New message",
+        androidChannelId: ANDROID_NOTIFICATION_CHANNELS.messages,
+    };
 }
 
 async function scheduleChatMessagePushes(
@@ -64,8 +91,10 @@ async function scheduleChatMessagePushes(
         senderId: Id<"users">;
         senderNickname: string;
         kind: ChatMessageKind;
-        content: string;
-        parentMessageId?: Id<"messages">;
+        channelName: string;
+        channelEmoji?: string;
+        channelType: ChatChannelType;
+        replyToUserId?: Id<"users">;
     },
 ) {
     const recipients: ChannelPushRecipient[] = await ctx.runQuery(internal.push.getRecipientsForChannel, {
@@ -75,24 +104,24 @@ async function scheduleChatMessagePushes(
     });
     if (recipients.length === 0) return;
 
-    const parentMessage = args.parentMessageId
-        ? await ctx.db.get(args.parentMessageId)
-        : null;
-    const mentionedUserIds = await getMentionedUserIds(ctx, args.squadId, args.content);
     const path = `/squad/${args.squadId}/chat/${args.channelId}`;
 
     for (const recipient of recipients) {
-        let body = previewForChatMessage(args.kind, args.senderNickname, args.content);
-        if (parentMessage?.userId === recipient.userId) {
-            body = `${args.senderNickname} replied to your message`;
-        } else if (mentionedUserIds.has(recipient.userId)) {
-            body = `${args.senderNickname} mentioned you`;
-        }
+        const notification = composeChatPush({
+            senderNickname: args.senderNickname,
+            channelName: args.channelName,
+            channelEmoji: args.channelEmoji,
+            channelType: args.channelType,
+            kind: args.kind,
+            isReplyToRecipient: args.replyToUserId === recipient.userId,
+        });
 
         await schedulePush(ctx, {
             tokens: recipient.tokens,
-            title: "Homie Squad",
-            body,
+            webSubscriptions: recipient.webSubscriptions,
+            title: notification.title,
+            body: notification.body,
+            androidChannelId: notification.androidChannelId,
             data: { path },
         });
     }
@@ -128,16 +157,18 @@ export const sendMessage = mutation({
             if (!chMembership) throw new Error("Not a member of this channel");
         }
 
-        // Ephemeral channel expiry guard
-        if (channel.type === "ephemeral" && channel.expiresAt && Date.now() > channel.expiresAt) {
+        // Timed channel expiry guard
+        if (channel.type === "timed" && channel.expiresAt && Date.now() > channel.expiresAt) {
             throw new Error("This room has expired");
         }
 
+        let replyToUserId: Id<"users"> | undefined;
         if (args.parentMessageId) {
             const parent = await ctx.db.get(args.parentMessageId);
             if (!parent || parent.channelId !== args.channelId) {
                 throw new Error("Invalid parent");
             }
+            replyToUserId = parent.userId;
         }
 
         const messageId = await ctx.db.insert("messages", {
@@ -157,8 +188,10 @@ export const sendMessage = mutation({
             senderId: userId,
             senderNickname: membership.nickname,
             kind: "text",
-            content: args.content.trim(),
-            parentMessageId: args.parentMessageId,
+            channelName: channel.name,
+            channelEmoji: channel.emoji,
+            channelType: channel.type,
+            replyToUserId,
         });
 
         return messageId;
@@ -195,15 +228,17 @@ export const sendImageMessage = mutation({
             if (!chMembership) throw new Error("Not a member of this channel");
         }
 
-        if (channel.type === "ephemeral" && channel.expiresAt && Date.now() > channel.expiresAt) {
+        if (channel.type === "timed" && channel.expiresAt && Date.now() > channel.expiresAt) {
             throw new Error("This room has expired");
         }
 
+        let replyToUserId: Id<"users"> | undefined;
         if (args.parentMessageId) {
             const parent = await ctx.db.get(args.parentMessageId);
             if (!parent || parent.channelId !== args.channelId) {
                 throw new Error("Invalid parent");
             }
+            replyToUserId = parent.userId;
         }
 
         const messageId = await ctx.db.insert("messages", {
@@ -224,8 +259,10 @@ export const sendImageMessage = mutation({
             senderId: userId,
             senderNickname: membership.nickname,
             kind: "image",
-            content: args.content?.trim() ?? "",
-            parentMessageId: args.parentMessageId,
+            channelName: channel.name,
+            channelEmoji: channel.emoji,
+            channelType: channel.type,
+            replyToUserId,
         });
 
         return messageId;
@@ -289,15 +326,17 @@ export const sendGifMessage = mutation({
             if (!chMembership) throw new Error("Not a member of this channel");
         }
 
-        if (channel.type === "ephemeral" && channel.expiresAt && Date.now() > channel.expiresAt) {
+        if (channel.type === "timed" && channel.expiresAt && Date.now() > channel.expiresAt) {
             throw new Error("This room has expired");
         }
 
+        let replyToUserId: Id<"users"> | undefined;
         if (args.parentMessageId) {
             const parent = await ctx.db.get(args.parentMessageId);
             if (!parent || parent.channelId !== args.channelId) {
                 throw new Error("Invalid parent");
             }
+            replyToUserId = parent.userId;
         }
 
         const messageId = await ctx.db.insert("messages", {
@@ -321,8 +360,10 @@ export const sendGifMessage = mutation({
             senderId: userId,
             senderNickname: membership.nickname,
             kind: "gif",
-            content: args.gifTitle?.trim() ?? "",
-            parentMessageId: args.parentMessageId,
+            channelName: channel.name,
+            channelEmoji: channel.emoji,
+            channelType: channel.type,
+            replyToUserId,
         });
 
         return messageId;

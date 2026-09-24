@@ -57,7 +57,7 @@ export const toggleReaction = mutation({
             userId: message.userId,
             excludeUserId: userId,
             suppressIfActiveChannelId: message.channelId,
-            title: "Homie Squad",
+            title: "Clique",
             body: `${membership.nickname} reacted ${args.emoji} to your message`,
             data: { path: `/squad/${message.squadId}/chat/${message.channelId}` },
         });

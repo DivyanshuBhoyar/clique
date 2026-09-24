@@ -8,8 +8,8 @@ import { assertLength, assertNonEmpty } from "./validators";
 const UNREAD_COUNT_LIMIT = 100;
 const UNREAD_CHANNEL_LIMIT = 50;
 
-function isExpiredEphemeral(channel: { type: string; expiresAt?: number }) {
-    return channel.type === "ephemeral" && channel.expiresAt
+function isExpiredTimed(channel: { type: string; expiresAt?: number }) {
+    return channel.type === "timed" && channel.expiresAt
         ? Date.now() > channel.expiresAt
         : false;
 }
@@ -81,7 +81,7 @@ export const getChannelsWithUnread = query({
             visibleChannels.map(async (channel) => {
                 const lastReadAt = readMap.get(channel._id) ?? 0;
 
-                // Count unread messages
+                // Count unread messages — exclude own messages
                 const unreadMessages = await ctx.db
                     .query("messages")
                     .withIndex("by_channel", (q) =>
@@ -89,6 +89,8 @@ export const getChannelsWithUnread = query({
                     )
                     .order("desc")
                     .take(100);
+
+                const unreadCount = unreadMessages.filter(m => m.userId !== userId).length;
 
                 // Fetch recent messages for preview (3 for main, 1 for others)
                 const recentMessages = (await ctx.db
@@ -107,10 +109,10 @@ export const getChannelsWithUnread = query({
 
                 return {
                     ...channel,
-                    unreadCount: unreadMessages.length,
+                    unreadCount,
                     recentMessages,
-                    // Ephemeral channel enrichment
-                    isExpired: channel.type === "ephemeral" && channel.expiresAt
+                    // Timed channel enrichment
+                    isExpired: channel.type === "timed" && channel.expiresAt
                         ? Date.now() > channel.expiresAt
                         : false,
                 };
@@ -135,7 +137,7 @@ export const getOtherChannelUnreadSummary = query({
             .take(UNREAD_CHANNEL_LIMIT);
 
         const visibleChannels = channels.filter(
-            (channel) => channel._id !== args.excludeChannelId && !isExpiredEphemeral(channel)
+            (channel) => channel._id !== args.excludeChannelId && !isExpiredTimed(channel)
         );
 
         const readPairs = await Promise.all(
@@ -165,7 +167,9 @@ export const getOtherChannelUnreadSummary = query({
                         .order("desc")
                         .take(UNREAD_COUNT_LIMIT);
 
-                    const latestMessage = unreadMessages[0];
+                    // Exclude own messages — you never need to be notified of your own activity
+                    const otherUnreadMessages = unreadMessages.filter(m => m.userId !== userId);
+                    const latestMessage = otherUnreadMessages[0];
                     if (!latestMessage) return null;
 
                     const { avatarUrl } = await enrichUser(ctx, latestMessage.userId, args.squadId);
@@ -174,7 +178,7 @@ export const getOtherChannelUnreadSummary = query({
                         channelId: channel._id,
                         channelName: channel.name,
                         channelType: channel.type,
-                        unreadCount: unreadMessages.length,
+                        unreadCount: otherUnreadMessages.length,
                         hasMoreUnread: unreadMessages.length === UNREAD_COUNT_LIMIT,
                         lastMessageAt: latestMessage.createdAt,
                         lastMessagePreview: getMessagePreview(latestMessage),
@@ -205,7 +209,7 @@ export const createChannel = mutation({
             v.literal("topic"),
             v.literal("mood"),
             v.literal("thread"),
-            v.literal("ephemeral"),
+            v.literal("timed"),
             v.literal("private"),
         ),
         parentChannelId: v.optional(v.id("channels")),
@@ -236,12 +240,12 @@ export const createChannel = mutation({
             if (!parent || parent.squadId !== args.squadId) throw new Error("Invalid parent channel");
         }
 
-        // Auto-calculate grace period for ephemeral channels (10% of duration, min 5 min)
+        // Auto-calculate grace period for timed channels (10% of duration, min 5 min)
         let gracePeriodMs;
-        if (args.type === "ephemeral" && args.expiresAt) {
+        if (args.type === "timed" && args.expiresAt) {
             const duration = args.expiresAt - Date.now();
             if (duration < 5 * 60 * 1000 || duration > 14 * 24 * 60 * 60 * 1000) {
-                throw new Error("Ephemeral channels must last between 5 minutes and 14 days");
+                throw new Error("Timed channels must last between 5 minutes and 14 days");
             }
             gracePeriodMs = Math.max(Math.floor(duration * 0.1), 5 * 60 * 1000);
         }
@@ -422,7 +426,7 @@ export const getChannelExpiry = query({
     args: { channelId: v.id("channels") },
     handler: async (ctx, args) => {
         const channel = await ctx.db.get(args.channelId);
-        if (!channel || channel.type !== "ephemeral") {
+        if (!channel || channel.type !== "timed") {
             return null;
         }
 
@@ -555,13 +559,13 @@ export const getSquadsUnreadSummary = query({
             for (const channel of channels) {
                 if (channel.type === "private") continue;
                 const lastReadAt = readMap.get(channel._id) ?? 0;
-                const firstUnread = await ctx.db
+                const recentUnread = await ctx.db
                     .query("messages")
                     .withIndex("by_channel", (q) =>
                         q.eq("channelId", channel._id).gt("createdAt", lastReadAt)
                     )
-                    .first();
-                if (firstUnread) { hasUnread = true; break; }
+                    .take(10);
+                if (recentUnread.some(m => m.userId !== userId)) { hasUnread = true; break; }
             }
 
             result.push({ squadId, hasUnread });
@@ -608,13 +612,13 @@ export const getOtherSquadsUnreadCount = query({
             for (const channel of channels) {
                 if (channel.type === "private") continue; // skip — membership check too expensive here
                 const lastReadAt = readMap.get(channel._id) ?? 0;
-                const firstUnread = await ctx.db
+                const recentUnread = await ctx.db
                     .query("messages")
                     .withIndex("by_channel", (q) =>
                         q.eq("channelId", channel._id).gt("createdAt", lastReadAt)
                     )
-                    .first();
-                if (firstUnread) total++;
+                    .take(10);
+                if (recentUnread.some(m => m.userId !== userId)) total++;
             }
         }
 

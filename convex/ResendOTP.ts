@@ -14,16 +14,20 @@ export const ResendOTP = Email({
         };
 
         const alphabet = "0123456789";
-        const length = 8;
+        const length = 6;
         return generateRandomString(random, alphabet, length);
     },
     async sendVerificationRequest({ identifier: email, provider, token }) {
         const resend = new ResendAPI(provider.apiKey);
         const { error } = await resend.emails.send({
-            from: "Homie Squad <onboarding@resend.dev>",
+            from: "Clique <developer@clique.divb.space>",
             to: [email],
-            subject: `Welcome to Homie Squad`,
-            text: "Your code is " + token,
+            template: {
+                id: "magic-code",
+                variables: {
+                    otp: token
+                }
+            }
         });
 
         if (error) {
