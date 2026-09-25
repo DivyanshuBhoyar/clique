@@ -6,4 +6,4 @@
 - Main folders: `src/app` routes, `src/components` UI, `src/hooks` client helpers, `convex` schema/functions/auth.
 - Core features: chat, drops, memories, notes, vibes, bookmarks; Notes is current polish benchmark.
 - Commands: `bun run start:expo`, `bun run start:convex`, `bunx tsc --noEmit`, `bunx convex typecheck`, `bun run lint`.
-- Canonical instructions: root `AGENTS.md`; `.context/` is only lightweight repo memory.
+- Canonical instructions: root `AGENTS.md`; session OS: `tasks/OS.md`; `.context/` is only lightweight repo memory.

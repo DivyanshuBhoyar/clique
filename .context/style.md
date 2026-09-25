@@ -8,3 +8,4 @@
 - Convex: read generated guidelines first; every function has validators; derive auth server-side; gate squad data with `requireMembership`; use `assertLength`/`assertNonEmpty`.
 - Data: use indexes/pagination, avoid unbounded `.collect()`/`.filter()`, keep high-churn data in separate tables, enrich query results at boundary.
 - Dev: smallest safe change, no new deps unless needed, trust current code over stale docs, update `.context` only with durable facts.
+- Process: learning-first OS (`tasks/OS.md`); default Pair + one slice; session card on `tasks/todo.md`; bun only.

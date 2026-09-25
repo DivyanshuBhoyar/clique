@@ -1,17 +1,35 @@
 # Known Pitfalls
 
 - Do not add `.github/copilot-instructions.md` while root `AGENTS.md` is canonical.
+- Do not treat `project.md` or old `tasks/plan.md` gap lists as a single-session dump truck; use `tasks/ladder.md` + one `todo.md` slice per `tasks/OS.md`.
+- Lessons live only in `tasks/lessons.md` — `.context/lessons.md` is a pointer, not a second log.
+- Web Push ≠ Expo Push: never store browser PushSubscription JSON in `deviceKeys.pushToken`. Use `webPushEndpoint` / `webPushP256dh` / `webPushAuth` and `convex/webPush.ts` (`"use node"` + `web-push`).
+- `expo-notifications` is **native-only** in this app. Web uses `use-push-notifications.web.ts` + `public/push-sw.js`. Do not import `expo-notifications` on web paths.
+- Web Push needs VAPID: public via `EXPO_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY` / `extra.webPushVapidPublicKey`; private only on Convex (`WEB_PUSH_VAPID_PRIVATE_KEY`, optional `WEB_PUSH_VAPID_SUBJECT`). Missing keys → silent skip with server warn.
+- iOS Safari Web Push requires an **installed PWA** (Add to Home Screen) + a **user gesture** for permission. Do not auto-request on web login; use Settings row → `enable()`. Manifest is `public/manifest.webmanifest` (linked in `+html.tsx`), icons under `public/icons/`.
 - Convex assumptions drift; read `convex/_generated/ai/guidelines.md` before backend edits.
 - Expo Go cannot run native modules like WebRTC; use a dev client.
+- Expo Go on Android SDK 53+ cannot import remote `expo-notifications`, and cannot load native HMS; keep native-only modules lazy-loaded so route imports still work.
+- Active `callRooms` with zero active `callParticipants` are stale; hide them in queries and abort via scheduled cleanup instead of rendering `0 in call`.
+- Call participant rows are live presence, not history; require fresh `lastSeenAt` heartbeats or web/native clients can disagree (`1 in call` vs `0 in call`) after crashes/tab closes.
+- Expo ImagePicker `aspect` only constrains Android crop UI for non-square ratios; enforce final target aspect with ImageManipulator before upload.
 - Expo SQLite web needs documented setup: Metro `wasm` asset support plus COEP/COOP headers for `SharedArrayBuffer`.
+- Complex Expo Router card links should use `Link asChild` + `Pressable`; flatten the direct child style with `StyleSheet.flatten` because Slot rejects style arrays.
 - E2EE web keys use IndexedDB, not SecureStore; treat web as weaker than native and keep `registerDevice` idempotent after auth.
 - DM local SQLite reads can race auth-layout startup; every `local-db` operation must await shared lazy initialization, not assume `initLocalDb()` already finished.
 - Expo Router `back()` warns if a screen was deep-linked/refreshed with no stack history; use `backOrReplace(router, fallback)` for headers/actions.
 - Convex public APIs are internet-facing; new mutations should use `SECURITY_LIMITS` + `assertRateLimit`, and new feeds must cap pagination/read amplification.
 - GIPHY REST integration needs visible attribution plus `onload`/`onclick`/`onsent` pingbacks; do not send app user IDs, use GIPHY random ID.
+- EAS preview builds do not inherit ignored `.env.local`; set `EXPO_PUBLIC_GIPHY_API_KEY` in EAS env so GIF search is embedded into the native bundle/Expo `extra`.
 - Chat/DM push notifications must check fresh `notificationPresence` app/chat heartbeats before scheduling; do not notify users actively using the app.
+- Notification previews should be private by default: no plaintext chat/DM bodies, and do not ship mention-specific push copy until mentions exist as a real feature.
+- Chat/DM push suppression currently short-circuits on app-wide activity before same-context checks, so users active elsewhere in the app may get no OS push until a future in-app banner path exists.
+- Keep `app.json` package/bundle IDs and checked-in native project IDs aligned before generating FCM/APNs/OAuth credentials; drift breaks real-device builds and push setup.
+- EAS `extra.eas.projectId` also has a project slug; it must match `app.json` `slug` or credentials/build commands fail. Rename the EAS project or relink to a new project after slug changes.
+- EAS cloud builds may omit ignored `.env.local`; startup-critical public values like `EXPO_PUBLIC_CONVEX_URL` need EAS env vars or safe `expo.extra` fallbacks.
 - TweetNaCl can keep `no PRNG` if imported before random polyfill setup; import through `src/lib/nacl.ts` only and use `secureRandomBytes()` for nonces.
 - Convex queries are data-driven, not timer-driven; typing indicators must expire client-side by typing-event version (`lastTypingAt`) so stale mobile rows do not reappear.
 - Full cascade deletes are incomplete; clean dependents when touching destructive flows.
 - Dark mode is light-only today: `use-theme.ts` returns light tokens.
 - `bun run lint` currently exits 0 with warnings; do not assume a clean warning-free baseline.
+- `bunx convex env set KEY <value>` parses values starting with `-` as CLI flags (commander): it errors AND echoes the secret into output. Always pass `--` before the value (`convex env set KEY -- "$VALUE"`); rotate the keypair if any part leaked. VAPID private keys can legitimately start with `-`.
