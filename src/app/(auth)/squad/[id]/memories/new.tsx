@@ -15,6 +15,7 @@ import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { useImageUpload } from '@/hooks/use-image-upload';
 import { useTheme } from '@/hooks/use-theme';
+import { getImageUploadPresetSummary } from '@/lib/image-upload';
 import { backOrReplace } from '@/utils/navigation';
 
 type MemoryType = 'wall' | 'event';
@@ -26,7 +27,7 @@ export default function NewMemoryScreen() {
     const theme = useTheme();
 
     const createMemory = useMutation(api.memories.createMemory);
-    const { previewUri, uploading, pickAndUpload, reset } = useImageUpload();
+    const { previewUri, uploading, pickAndUpload, reset } = useImageUpload({ target: 'memoryCover' });
 
     const initialType: MemoryType = type === 'event' ? 'event' : 'wall';
     const [memType, setMemType] = useState<MemoryType>(initialType);
@@ -126,7 +127,9 @@ export default function NewMemoryScreen() {
                                     uploading={uploading}
                                     onPick={handlePickCover}
                                     onRemove={handleRemoveCover}
-                                    placeholder="+ Add cover photo"
+                                    placeholder="+ Add wide cover photo"
+                                    helperText={getImageUploadPresetSummary('memoryCover')}
+                                    accessibilityLabel="Pick a wide memory cover photo"
                                 />
                             </>
                         )}

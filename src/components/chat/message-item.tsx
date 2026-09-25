@@ -1,12 +1,16 @@
 /**
  * MessageItem — renders a single chat bubble.
  *
- * Design from mockup:
- *   Own messages  → right-aligned, golden yellow bubble, black text, no border
- *   Others' msgs  → left-aligned, white bubble, 2px black border, avatar on left
+ * Design from mockup (chat-ui-refinement):
+ *   Own messages  → right-aligned, warm gold bubble, dark text, no border
+ *   Others' msgs  → left-aligned, soft lavender bubble, avatar on left
+ *   Bubble radius: 16 16 4 16 outgoing · 16 16 16 4 incoming
+ *   Quote blocks: flat fill, 3px left bar, no rounding
+ *   Reaction pills: on --bg-surface with a --border hairline, half-overlapping
+ *   the bubble's bottom edge
  *
  * Nickname shown above bubble for others (not own).
- * Reactions shown below bubble using EmojiReactionStrip (compact).
+ * Reactions shown below bubble using EmojiReactionStrip (compact, chat variant).
  * Timestamp shown below reactions.
  *
  * Learning note: "inverted FlatList" renders items bottom-up. This means
@@ -192,173 +196,173 @@ export function MessageItem({
     <View style={styles.swipeShell}>
       {onSwipeReply ? (
         <Animated.View style={[styles.replyCue, { opacity: replyCueOpacity }]}>
-          <ThemedText type="caption" style={[styles.replyCueText, { color: theme.accent }]}>↩ Reply</ThemedText>
+          <ThemedText type="caption" style={[styles.replyCueText, { color: theme.chatAccent }]}>↩ Reply</ThemedText>
         </Animated.View>
       ) : null}
       <Animated.View style={{ transform: [{ translateX }] }} {...panResponder.panHandlers}>
         <Pressable onLongPress={onLongPress} delayLongPress={300}>
           <View style={[styles.row, isOwnMessage && styles.rowRight]}>
-        {/* Avatar — only shown for others' messages */}
-        {!isOwnMessage && (
-          <View style={styles.avatarWrap}>
-            <UserAvatar uri={avatarUrl} size={32} fallbackText={nickname} />
-          </View>
-        )}
+            {/* Avatar — only shown for others' messages */}
+            {!isOwnMessage && (
+              <View style={styles.avatarWrap}>
+                <UserAvatar uri={avatarUrl} size={32} fallbackText={nickname} />
+              </View>
+            )}
 
-        <Animated.View
-          style={[
-            styles.bubbleCol,
-            isOwnMessage && styles.bubbleColRight,
-            {
-              transform: [{ scale: entranceScale }, { translateX: entranceTranslateX }, { translateY: entranceTranslateY }],
-              opacity: entranceOpacity,
-            },
-          ]}
-        >
-          {/* Nickname label above bubble (others only) */}
-          {!isOwnMessage && nickname && (
-            <ThemedText
-              type="caption"
-              style={[styles.nickname, { color: theme.textSecondary }]}
+            <Animated.View
+              style={[
+                styles.bubbleCol,
+                isOwnMessage && styles.bubbleColRight,
+                {
+                  transform: [{ scale: entranceScale }, { translateX: entranceTranslateX }, { translateY: entranceTranslateY }],
+                  opacity: entranceOpacity,
+                },
+              ]}
             >
-              {nickname}
-            </ThemedText>
-          )}
+              {/* Nickname label above bubble (others only) */}
+              {!isOwnMessage && nickname && (
+                <ThemedText
+                  type="caption"
+                  style={[styles.nickname, { color: theme.chatTextName }]}
+                >
+                  {nickname}
+                </ThemedText>
+              )}
 
-          {/* Message bubble */}
-          <View
-            style={[
-              styles.bubble,
-              {
-                backgroundColor: isOwnMessage ? theme.bubbleOwn : theme.bubbleOther,
-                borderWidth: isOwnMessage ? 0 : 1,
-                borderColor: theme.outlineLight,
-                shadowColor: theme.shadow,
-                // Rounded except the corner nearest the avatar/sender
-                borderTopLeftRadius: Radius.xl,
-                borderTopRightRadius: Radius.xl,
-                borderBottomLeftRadius: isOwnMessage ? Radius.xl : Radius.sm,
-                borderBottomRightRadius: isOwnMessage ? Radius.sm : Radius.xl,
-              },
-            ]}
-          >
-            {parentMessage ? (
+              {/* Message bubble */}
               <View
                 style={[
-                  styles.replyPreview,
+                  styles.bubble,
                   {
-                    backgroundColor: isOwnMessage ? 'rgba(255,255,255,0.28)' : theme.backgroundElement,
-                    borderLeftColor: isOwnMessage ? theme.text : theme.accent,
+                    backgroundColor: isOwnMessage ? theme.chatBubbleOut : theme.chatBubbleIn,
+                    shadowColor: theme.shadow,
+                    // Rounded except the corner nearest the sender:
+                    // outgoing 16 16 4 16 · incoming 16 16 16 4
+                    borderTopLeftRadius: Radius.lg,
+                    borderTopRightRadius: Radius.lg,
+                    borderBottomLeftRadius: isOwnMessage ? Radius.lg : 4,
+                    borderBottomRightRadius: isOwnMessage ? 4 : Radius.lg,
                   },
                 ]}
               >
+                {parentMessage ? (
+                  <View
+                    style={[
+                      styles.replyPreview,
+                      {
+                        backgroundColor: isOwnMessage ? theme.chatQuoteOutBg : theme.chatQuoteInBg,
+                        borderLeftColor: isOwnMessage ? theme.chatQuoteOutBar : theme.chatQuoteInBar,
+                      },
+                    ]}
+                  >
+                    <ThemedText
+                      type="caption"
+                      style={[styles.replyName, { color: isOwnMessage ? theme.chatQuoteOutText : theme.chatQuoteInText }]}
+                      numberOfLines={1}
+                    >
+                      ↪ {parentMessage.nickname ?? 'someone'}
+                    </ThemedText>
+                    <ThemedText
+                      style={[styles.replyContent, { color: isOwnMessage ? theme.chatQuoteOutText : theme.chatQuoteInText }]}
+                      numberOfLines={2}
+                    >
+                      {parentMessage.deleted
+                        ? 'Message deleted'
+                        : parentMessage.type === 'image'
+                          ? parentMessage.content || '📷 Photo'
+                          : parentMessage.type === 'gif'
+                            ? '🎞 GIF'
+                            : parentMessage.content}
+                    </ThemedText>
+                  </View>
+                ) : null}
+
+                {deleted ? (
+                  <ThemedText
+                    type="small"
+                    style={{ color: isOwnMessage ? theme.chatBubbleOutText : theme.chatTextMuted, opacity: 0.7, fontStyle: 'italic' }}
+                  >
+                    Message deleted
+                  </ThemedText>
+                ) : gifUrl ? (
+                  <GifAttachment gifUrl={gifUrl} gifTitle={gifTitle} maxWidth={220} />
+                ) : imageUrl ? (
+                  <Pressable onPress={() => onImagePress?.(imageUrl)}>
+                    <Image
+                      source={{ uri: imageUrl }}
+                      style={styles.image}
+                      resizeMode="cover"
+                      accessibilityLabel="Photo message"
+                    />
+                    {content ? (
+                      <LinkifiedText
+                        style={[styles.content, { color: isOwnMessage ? theme.chatBubbleOutText : theme.chatBubbleInText, marginTop: 4 }]}
+                        linkColor={theme.chatAccent}
+                      >
+                        {content}
+                      </LinkifiedText>
+                    ) : null}
+                    {firstUrl ? (
+                      <View style={styles.linkPreviewWrap}>
+                        <LinkPreviewCard url={firstUrl} compact embedded={isOwnMessage} tone={isOwnMessage ? 'out' : 'in'} />
+                      </View>
+                    ) : null}
+                  </Pressable>
+                ) : (
+                  <>
+                    <LinkifiedText
+                      style={[
+                        styles.content,
+                        { color: isOwnMessage ? theme.chatBubbleOutText : theme.chatBubbleInText },
+                      ]}
+                      linkColor={theme.chatAccent}
+                    >
+                      {content}
+                    </LinkifiedText>
+                    {firstUrl ? (
+                      <View style={styles.linkPreviewWrap}>
+                        <LinkPreviewCard url={firstUrl} compact embedded={isOwnMessage} tone={isOwnMessage ? 'out' : 'in'} />
+                      </View>
+                    ) : null}
+                  </>
+                )}
+              </View>
+
+              {/* Reactions below bubble */}
+              {groupedReactions.length > 0 && (
+                <View style={[styles.reactionsWrap, isOwnMessage && styles.reactionsRight]}>
+                  <EmojiReactionStrip
+                    reactions={groupedReactions}
+                    onToggle={(emoji) => onToggleReaction?.(messageId, emoji)}
+                    compact
+                    wrap
+                    chat
+                  />
+                </View>
+              )}
+
+              {/* Timestamp + edited */}
+              <ThemedText
+                type="caption"
+                style={[
+                  styles.time,
+                  { color: theme.chatTextMuted },
+                  isOwnMessage && styles.timeRight,
+                ]}
+              >
+                {time}{editedAt ? ' · edited' : ''}
+              </ThemedText>
+
+              {seenByText ? (
                 <ThemedText
                   type="caption"
-                  style={[styles.replyName, { color: isOwnMessage ? theme.text : theme.textSecondary }]}
+                  style={[styles.seenBy, { color: theme.chatTextMuted }, isOwnMessage && styles.timeRight]}
                   numberOfLines={1}
                 >
-                  ↪ {parentMessage.nickname ?? 'someone'}
+                  👁 {seenByText}
                 </ThemedText>
-                <ThemedText
-                  style={[styles.replyContent, { color: isOwnMessage ? theme.text : theme.textSecondary }]}
-                  numberOfLines={2}
-                >
-                  {parentMessage.deleted
-                    ? 'Message deleted'
-                    : parentMessage.type === 'image'
-                      ? parentMessage.content || '📷 Photo'
-                      : parentMessage.type === 'gif'
-                        ? '🎞 GIF'
-                        : parentMessage.content}
-                </ThemedText>
-              </View>
-            ) : null}
-
-            {deleted ? (
-              <ThemedText
-                type="small"
-                style={{ color: isOwnMessage ? 'rgba(0,0,0,0.4)' : theme.textTertiary, fontStyle: 'italic' }}
-              >
-                Message deleted
-              </ThemedText>
-            ) : gifUrl ? (
-              <GifAttachment gifUrl={gifUrl} gifTitle={gifTitle} maxWidth={220} />
-            ) : imageUrl ? (
-              <Pressable onPress={() => onImagePress?.(imageUrl)}>
-                <Image
-                  source={{ uri: imageUrl }}
-                  style={styles.image}
-                  resizeMode="cover"
-                  accessibilityLabel="Photo message"
-                />
-                {content ? (
-                  <LinkifiedText
-                    style={[styles.content, { color: isOwnMessage ? theme.bubbleOwnText : theme.bubbleOtherText, marginTop: 4 }]}
-                    linkColor={isOwnMessage ? theme.bubbleOwnText : theme.accentDark}
-                  >
-                    {content}
-                  </LinkifiedText>
-                ) : null}
-                {firstUrl ? (
-                  <View style={styles.linkPreviewWrap}>
-                    <LinkPreviewCard url={firstUrl} compact embedded={isOwnMessage} />
-                  </View>
-                ) : null}
-              </Pressable>
-            ) : (
-              <>
-                <LinkifiedText
-                  style={[
-                    styles.content,
-                    { color: isOwnMessage ? theme.bubbleOwnText : theme.bubbleOtherText },
-                  ]}
-                  linkColor={isOwnMessage ? theme.bubbleOwnText : theme.accentDark}
-                >
-                  {content}
-                </LinkifiedText>
-                {firstUrl ? (
-                  <View style={styles.linkPreviewWrap}>
-                    <LinkPreviewCard url={firstUrl} compact embedded={isOwnMessage} />
-                  </View>
-                ) : null}
-              </>
-            )}
-          </View>
-
-          {/* Reactions below bubble */}
-          {groupedReactions.length > 0 && (
-            <View style={[styles.reactionsWrap, isOwnMessage && styles.reactionsRight]}>
-              <EmojiReactionStrip
-                reactions={groupedReactions}
-                onToggle={(emoji) => onToggleReaction?.(messageId, emoji)}
-                compact
-                wrap
-              />
-            </View>
-          )}
-
-          {/* Timestamp + edited */}
-          <ThemedText
-            type="caption"
-            style={[
-              styles.time,
-              { color: theme.textTertiary },
-              isOwnMessage && styles.timeRight,
-            ]}
-          >
-            {time}{editedAt ? ' · edited' : ''}
-          </ThemedText>
-
-          {seenByText ? (
-            <ThemedText
-              type="caption"
-              style={[styles.seenBy, { color: theme.textTertiary }, isOwnMessage && styles.timeRight]}
-              numberOfLines={1}
-            >
-              👁 {seenByText}
-            </ThemedText>
-          ) : null}
-        </Animated.View>
+              ) : null}
+            </Animated.View>
           </View>
         </Pressable>
       </Animated.View>
@@ -408,8 +412,9 @@ const styles = StyleSheet.create({
     fontWeight: Weight.semibold,
   },
   bubble: {
-    paddingVertical: 10,
-    paddingHorizontal: Spacing.md,
+    // Deliberate chat ratio: roomier sides, cozy top/bottom
+    paddingVertical: 8,
+    paddingHorizontal: 14,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.07,
     shadowRadius: 8,
@@ -420,7 +425,8 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: Spacing.sm,
     borderLeftWidth: 3,
-    borderRadius: Radius.sm,
+    // Quote blocks: no rounding — a rounded corner on a single-sided bar looks broken
+    borderRadius: 0,
   },
   replyName: {
     fontSize: 11,
@@ -437,7 +443,10 @@ const styles = StyleSheet.create({
   },
   content: {
     fontSize: Typography.body,
-    lineHeight: LineHeight.body,
+    // Tighter than body copy: keeps single-line bubbles short and multi-line gaps chat-like
+    lineHeight: 21,
+    // Android-only: drop the extra font-metric padding so 8/8 bubble padding renders symmetric
+    includeFontPadding: false,
   },
   linkPreviewWrap: {
     marginTop: Spacing.sm,
@@ -448,13 +457,17 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
   },
   reactionsWrap: {
-    marginTop: 2,
+    // Slight tuck under the bubble's bottom edge, inset from the corner curve
+    marginTop: -7,
+    marginLeft: 6,
   },
   reactionsRight: {
     alignSelf: 'flex-end',
+    marginLeft: 0,
+    marginRight: 6,
   },
   time: {
-    marginTop: 0,
+    marginTop: 4,
     marginLeft: Spacing.xs,
   },
   timeRight: {

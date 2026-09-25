@@ -1,6 +1,6 @@
 import { Link } from 'expo-router';
 import { ArrowRight, MessageCircleHeart, Sparkles } from 'lucide-react-native';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { UserAvatar } from '@/components/user-avatar';
@@ -116,7 +116,12 @@ export function LoungeHeroCard({ channel, squadId, members = [] }: LoungeHeroCar
           ]}
         >
           <UserAvatar uri={null} size={24} fallbackText={message.nickname} />
-          <ThemedText type="caption" numberOfLines={1} style={{ color: theme.text }}>
+          <ThemedText
+            type="caption"
+            numberOfLines={1}
+            ellipsizeMode="tail"
+            style={[{ color: theme.text }, styles.messagePillText]}
+          >
             {message.content}
           </ThemedText>
         </View>
@@ -125,7 +130,7 @@ export function LoungeHeroCard({ channel, squadId, members = [] }: LoungeHeroCar
   );
 
   const cta = (
-    <View style={[styles.cta, { backgroundColor: theme.featureAccent }]}>
+    <View style={[styles.cta, !isWide && styles.ctaMobile, { backgroundColor: theme.featureAccent }]}>
       <ThemedText type="smallBold" style={{ color: '#FFFFFF' }}>
         Open Lounge
       </ThemedText>
@@ -136,105 +141,109 @@ export function LoungeHeroCard({ channel, squadId, members = [] }: LoungeHeroCar
   return (
     <Link
       href={`/squad/${squadId}/chat/${channel._id}` as any}
-      accessibilityRole="button"
-      accessibilityLabel={`Open Lounge channel${channel.unreadCount > 0 ? `, ${channel.unreadCount} unread` : ''}`}
-      style={[
-        styles.card,
-        {
-          backgroundColor: '#FFDB63',
-          borderColor: 'rgba(210, 170, 50, 0.4)',
-          shadowColor: theme.shadow,
-        },
-      ]}
+      asChild
     >
-      <View style={styles.inner}>
-        <Sparkles size={18} color={theme.surface} style={styles.sparkleIcon} strokeWidth={2.4} />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Open Lounge channel${channel.unreadCount > 0 ? `, ${channel.unreadCount} unread` : ''}`}
+        style={StyleSheet.flatten([
+          styles.card,
+          {
+            backgroundColor: '#FFDB63',
+            borderColor: 'rgba(210, 170, 50, 0.4)',
+            shadowColor: theme.shadow,
+          },
+        ])}
+      >
+        <View style={styles.inner}>
+          <Sparkles size={18} color={theme.surface} style={styles.sparkleIcon} strokeWidth={2.4} />
 
-        {isWide ? (
-          <View style={styles.wideRow}>
-            <View style={styles.wideLeft}>
+          {isWide ? (
+            <View style={styles.wideRow}>
+              <View style={styles.wideLeft}>
+                <View style={styles.headerRow}>
+                  <View style={[styles.iconTile, { backgroundColor: theme.surface }]}>
+                    <MessageCircleHeart size={30} color={theme.text} strokeWidth={2.5} />
+                  </View>
+
+                  <View style={styles.copyColumn}>
+                    <View style={styles.nameRow}>
+                      <ThemedText style={styles.title}>Lounge</ThemedText>
+                      <View style={[styles.pill, { backgroundColor: theme.surface, borderColor: 'rgba(0,0,0,0.06)' }]}>
+                        <ThemedText type="captionBold" style={{ color: theme.featureAccent }}>
+                          Main Chat
+                        </ThemedText>
+                      </View>
+                    </View>
+                    <ThemedText style={styles.description} numberOfLines={1}>
+                      The place for everything, everyone
+                    </ThemedText>
+                    <ThemedText style={styles.description} numberOfLines={1}>
+                      Hop in, say hi, and vibe.
+                    </ThemedText>
+                  </View>
+                </View>
+
+                {peopleCluster}
+              </View>
+
+              <View style={styles.wideRight}>
+                {messagePreview}
+                <View style={styles.wideActionRow}>
+                  {channel.unreadCount > 0 ? (
+                    <View style={[styles.unreadBadge, { backgroundColor: theme.chatSurface }]}>
+                      <ThemedText type="captionBold" style={{ color: theme.chatAccent, fontVariant: ['tabular-nums'] }}>
+                        {channel.unreadCount} new
+                      </ThemedText>
+                    </View>
+                  ) : null}
+
+                  {cta}
+                </View>
+              </View>
+            </View>
+          ) : (
+            <>
               <View style={styles.headerRow}>
-                <View style={[styles.iconTile, { backgroundColor: theme.surface }]}> 
-                  <MessageCircleHeart size={30} color={theme.text} strokeWidth={2.5} />
+                <View style={[styles.iconTile, { backgroundColor: theme.surface }]}>
+                  <MessageCircleHeart size={36} color={theme.text} strokeWidth={2} />
                 </View>
 
                 <View style={styles.copyColumn}>
                   <View style={styles.nameRow}>
-                    <ThemedText style={styles.title}>Lounge</ThemedText>
-                    <View style={[styles.pill, { backgroundColor: theme.surface, borderColor: 'rgba(0,0,0,0.06)' }]}> 
+                    <ThemedText style={[styles.title, styles.titleMobile]}>Lounge</ThemedText>
+                    <View style={[styles.pill, { backgroundColor: theme.surfaceAccent, borderColor: 'rgba(45,45,45,0.14)' }]}>
                       <ThemedText type="captionBold" style={{ color: theme.featureAccent }}>
                         Main Chat
                       </ThemedText>
                     </View>
                   </View>
-                  <ThemedText style={styles.description} numberOfLines={1}>
-                    The place for everything, everyone
-                  </ThemedText>
-                  <ThemedText style={styles.description} numberOfLines={1}>
-                    Hop in, say hi, and vibe.
+                  <ThemedText style={styles.description} numberOfLines={2}>
+                    The place for everything, everyone. Hop in, say hi, and vibe.
                   </ThemedText>
                 </View>
               </View>
 
-              {peopleCluster}
-            </View>
-
-            <View style={styles.wideRight}>
-              {messagePreview}
-              <View style={styles.wideActionRow}>
+              <View style={styles.mobileMetaRow}>
+                {peopleCluster}
                 {channel.unreadCount > 0 ? (
-                  <View style={[styles.unreadBadge, { backgroundColor: theme.surface }]}> 
-                    <ThemedText type="captionBold" style={{ color: theme.featureAccent, fontVariant: ['tabular-nums'] }}>
+                  <View style={[styles.unreadBadge, { backgroundColor: theme.chatSurface }]}>
+                    <ThemedText type="captionBold" style={{ color: theme.chatAccent, fontVariant: ['tabular-nums'] }}>
                       {channel.unreadCount} new
                     </ThemedText>
                   </View>
                 ) : null}
+              </View>
+
+              {messagePreview}
+
+              <View style={styles.mobileFooterRow}>
                 {cta}
               </View>
-            </View>
-          </View>
-        ) : (
-          <>
-            <View style={styles.headerRow}>
-              <View style={[styles.iconTile, { backgroundColor: theme.surface }]}> 
-                <MessageCircleHeart size={36} color={theme.text} strokeWidth={2} />
-              </View>
-
-              <View style={styles.copyColumn}>
-                <View style={styles.nameRow}>
-                  <ThemedText style={styles.title}>Lounge</ThemedText>
-                  <View style={[styles.pill, { backgroundColor: theme.surfaceAccent, borderColor: 'rgba(45,45,45,0.14)' }]}> 
-                    <ThemedText type="captionBold" style={{ color: theme.featureAccent }}>
-                      Main Chat
-                    </ThemedText>
-                  </View>
-                </View>
-                <ThemedText style={styles.description} numberOfLines={2}>
-                  The place for everything, everyone. Hop in, say hi, and vibe.
-                </ThemedText>
-              </View>
-            </View>
-
-            <View style={styles.mobileMetaRow}>
-              {peopleCluster}
-              {messagePreview}
-            </View>
-
-            <View style={styles.mobileFooterRow}>
-              {channel.unreadCount > 0 ? (
-                <View style={[styles.unreadBadge, { backgroundColor: theme.surface }]}> 
-                  <ThemedText type="captionBold" style={{ color: '#7357E8', fontVariant: ['tabular-nums'] }}>
-                    {channel.unreadCount} new
-                  </ThemedText>
-                </View>
-              ) : (
-                <View />
-              )}
-              {cta}
-            </View>
-          </>
-        )}
-      </View>
+            </>
+          )}
+        </View>
+      </Pressable>
     </Link>
   );
 }
@@ -245,9 +254,9 @@ const styles = StyleSheet.create({
     borderRadius: Radius.xxl,
     marginBottom: Spacing.xl,
     overflow: 'hidden',
-    shadowOffset: Shadows.md.offset,
-    shadowOpacity: Shadows.md.opacity,
-    shadowRadius: Shadows.md.radius,
+    shadowOffset: Shadows.md.shadowOffset,
+    shadowOpacity: Shadows.md.shadowOpacity,
+    shadowRadius: Shadows.md.shadowRadius,
     elevation: 3,
   },
   inner: {
@@ -284,9 +293,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: undefined,
-    shadowOffset: Shadows.sm.offset,
-    shadowOpacity: Shadows.sm.opacity,
-    shadowRadius: Shadows.sm.radius,
+    shadowOffset: Shadows.sm.shadowOffset,
+    shadowOpacity: Shadows.sm.shadowOpacity,
+    shadowRadius: Shadows.sm.shadowRadius,
     elevation: 2,
   },
   copyColumn: {
@@ -306,6 +315,10 @@ const styles = StyleSheet.create({
     fontSize: 32,
     lineHeight: 36,
     fontWeight: Weight.black,
+  },
+  titleMobile: {
+    fontSize: 30,
+    lineHeight: 34,
   },
   pill: {
     borderWidth: 1,
@@ -361,11 +374,13 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   messageStackNarrow: {
-    flexDirection: 'column',
-    alignItems: 'flex-end',
+    alignSelf: 'stretch',
+    flexWrap: 'wrap',
+    alignItems: 'center',
     justifyContent: 'flex-start',
     gap: Spacing.xs,
     flexShrink: 1,
+    marginTop: Spacing.md,
   },
   messagePill: {
     flexDirection: 'row',
@@ -376,6 +391,10 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
+  },
+  messagePillText: {
+    flex: 1,
+    flexShrink: 1,
   },
   messagePillLower: {
     marginTop: Spacing.lg,
@@ -394,10 +413,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
   },
   mobileFooterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.md,
+    alignItems: 'stretch',
     marginTop: Spacing.md,
   },
   unreadBadge: {
@@ -415,10 +431,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.xs,
     shadowColor: undefined,
-    shadowOffset: Shadows.sm.offset,
-    shadowOpacity: Shadows.sm.opacity,
-    shadowRadius: Shadows.sm.radius,
+    shadowOffset: Shadows.sm.shadowOffset,
+    shadowOpacity: Shadows.sm.shadowOpacity,
+    shadowRadius: Shadows.sm.shadowRadius,
     elevation: 3,
+  },
+  ctaMobile: {
+    minHeight: 46,
+    alignSelf: 'stretch',
   },
   sparkleIcon: {
     position: 'absolute',

@@ -124,6 +124,7 @@ export default function DropDetailScreen() {
                 loadMore={loadMore}
                 pageSize={COMMENTS_PAGE_SIZE}
                 keyExtractor={(item) => item._id}
+                title="💭"
                 header={
                     <DropCard
                         dropId={drop._id}

@@ -18,9 +18,9 @@ export function EmptyState({ emoji, title, subtitle, actionLabel, onAction }: Em
   return (
     <View style={styles.container}>
       <ThemedText style={styles.emoji}>{emoji}</ThemedText>
-      <ThemedText type="smallBold" style={{ textAlign: 'center' }}>{title}</ThemedText>
+      <ThemedText type="smallBold" style={[styles.title, { color: theme.chatBubbleInText }]}>{title}</ThemedText>
       {subtitle && (
-        <ThemedText type="small" themeColor="textSecondary" style={styles.subtitle}>
+        <ThemedText type="small" style={[styles.subtitle, { color: theme.chatTextMuted }]}>
           {subtitle}
         </ThemedText>
       )}
@@ -47,7 +47,11 @@ const styles = StyleSheet.create({
   },
   emoji: {
     fontSize: Typography.display,
+    lineHeight: Typography.display * 1.2,
     marginBottom: Spacing.xs,
+  },
+  title: {
+    textAlign: 'center',
   },
   subtitle: {
     textAlign: 'center',

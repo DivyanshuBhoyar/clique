@@ -48,12 +48,13 @@ export function ChatComposer({
 
     if (isEphemeral && isExpired) {
         return (
-            <View style={[styles.expiredBanner, { borderTopColor: theme.outlineLight }]}>
+            <View style={[styles.expiredBanner, { borderTopColor: theme.chatBorder }]}>
+
                 <ThemedText type="small" style={{ color: theme.error, fontWeight: Weight.semibold }}>
                     This room has expired
                 </ThemedText>
                 {channelExpiry?.deleteAt && (
-                    <ThemedText type="caption" themeColor="textSecondary">
+                    <ThemedText type="caption" style={{ color: theme.chatTextMuted }}>
                         Deletes in {formatDeleteIn(channelExpiry.deleteAt - Date.now())}
                     </ThemedText>
                 )}

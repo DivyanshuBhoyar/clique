@@ -51,7 +51,7 @@ export function PollCard({ poll, onVote, compact }: PollCardProps) {
         <View style={[styles.container, compact && styles.compact, { borderColor: theme.outline, backgroundColor: theme.surface }]}>
             <View style={styles.questionRow}>
                 <ThemedText style={styles.pollEmoji}>📊</ThemedText>
-                <ThemedText type="bodyBold" numberOfLines={compact ? 2 : undefined} style={{ flex: 1 }}>
+                <ThemedText type="bodyBold" numberOfLines={compact ? 2 : undefined} style={styles.questionText}>
                     {poll.question}
                 </ThemedText>
             </View>
@@ -150,12 +150,14 @@ const styles = StyleSheet.create({
     },
     questionRow: {
         flexDirection: 'row',
-        alignItems: 'flex-start',
-        gap: Spacing.xs,
+        alignItems: 'center',
+        gap: Spacing.sm,
     },
     pollEmoji: {
-        fontSize: Typography.body,
-        marginTop: 1,
+        fontSize: Typography.heading,
+    },
+    questionText: {
+        flex: 1,
     },
     metaRow: {
         flexDirection: 'row',

@@ -39,7 +39,7 @@ export function WeeklyQuestionHistoryCard({ entry }: WeeklyQuestionHistoryCardPr
     return (
         <View style={[styles.container, { backgroundColor: theme.surface, borderColor: theme.outline }]}>
             <View style={styles.metaRow}>
-                <ThemedText type="caption" style={{ color: theme.textSecondary, fontWeight: Weight.bold }}>
+                <ThemedText type="caption" style={[styles.dateText, { color: theme.textSecondary }]}>
                     {formatEntryDate(entry.question.createdAt)}
                 </ThemedText>
                 <ThemedText type="caption" themeColor="textSecondary" style={styles.countText}>
@@ -68,7 +68,7 @@ export function WeeklyQuestionHistoryCard({ entry }: WeeklyQuestionHistoryCardPr
                         <View key={answer._id} style={styles.answerRow}>
                             <UserAvatar uri={answer.avatarUrl} size={22} fallbackText={answer.nickname} />
                             <View style={styles.answerText}>
-                                <ThemedText type="caption" style={{ fontWeight: Weight.bold }} numberOfLines={1}>
+                                <ThemedText type="caption" style={styles.nicknameText} numberOfLines={1}>
                                     {answer.nickname}
                                 </ThemedText>
                                 <ThemedText type="small" themeColor="textSecondary" selectable>
@@ -108,6 +108,9 @@ const styles = StyleSheet.create({
     countText: {
         fontVariant: ['tabular-nums'],
     },
+    dateText: {
+        fontWeight: Weight.bold,
+    },
     question: {
         lineHeight: LineHeight.body,
     },
@@ -122,11 +125,14 @@ const styles = StyleSheet.create({
     },
     answerRow: {
         flexDirection: 'row',
+        alignItems: 'center',
         gap: Spacing.sm,
-        alignItems: 'flex-start',
     },
     answerText: {
         flex: 1,
         gap: 2,
+    },
+    nicknameText: {
+        fontWeight: Weight.bold,
     },
 });

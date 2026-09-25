@@ -140,8 +140,8 @@ export function TypingIndicator({ typingUsers, currentUserId }: TypingIndicatorP
 
   return (
     <View style={[styles.container, { paddingHorizontal: Spacing.md }]}>
-      <View style={[styles.bubble, { backgroundColor: theme.surface, borderColor: theme.outline }]}>
-        <ThemedText type="caption" style={{ color: theme.textSecondary }}>
+      <View style={[styles.bubble, { backgroundColor: theme.chatBubbleIn }]}>
+        <ThemedText type="caption" style={{ color: theme.chatBubbleInText }}>
           {label}
         </ThemedText>
         <View style={styles.dots}>
@@ -151,7 +151,7 @@ export function TypingIndicator({ typingUsers, currentUserId }: TypingIndicatorP
               style={[
                 styles.dot,
                 {
-                  backgroundColor: theme.textSecondary,
+                  backgroundColor: theme.chatTextMuted,
                   transform: [{ translateY: dot.interpolate({ inputRange: [0, 1], outputRange: [0, -4] }) }],
                 },
               ]}
@@ -179,10 +179,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'flex-start',
     gap: Spacing.xs,
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.sm + 2,
     paddingVertical: Spacing.xs + 2,
-    borderRadius: Radius.lg,
-    borderWidth: 1.5,
+    // Incoming bubble shape: 16 16 16 4
+    borderTopLeftRadius: Radius.lg,
+    borderTopRightRadius: Radius.lg,
+    borderBottomLeftRadius: 4,
+    borderBottomRightRadius: Radius.lg,
   },
   dots: {
     flexDirection: 'row',

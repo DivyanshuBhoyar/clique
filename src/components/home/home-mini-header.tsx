@@ -26,9 +26,9 @@ export function HomeMiniHeader({ onSettingsPress, onMessagesPress }: HomeMiniHea
             </Pressable>
             <ThemedText
                 type="caption"
-                style={{ letterSpacing: 1.5, fontWeight: Weight.bold, color: theme.textSecondary }}
+                style={{ letterSpacing: 1.25, fontWeight: Weight.bold, color: theme.textSecondary }}
             >
-                SQUAD HOME
+                <ThemedText style={{ fontSize: 16}}>🐥</ThemedText>: WELCOME
             </ThemedText>
             <Pressable
                 hitSlop={8}

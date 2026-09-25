@@ -1,10 +1,11 @@
 import { Colors, Typography, Weight } from '@/constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useQuery } from 'convex/react';
 import { Tabs, useLocalSearchParams } from 'expo-router';
 import { BookOpen, Heart, MessageCircle, Sparkles, Zap, type LucideIcon } from 'lucide-react-native';
 import { useEffect } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../../../../../convex/_generated/api';
 import { Id } from '../../../../../convex/_generated/dataModel';
@@ -188,15 +189,16 @@ export default function SquadTabsLayout() {
     );
 }
 
-function SquadTabBar({ state, descriptors, navigation, bottomInset }: any & { bottomInset: number }) {
+function SquadTabBar({ state, descriptors, navigation, bottomInset }: BottomTabBarProps & { bottomInset: number }) {
     const focusedRoute = state.routes[state.index];
     const focusedOptions = descriptors[focusedRoute.key]?.options;
+    const focusedTabBarStyle = StyleSheet.flatten(focusedOptions?.tabBarStyle as ViewStyle | undefined);
 
-    if (focusedOptions?.tabBarStyle?.display === 'none') {
+    if (focusedTabBarStyle?.display === 'none') {
         return null;
     }
 
-    const routesByName = new Map(state.routes.map((route: any) => [route.name, route]));
+    const routesByName = new Map(state.routes.map((route) => [route.name, route]));
 
     return (
         <View style={[styles.tabBar, { paddingBottom: Math.max(bottomInset, 6), height: 60 + bottomInset }]}>

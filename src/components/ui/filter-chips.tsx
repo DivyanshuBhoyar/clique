@@ -12,7 +12,9 @@
  */
 import { ThemedText } from '@/components/themed-text';
 import { BorderWidth, LineHeight, Radius, Spacing, Typography, Weight } from '@/constants/theme';
+import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { useTheme } from '@/hooks/use-theme';
+import { useEffect, useRef } from 'react';
 import { Pressable, ScrollView, StyleSheet } from 'react-native';
 
 interface Chip {
@@ -28,9 +30,28 @@ interface FilterChipsProps {
 
 export function FilterChips({ chips, activeIndex, onSelect }: FilterChipsProps) {
   const theme = useTheme();
+  const reduceMotion = useReduceMotion();
+  const scrollRef = useRef<ScrollView>(null);
+
+  // One-time "peek" nudge on mount so it's obvious the row can be swiped —
+  // scrolls a few px right then eases back to the start.
+  useEffect(() => {
+    if (reduceMotion || chips.length < 4) return;
+    const nudgeOut = setTimeout(() => {
+      scrollRef.current?.scrollTo({ x: 32, animated: true });
+    }, 400);
+    const nudgeBack = setTimeout(() => {
+      scrollRef.current?.scrollTo({ x: 0, animated: true });
+    }, 750);
+    return () => {
+      clearTimeout(nudgeOut);
+      clearTimeout(nudgeBack);
+    };
+  }, [chips.length, reduceMotion]);
 
   return (
     <ScrollView
+      ref={scrollRef}
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.scroll}

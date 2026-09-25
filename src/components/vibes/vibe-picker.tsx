@@ -6,6 +6,7 @@ import { VIBE_PRESETS } from "@/constants/vibes";
 import { api } from "@/convex/_generated/api";
 import { useImageUpload } from "@/hooks/use-image-upload";
 import { useTheme } from "@/hooks/use-theme";
+import { getImageUploadPresetSummary } from "@/lib/image-upload";
 import { useMutation } from "convex/react";
 import { useState } from "react";
 import {
@@ -33,7 +34,7 @@ export function VibePicker({ visible, onClose, onSelect, onClear, currentAvatarU
     const [customEmojiPickerVisible, setCustomEmojiPickerVisible] = useState(false);
 
     const updateAvatar = useMutation(api.users.updateAvatar);
-    const { previewUri, uploading: uploadingAvatar, pickAndUpload, reset: resetAvatar } = useImageUpload();
+    const { previewUri, uploading: uploadingAvatar, pickAndUpload, reset: resetAvatar } = useImageUpload({ target: 'avatar' });
 
     function handleSelect(emoji: string, presetLabel: string) {
         setSelectedEmoji(emoji);
@@ -104,7 +105,7 @@ export function VibePicker({ visible, onClose, onSelect, onClear, currentAvatarU
                                 {uploadingAvatar ? 'Uploading...' : 'Change photo'}
                             </ThemedText>
                             <ThemedText type="small" themeColor="textSecondary">
-                                Tap to update profile picture
+                                {getImageUploadPresetSummary('avatar')}
                             </ThemedText>
                         </View>
                     </TouchableOpacity>
@@ -174,7 +175,7 @@ export function VibePicker({ visible, onClose, onSelect, onClear, currentAvatarU
                             onPress={handleSubmit}
                             disabled={!selectedEmoji}
                         >
-                            <ThemedText type="smallBold" style={{ color: "#fff" }}>
+                            <ThemedText type="smallBold" style={styles.submitButtonText}>
                                 Set vibe
                             </ThemedText>
                         </TouchableOpacity>
@@ -282,5 +283,8 @@ const styles = StyleSheet.create({
         paddingHorizontal: Spacing.lg,
         paddingVertical: Spacing.sm,
         borderRadius: Radius.md,
+    },
+    submitButtonText: {
+        color: "#fff",
     },
 });

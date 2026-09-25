@@ -1,4 +1,5 @@
 import { useMutation } from 'convex/react';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { Lock } from 'lucide-react-native';
 import { useState } from 'react';
@@ -17,6 +18,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { Radius, Spacing, Typography } from '@/constants/theme';
+import { useImageUpload } from '@/hooks/use-image-upload';
 import { useTheme } from '@/hooks/use-theme';
 import { useToast } from '@/hooks/use-toast';
 import { backOrReplace } from '@/utils/navigation';
@@ -36,6 +38,10 @@ export default function CreateSquadScreen() {
     const toast = useToast();
 
     const createSquad = useMutation(api.squad.createSquad);
+    const { previewUri, storageId, uploading, pickAndUpload, reset } = useImageUpload({
+        target: 'avatar',
+        promptForResolution: false,
+    });
 
     const canSubmit = name.trim().length > 0 && password.trim().length > 0 && nickname.trim().length > 0 && !isSubmitting;
 
@@ -45,11 +51,16 @@ export default function CreateSquadScreen() {
         }
         setIsSubmitting(true);
         try {
-            const squadId = await createSquad({ name: name.trim(), password: password.trim(), nickname: nickname.trim() });
-            toast.success('Squad created!');
+            const squadId = await createSquad({
+                name: name.trim(),
+                password: password.trim(),
+                nickname: nickname.trim(),
+                ...(storageId ? { avatarStorageId: storageId } : {}),
+            });
+            toast.success('Space created!');
             router.replace(`/squad/${squadId}/chat` as any);
         } catch (err: any) {
-            toast.error(err.message ?? 'Failed to create squad');
+            toast.error(err.message ?? 'Failed to Create Space');
         } finally {
             setIsSubmitting(false);
         }
@@ -58,7 +69,7 @@ export default function CreateSquadScreen() {
     return (
         <ThemedView style={styles.container}>
             <SafeAreaView style={styles.safeArea} edges={['top']}>
-                <ScreenHeader title="Create Squad 🏠" onBack={() => backOrReplace(router, '/')} />
+                <ScreenHeader title="Create Space 🏠" onBack={() => backOrReplace(router, '/')} />
                 <KeyboardAvoidingView
                     behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                     style={{ flex: 1 }}
@@ -69,18 +80,34 @@ export default function CreateSquadScreen() {
                         keyboardShouldPersistTaps="handled"
                     >
                         <View style={styles.avatarWrapper}>
-                            <View style={[styles.avatarBox, { backgroundColor: theme.accent, borderColor: theme.outline }]}>
-                                <ThemedText style={styles.avatarEmoji}>🏠</ThemedText>
-                            </View>
+                            <Pressable
+                                onPress={previewUri ? reset : pickAndUpload}
+                                disabled={uploading}
+                                style={[styles.avatarBox, { backgroundColor: theme.accent, borderColor: theme.outline }]}
+                                accessibilityRole="button"
+                                accessibilityLabel={previewUri ? 'Remove space photo' : 'Add space photo'}
+                            >
+                                {previewUri ? (
+                                    <Image
+                                        source={{ uri: previewUri }}
+                                        style={styles.avatarImage}
+                                        contentFit="cover"
+                                    />
+                                ) : (
+                                    <ThemedText style={styles.avatarEmoji}>
+                                        {uploading ? '⏳' : '🏠'}
+                                    </ThemedText>
+                                )}
+                            </Pressable>
                             <ThemedText type="small" themeColor="textSecondary">
-                                Add squad photo or emoji
+                                {previewUri ? 'Tap to remove photo' : uploading ? 'Uploading…' : 'Tap to add space photo'}
                             </ThemedText>
                         </View>
 
                         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.outline }]}>
                             <View style={styles.fieldHeader}>
                                 <ThemedText type="smallBold">
-                                    Squad Name <ThemedText style={{ color: theme.error }}>*</ThemedText>
+                                    Space name <ThemedText style={{ color: theme.error }}>*</ThemedText>
                                 </ThemedText>
                                 <ThemedText type="caption" themeColor="textTertiary">
                                     {name.length}/{NAME_LIMIT}
@@ -114,7 +141,7 @@ export default function CreateSquadScreen() {
                                 <View style={styles.fieldHeaderLeft}>
                                     <Lock size={13} color={theme.textSecondary} strokeWidth={2} />
                                     <ThemedText type="smallBold">
-                                        Squad Password <ThemedText style={{ color: theme.error }}>*</ThemedText>
+                                        Space Password <ThemedText style={{ color: theme.error }}>*</ThemedText>
                                     </ThemedText>
                                 </View>
                             </View>
@@ -160,7 +187,7 @@ export default function CreateSquadScreen() {
                                     { color: canSubmit ? theme.text : theme.textTertiary },
                                 ]}
                             >
-                                {isSubmitting ? 'Creating…' : 'Create Squad 🎉'}
+                                {isSubmitting ? 'Creating…' : 'Create Space 🎉'}
                             </ThemedText>
                         </Pressable>
                     </ScrollView>
@@ -191,6 +218,11 @@ const styles = StyleSheet.create({
         borderWidth: 2,
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    avatarImage: {
+        width: 88,
+        height: 88,
+        borderRadius: Radius.xl,
     },
     avatarEmoji: { fontSize: Typography.display },
     card: {

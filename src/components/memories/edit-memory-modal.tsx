@@ -9,6 +9,7 @@ import { LineHeight, Radius, Shadows, Spacing, Typography, Weight } from '@/cons
 import { Id } from '@/convex/_generated/dataModel';
 import { useImageUpload } from '@/hooks/use-image-upload';
 import { useTheme } from '@/hooks/use-theme';
+import { getImageUploadPresetSummary } from '@/lib/image-upload';
 
 interface EditableMemory {
   type: 'wall' | 'event';
@@ -33,7 +34,7 @@ interface EditMemoryModalProps {
 
 export function EditMemoryModal({ visible, memory, coverUrl, onClose, onSave }: EditMemoryModalProps) {
   const theme = useTheme();
-  const { previewUri, uploading, pickAndUpload, reset } = useImageUpload();
+  const { previewUri, uploading, pickAndUpload, reset } = useImageUpload({ target: 'memoryCover' });
   const [title, setTitle] = useState(memory.title ?? '');
   const [content, setContent] = useState(memory.content ?? '');
   const [coverStorageId, setCoverStorageId] = useState<Id<'_storage'> | null>(null);
@@ -131,10 +132,10 @@ export function EditMemoryModal({ visible, memory, coverUrl, onClose, onSave }: 
                       <Image source={{ uri: coverUrl }} style={styles.coverImage} contentFit="cover" />
                       <View style={styles.coverActions}>
                         <Pressable onPress={handlePickCover} style={[styles.coverBtn, { backgroundColor: theme.surface, borderColor: theme.outline }]}>
-                          <ThemedText type="caption" style={{ fontWeight: Weight.bold }}>Change</ThemedText>
+                          <ThemedText type="caption" style={styles.coverBtnText}>Change</ThemedText>
                         </Pressable>
                         <Pressable onPress={handleRemoveCover} style={[styles.coverBtn, { backgroundColor: theme.errorSoft, borderColor: theme.error }]}>
-                          <ThemedText type="caption" style={{ color: theme.error, fontWeight: Weight.bold }}>Remove</ThemedText>
+                          <ThemedText type="caption" style={[styles.coverBtnText, { color: theme.error }]}>Remove</ThemedText>
                         </Pressable>
                       </View>
                     </View>
@@ -145,6 +146,8 @@ export function EditMemoryModal({ visible, memory, coverUrl, onClose, onSave }: 
                       onPick={handlePickCover}
                       onRemove={handleRemoveCover}
                       placeholder={removeCover ? '+ Add new cover photo' : '+ Change cover photo'}
+                      helperText={getImageUploadPresetSummary('memoryCover')}
+                      accessibilityLabel="Pick a wide memory cover photo"
                     />
                   )}
                 </>
@@ -167,7 +170,7 @@ export function EditMemoryModal({ visible, memory, coverUrl, onClose, onSave }: 
                 accessibilityRole="button"
                 accessibilityLabel="Save memory changes"
               >
-                <ThemedText type="smallBold" style={{ color: theme.text }}>{saving ? 'Saving…' : 'Save'}</ThemedText>
+                <ThemedText type="smallBold" style={[styles.footerBtnText, { fontWeight: Weight.bold }]}>{saving ? 'Saving…' : 'Save'}</ThemedText>
               </Pressable>
             </View>
           </View>
@@ -192,9 +195,9 @@ const styles = StyleSheet.create({
     borderTopRightRadius: Radius.xl,
     borderWidth: 2,
     paddingTop: Spacing.lg,
-    shadowOffset: Shadows.lg.offset,
-    shadowOpacity: Shadows.lg.opacity,
-    shadowRadius: Shadows.lg.radius,
+    shadowOffset: Shadows.lg.shadowOffset,
+    shadowOpacity: Shadows.lg.shadowOpacity,
+    shadowRadius: Shadows.lg.shadowRadius,
     elevation: 8,
   },
   header: {
@@ -259,6 +262,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm,
     paddingVertical: 4,
   },
+  coverBtnText: {
+    fontWeight: Weight.bold,
+  },
   footer: {
     flexDirection: 'row',
     gap: Spacing.sm,
@@ -272,5 +278,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1.5,
     borderRadius: Radius.md,
+  },
+  footerBtnText: {
+    fontWeight: Weight.bold,
   },
 });

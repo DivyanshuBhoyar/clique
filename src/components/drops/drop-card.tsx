@@ -12,17 +12,19 @@
  * The `truncate` prop limits content to 3 lines in the list view.
  */
 import { Bookmark, MessageCircle } from 'lucide-react-native';
+import { useEffect } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 
 import { CategoryChip } from '@/components/drops/category-chip';
 import { VoteButtons } from '@/components/drops/vote-buttons';
 import { ThemedText } from '@/components/themed-text';
-import { DashedSeparator } from '@/components/ui/dashed-separator';
 import { EmojiReactionStack, EmojiReactionStrip } from '@/components/ui/emoji-reaction-strip';
 import { LinkPreviewCard } from '@/components/ui/link-preview-card';
 import { LinkifiedText } from '@/components/ui/linkified-text';
 import { UserAvatar } from '@/components/user-avatar';
 import { BorderWidth, LineHeight, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
+import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { useTheme } from '@/hooks/use-theme';
 import { extractUrls } from '@/utils/links';
 import { formatRelativeTime } from '@/utils/time';
@@ -53,6 +55,8 @@ interface DropCardProps {
     onToggleBookmark?: (dropId: string) => void;
 }
 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 export function DropCard({
     dropId,
     category,
@@ -74,6 +78,7 @@ export function DropCard({
     onToggleBookmark,
 }: DropCardProps) {
     const theme = useTheme();
+    const reduceMotion = useReduceMotion();
     const time = formatRelativeTime(createdAt);
     const isDetail = !truncate;
     const firstUrl = extractUrls(content)[0]?.url;
@@ -90,25 +95,65 @@ export function DropCard({
         return [...map.entries()].map(([emoji, { count, reacted }]) => ({ emoji, count, reacted }));
     })();
 
+    const bookmarkScale = useSharedValue(1);
+
+    useEffect(() => {
+        if (!isBookmarked) {
+            bookmarkScale.value = withTiming(1, { duration: 120 });
+            return;
+        }
+        bookmarkScale.value = reduceMotion
+            ? withTiming(1.15, { duration: 120 }, () => {
+                  bookmarkScale.value = withTiming(1, { duration: 120 });
+              })
+            : withSpring(1.22, { damping: 10, stiffness: 400, mass: 0.5 }, () => {
+                  bookmarkScale.value = withSpring(1, { damping: 12, stiffness: 300, mass: 0.5 });
+              });
+    }, [isBookmarked, reduceMotion, bookmarkScale]);
+
+    const bookmarkStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: bookmarkScale.value }],
+    }));
+
+    const bookmarkPressScale = useSharedValue(1);
+    const bookmarkPressStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: bookmarkPressScale.value }],
+    }));
+
+    const handleBookmarkPressIn = () => {
+        bookmarkPressScale.value = reduceMotion
+            ? withTiming(0.88, { duration: 80 })
+            : withSpring(0.85, { damping: 14, stiffness: 350, mass: 0.6 });
+    };
+
+    const handleBookmarkPressOut = () => {
+        bookmarkPressScale.value = reduceMotion
+            ? withTiming(1, { duration: 80 })
+            : withSpring(1, { damping: 14, stiffness: 350, mass: 0.6 });
+    };
+
     return (
         <View
             style={[
                 styles.card,
+                !isDetail && styles.listCard,
                 {
                     backgroundColor: theme.surfaceWarm,
-                    borderColor: theme.accent,
+                    borderColor: isDetail ? theme.randomBg : theme.tabBarBorder,
                     shadowColor: theme.shadow,
-                    shadowOffset: Shadows.sm.offset,
-                    shadowOpacity: Shadows.sm.opacity,
-                    shadowRadius: Shadows.sm.radius,
-                    elevation: 3,
+                    shadowOffset: Shadows.sm.shadowOffset,
+                    shadowOpacity: isDetail ? 0.05 : 0.01,
+                    shadowRadius: Shadows.sm.shadowRadius,
+                    elevation: isDetail ? 3 : 0,
                 },
             ]}
         >
             {/* Header: category chip + time */}
             <View style={styles.header}>
                 <CategoryChip category={category} />
-                <ThemedText type="caption" themeColor="textSecondary">{time}</ThemedText>
+                <ThemedText type="caption" themeColor="textSecondary" style={styles.timeText}>
+                    {time}
+                </ThemedText>
             </View>
 
             {/* Content */}
@@ -116,18 +161,26 @@ export function DropCard({
                 style={styles.content}
                 numberOfLines={truncate ? 3 : undefined}
                 selectable={!truncate}
-                linkColor={theme.accentDark}
+                linkColor={theme.featureAccentDark}
             >
                 {content}
             </LinkifiedText>
 
             {firstUrl ? (
                 <View style={styles.previewWrap} onStartShouldSetResponder={() => true}>
-                    <LinkPreviewCard url={firstUrl} compact={truncate} />
+                    <LinkPreviewCard url={firstUrl} compact={truncate} soft={!isDetail} />
                 </View>
             ) : null}
 
-            <DashedSeparator />
+            <View
+                style={[
+                    styles.separator,
+                    {
+                        backgroundColor: isDetail ? theme.outlineLight : theme.tabBarBorder,
+                        opacity: isDetail ? 0.85 : 0.55,
+                    },
+                ]}
+            />
 
             {isDetail && (groupedReactions.length > 0 || onAddReaction) && (
                 <View style={styles.detailReactionsRow}>
@@ -156,37 +209,43 @@ export function DropCard({
                         userVote={userVote}
                         onVote={(value) => onVote(dropId, value)}
                     />
-                    {!isDetail && (groupedReactions.length > 0 || onAddReaction) && (
-                        <View style={styles.listReactionsStack}>
-                            <EmojiReactionStack
-                                reactions={groupedReactions}
-                                onToggle={(emoji) => onToggleReaction(dropId, emoji)}
-                                onAdd={onAddReaction ? () => onAddReaction(dropId) : undefined}
-                            />
-                        </View>
-                    )}
-                    {commentCount >= 0 && (
-                        <View style={styles.commentPill}>
-                            <MessageCircle size={13} color={theme.textSecondary} strokeWidth={2} />
-                            <ThemedText type="caption" themeColor="textSecondary">
-                                {commentCount}
-                            </ThemedText>
-                        </View>
-                    )}
-                    <Pressable
-                        onPress={() => onToggleBookmark?.(dropId)}
-                        hitSlop={8}
-                        style={styles.bookmarkButton}
-                        accessibilityRole="button"
-                        accessibilityLabel={isBookmarked ? 'Remove bookmark' : 'Bookmark'}
-                    >
-                        <Bookmark
-                            size={16}
-                            color={isBookmarked ? theme.accent : theme.textSecondary}
-                            fill={isBookmarked ? theme.accent : 'none'}
-                            strokeWidth={2}
-                        />
-                    </Pressable>
+                    <View style={styles.socialActions}>
+                        {!isDetail && (groupedReactions.length > 0 || onAddReaction) && (
+                            <View style={styles.listReactionsStack}>
+                                <EmojiReactionStack
+                                    reactions={groupedReactions}
+                                    onToggle={(emoji) => onToggleReaction(dropId, emoji)}
+                                    onAdd={onAddReaction ? () => onAddReaction(dropId) : undefined}
+                                />
+                            </View>
+                        )}
+                        {commentCount >= 0 && (
+                            <View style={styles.commentPill}>
+                                <MessageCircle size={13} color={theme.textSecondary} strokeWidth={2} />
+                                <ThemedText type="caption" themeColor="textSecondary" style={styles.counterText}>
+                                    {commentCount}
+                                </ThemedText>
+                            </View>
+                        )}
+                        <AnimatedPressable
+                            onPress={() => onToggleBookmark?.(dropId)}
+                            onPressIn={handleBookmarkPressIn}
+                            onPressOut={handleBookmarkPressOut}
+                            hitSlop={8}
+                            style={[styles.bookmarkButton, bookmarkPressStyle]}
+                            accessibilityRole="button"
+                            accessibilityLabel={isBookmarked ? 'Remove bookmark' : 'Bookmark'}
+                        >
+                            <Animated.View style={bookmarkStyle}>
+                                <Bookmark
+                                    size={16}
+                                    color={isBookmarked ? theme.accent : theme.textSecondary}
+                                    fill={isBookmarked ? theme.accent : 'none'}
+                                    strokeWidth={2}
+                                />
+                            </Animated.View>
+                        </AnimatedPressable>
+                    </View>
                 </View>
             </View>
         </View>
@@ -196,23 +255,37 @@ export function DropCard({
 const styles = StyleSheet.create({
     card: {
         width: '100%',
-        padding: Spacing.lg,
+        paddingHorizontal: Spacing.lg,
+        paddingVertical: Spacing.md,
         borderWidth: BorderWidth.thin,
-        borderRadius: Radius.lg,
+        borderRadius: Radius.xl,
+    },
+    listCard: {
+        paddingVertical: Spacing.md,
     },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: Spacing.sm,
+        gap: Spacing.md,
+        marginBottom: Spacing.md,
+    },
+    timeText: {
+        flexShrink: 0,
+        fontVariant: ['tabular-nums'],
     },
     content: {
         fontSize: Typography.body,
         lineHeight: LineHeight.body,
-        marginBottom: Spacing.sm,
     },
     previewWrap: {
-        marginBottom: Spacing.sm,
+        marginTop: Spacing.sm,
+    },
+    separator: {
+        height: StyleSheet.hairlineWidth,
+        opacity: 0.85,
+        marginTop: Spacing.md,
+        marginBottom: Spacing.xs,
     },
     authorRow: {
         flexDirection: 'row',
@@ -220,38 +293,52 @@ const styles = StyleSheet.create({
         gap: Spacing.xs,
         flex: 1,
         minWidth: 0,
+        minHeight: 28,
     },
     footer: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        gap: Spacing.sm,
+        gap: Spacing.md,
+        minHeight: 30,
     },
     footerActions: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'flex-end',
-        gap: Spacing.xs,
+        gap: Spacing.md,
         flexShrink: 1,
-        maxWidth: '72%',
+        maxWidth: '76%',
+        minHeight: 30,
     },
     detailReactionsRow: {
-        paddingTop: Spacing.md,
         paddingBottom: Spacing.md,
     },
     listReactionsStack: {
         maxWidth: 86,
         flexShrink: 1,
     },
+    socialActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.xs,
+        minHeight: 30,
+    },
     bookmarkButton: {
         width: 28,
-        height: 36,
-        alignItems: 'flex-end',
+        minHeight: 30,
+        alignItems: 'center',
         justifyContent: 'center',
     },
     commentPill: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 3,
+        justifyContent: 'center',
+        gap: Spacing.xs,
+        minHeight: 30,
+        minWidth: 34,
+    },
+    counterText: {
+        fontVariant: ['tabular-nums'],
     },
 });

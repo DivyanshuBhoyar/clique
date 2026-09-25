@@ -1,8 +1,10 @@
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Pressable, ScrollView, StyleSheet, TextInput } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { DROP_CATEGORIES, type DropCategoryKey } from '@/constants/drops';
 import { Radius, Spacing, Typography, Weight } from '@/constants/theme';
+import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { useTheme } from '@/hooks/use-theme';
 
 interface CategorySelectorProps {
@@ -19,10 +21,34 @@ export function CategorySelector({
   onCustomChange,
 }: CategorySelectorProps) {
   const theme = useTheme();
+  const reduceMotion = useReduceMotion();
+  const scrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    if (reduceMotion || DROP_CATEGORIES.length < 4) return;
+
+    const nudgeOut = setTimeout(() => {
+      scrollRef.current?.scrollTo({ x: 44, animated: true });
+    }, 350);
+    const nudgeBack = setTimeout(() => {
+      scrollRef.current?.scrollTo({ x: 0, animated: true });
+    }, 760);
+
+    return () => {
+      clearTimeout(nudgeOut);
+      clearTimeout(nudgeBack);
+    };
+  }, [reduceMotion]);
 
   return (
     <>
-      <View style={styles.chipsRow}>
+      <ScrollView
+        ref={scrollRef}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.chipsRow}
+        style={styles.chipsScroller}
+      >
         {DROP_CATEGORIES.map((cat) => (
           <Pressable
             key={cat.key}
@@ -59,13 +85,20 @@ export function CategorySelector({
           <ThemedText
             style={[
               styles.chipText,
-              selected === 'other' && { color: '#fff' },
+              { color: theme.textSecondary },
+              selected === 'other' && { color: theme.text, fontWeight: Weight.bold },
             ]}
           >
             ✏️ Other
           </ThemedText>
         </Pressable>
-      </View>
+      </ScrollView>
+
+      {!reduceMotion && DROP_CATEGORIES.length >= 4 ? (
+        <ThemedText type="caption" style={[styles.hintText, { color: theme.textSecondary }]}>
+          Swipe to see more categories →
+        </ThemedText>
+      ) : null}
 
       {selected === 'other' && (
         <TextInput
@@ -82,10 +115,13 @@ export function CategorySelector({
 }
 
 const styles = StyleSheet.create({
+  chipsScroller: {
+    flexGrow: 0,
+  },
   chipsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
+    paddingRight: Spacing.lg,
   },
   chip: {
     paddingHorizontal: 12,
@@ -96,6 +132,9 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: Typography.small,
     fontWeight: Weight.semibold,
+  },
+  hintText: {
+    marginTop: Spacing.xs,
   },
   customInput: {
     marginTop: Spacing.two,

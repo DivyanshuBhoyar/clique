@@ -64,6 +64,9 @@ export default function VibesScreen() {
     const clearVibe = useMutation(api.vibes.clearVibe);
     const answerQuestion = useMutation(api.questions.answerWeeklyQuestion);
     const createQuestion = useMutation(api.questions.createWeeklyQuestion);
+    const updateQuestion = useMutation(api.questions.updateWeeklyQuestion);
+    const deleteQuestion = useMutation(api.questions.deleteWeeklyQuestion);
+    const deleteAnswer = useMutation(api.questions.deleteWeeklyAnswer);
     const createConfession = useMutation(api.confessions.createConfession);
     const toggleConfessionReaction = useMutation(api.confessions.toggleConfessionReaction);
     const createPoll = useMutation(api.polls.createPoll);
@@ -145,16 +148,25 @@ export default function VibesScreen() {
                     {currentQuestion !== undefined ? (
                         <WeeklyQuestionCard
                             question={currentQuestion.question}
+                            canPostNew={currentQuestion.canPostNew}
                             answers={currentQuestion.answers}
                             myAnswer={currentQuestion.myAnswer}
                             answerCount={currentQuestion.answerCount}
                             squadMemberCount={currentQuestion.squadMemberCount}
-                            currentUserId={currentUser?._id}
                             onAnswer={(questionId, content) =>
                                 answerQuestion({ questionId: questionId as Id<'weeklyQuestions'>, content })
                             }
+                            onDeleteAnswer={(answerId) =>
+                                deleteAnswer({ answerId: answerId as Id<'weeklyAnswers'> })
+                            }
                             onCreateQuestion={(sId, question) =>
                                 createQuestion({ squadId: sId as Id<'squads'>, question })
+                            }
+                            onUpdateQuestion={(questionId, question) =>
+                                updateQuestion({ questionId: questionId as Id<'weeklyQuestions'>, question })
+                            }
+                            onDeleteQuestion={(questionId) =>
+                                deleteQuestion({ questionId: questionId as Id<'weeklyQuestions'> })
                             }
                             squadId={squadId}
                         />

@@ -1,4 +1,5 @@
 import { Link } from 'expo-router';
+import { Plus } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -10,7 +11,7 @@ const TYPE_EMOJI: Record<string, string> = {
   main: '💬',
   mood: '🎭',
   topic: '💭',
-  ephemeral: '⏳',
+  timed: '⏳',
 };
 
 interface ChannelCardProps {
@@ -28,43 +29,40 @@ interface ChannelCardProps {
 export function ChannelCard({ channel, squadId, type }: ChannelCardProps) {
   const theme = useTheme();
   const emoji = channel.emoji ?? TYPE_EMOJI[type] ?? '💬';
-  const iconBg = type === 'mood'
-    ? theme.surfaceWarm
-    : type === 'topic'
-      ? theme.accentSoft
-      : theme.errorSoft;
+  const iconBg = theme.chatWarmTint;
   const preview = channel.recentMessages?.[0];
 
   return (
     <Link href={`/squad/${squadId}/chat/${channel._id}` as any} accessibilityRole="button" accessibilityLabel={`Open ${channel.name}`} style={[
       styles.card,
       {
-        backgroundColor: theme.surface,
-        borderColor: theme.cardBorder,
+        backgroundColor: theme.chatSurface,
+        borderColor: theme.chatBorder,
         shadowColor: theme.shadow,
-        shadowOffset: Shadows.sm.offset,
-        shadowOpacity: Shadows.sm.opacity,
-        shadowRadius: Shadows.sm.radius,
+        shadowOffset: Shadows.sm.shadowOffset,
+        shadowOpacity: Shadows.sm.shadowOpacity,
+        shadowRadius: Shadows.sm.shadowRadius,
         elevation: 1,
       },
     ]}>
+      {channel.unreadCount > 0 && (
+        <View style={styles.unreadWrap}>
+          <View style={[styles.unreadDot, { backgroundColor: theme.chatAccent, borderColor: theme.chatAccent }]}>
+            <Plus size={12} strokeWidth={2.4} color={theme.chatOnAccent} />
+            <ThemedText type="caption" style={{ color: theme.chatOnAccent, fontWeight: Weight.bold, fontVariant: ['tabular-nums'] }}>
+              {channel.unreadCount}
+            </ThemedText>
+          </View>
+        </View>
+      )}
       <View style={styles.inner}>
-        <View style={[styles.iconCircle, { backgroundColor: iconBg, borderWidth: 1.5, borderColor: theme.outlineLight }]}>
+        <View style={[styles.iconCircle, { backgroundColor: iconBg, borderWidth: 1.5, borderColor: theme.chatBorder }]}>
           <ThemedText style={styles.iconEmoji}>{emoji}</ThemedText>
         </View>
         <View style={styles.content}>
-          <View style={styles.row}>
-            <ThemedText type="smallBold">{channel.name}</ThemedText>
-            {channel.unreadCount > 0 && (
-              <View style={[styles.unreadDot, { backgroundColor: theme.accentSoft, borderColor: theme.accentDark }]}> 
-                <ThemedText type="caption" style={{ color: theme.text, fontWeight: Weight.bold, fontVariant: ['tabular-nums'] }}>
-                  {channel.unreadCount}
-                </ThemedText>
-              </View>
-            )}
-          </View>
+          <ThemedText type="smallBold" style={{ color: theme.chatBubbleInText }} numberOfLines={1}>{channel.name}</ThemedText>
           {preview && (
-            <ThemedText type="caption" themeColor="textSecondary" numberOfLines={2}>
+            <ThemedText type="caption" style={{ color: theme.chatTextMuted }} numberOfLines={2}>
               {preview.nickname}: {preview.content}
             </ThemedText>
           )}
@@ -76,6 +74,7 @@ export function ChannelCard({ channel, squadId, type }: ChannelCardProps) {
 
 const styles = StyleSheet.create({
   card: {
+    position: 'relative',
     borderRadius: Radius.xl,
     borderWidth: BorderWidth.thin,
     padding: Spacing.md,
@@ -83,7 +82,7 @@ const styles = StyleSheet.create({
   },
   inner: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: Spacing.md,
   },
   iconCircle: {
@@ -94,18 +93,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconEmoji: { fontSize: Typography.body },
-  content: { flex: 1, gap: 2 },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  content: {
+    flex: 1,
+    gap: 4,
+    paddingTop: 2,
+    paddingRight: 44,
+  },
+  unreadWrap: {
+    position: 'absolute',
+    top: Spacing.md,
+    right: Spacing.md,
+    zIndex: 1,
   },
   unreadDot: {
-    minWidth: 24,
+    minWidth: 32,
     height: 24,
     borderRadius: Radius.full,
     borderWidth: 1,
-    paddingHorizontal: 6,
+    paddingHorizontal: 8,
+    flexDirection: 'row',
+    gap: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },

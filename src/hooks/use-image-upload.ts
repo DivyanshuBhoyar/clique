@@ -1,15 +1,23 @@
 import { useMutation } from 'convex/react';
 import { File as ExpoFile } from 'expo-file-system';
-import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useState } from 'react';
 import { Alert, Platform } from 'react-native';
 
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
+import {
+    getImageUploadPickerAspect,
+    IMAGE_UPLOAD_PRESETS,
+    preprocessImageUpload,
+    type ImageUploadResolution,
+    type ImageUploadTarget,
+} from '@/lib/image-upload';
 
-const MAX_DIMENSION = 1600;
-const JPEG_QUALITY = 0.8;
+interface UseImageUploadOptions {
+    target?: ImageUploadTarget;
+    promptForResolution?: boolean;
+}
 
 interface UseImageUploadResult {
     previewUri: string | null;
@@ -19,7 +27,7 @@ interface UseImageUploadResult {
     reset: () => void;
 }
 
-export function useImageUpload(): UseImageUploadResult {
+export function useImageUpload({ target = 'chatImage', promptForResolution = true }: UseImageUploadOptions = {}): UseImageUploadResult {
     const [previewUri, setPreviewUri] = useState<string | null>(null);
     const [storageId, setStorageId] = useState<Id<"_storage"> | null>(null);
     const [uploading, setUploading] = useState(false);
@@ -32,9 +40,15 @@ export function useImageUpload(): UseImageUploadResult {
             return null;
         }
 
+        const resolution = await chooseUploadResolution(target, promptForResolution);
+        if (!resolution) {
+            return null;
+        }
+
         const pickerResult = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ['images'],
             allowsEditing: true,
+            aspect: getImageUploadPickerAspect(target),
             quality: 1,
         });
 
@@ -47,19 +61,13 @@ export function useImageUpload(): UseImageUploadResult {
         try {
             setUploading(true);
 
-            const context = ImageManipulator.manipulate(pickedAsset.uri);
-
-            if (pickedAsset.width > MAX_DIMENSION || pickedAsset.height > MAX_DIMENSION) {
-                context.resize({ width: MAX_DIMENSION });
-            }
-
-            const imageRef = await context.renderAsync();
-            const manipulated = await imageRef.saveAsync({
-                compress: JPEG_QUALITY,
-                format: SaveFormat.JPEG,
+            const image = await preprocessImageUpload({
+                asset: pickedAsset,
+                target,
+                resolution,
             });
 
-            setPreviewUri(manipulated.uri);
+            setPreviewUri(image.uri);
 
             const uploadUrl = await generateUploadUrl();
 
@@ -67,17 +75,17 @@ export function useImageUpload(): UseImageUploadResult {
 
             if (Platform.OS === 'web') {
                 // Web: fetch the data URL and convert to blob
-                const resp = await fetch(manipulated.uri);
+                const resp = await fetch(image.uri);
                 body = await resp.blob();
             } else {
                 // Native: use expo-file-system's File class which implements Blob
-                const file = new ExpoFile(manipulated.uri);
+                const file = new ExpoFile(image.uri);
                 body = await file.arrayBuffer();
             }
 
             const uploadResponse = await fetch(uploadUrl, {
                 method: 'POST',
-                headers: { 'Content-Type': 'image/jpeg' },
+                headers: { 'Content-Type': image.contentType },
                 body,
             });
 
@@ -99,7 +107,7 @@ export function useImageUpload(): UseImageUploadResult {
         } finally {
             setUploading(false);
         }
-    }, [generateUploadUrl]);
+    }, [generateUploadUrl, promptForResolution, target]);
 
     const reset = useCallback(() => {
         setPreviewUri(null);
@@ -107,4 +115,32 @@ export function useImageUpload(): UseImageUploadResult {
     }, []);
 
     return { previewUri, storageId, uploading, pickAndUpload, reset };
+}
+
+function chooseUploadResolution(target: ImageUploadTarget, promptForResolution: boolean): Promise<ImageUploadResolution | null> {
+    const preset = IMAGE_UPLOAD_PRESETS[target];
+
+    if (!promptForResolution || Platform.OS === 'web') {
+        return Promise.resolve(preset.defaultResolution);
+    }
+
+    return new Promise((resolve) => {
+        let settled = false;
+        const settle = (resolution: ImageUploadResolution | null) => {
+            if (settled) return;
+            settled = true;
+            resolve(resolution);
+        };
+
+        Alert.alert(
+            `${preset.label} size`,
+            'Choose upload resolution, then crop your image.',
+            [
+                { text: 'Cancel', style: 'cancel', onPress: () => settle(null) },
+                { text: preset.resolutions.standard.label, onPress: () => settle('standard') },
+                { text: preset.resolutions.high.label, onPress: () => settle('high') },
+            ],
+            { cancelable: true, onDismiss: () => settle(null) }
+        );
+    });
 }

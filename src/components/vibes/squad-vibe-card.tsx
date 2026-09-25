@@ -55,11 +55,11 @@ export function SquadVibeCard({ member, onChat, hasDmBadge }: SquadVibeCardProps
                 <ThemedText type="bodyBold" numberOfLines={1}>
                     {member.nickname}
                     {member.vibeLabel ? (
-                        <ThemedText style={{ fontWeight: Weight.regular }}>
+                        <ThemedText style={styles.regularText}>
                             {' · '}{member.vibeLabel} {member.vibe}
                         </ThemedText>
                     ) : (
-                        <ThemedText style={{ fontWeight: Weight.regular }}>
+                        <ThemedText style={styles.regularText}>
                             {' '}{member.vibe}
                         </ThemedText>
                     )}
@@ -106,12 +106,15 @@ const styles = StyleSheet.create({
         borderWidth: 2,
         borderRadius: Radius.xl,
         padding: Spacing.lg,
-        shadowOffset: Shadows.sm.offset,
-        shadowOpacity: Shadows.sm.opacity,
-        shadowRadius: Shadows.sm.radius,
+        shadowOffset: Shadows.sm.shadowOffset,
+        shadowOpacity: Shadows.sm.shadowOpacity,
+        shadowRadius: Shadows.sm.shadowRadius,
     },
     content: {
         flex: 1,
+    },
+    regularText: {
+        fontWeight: Weight.regular,
     },
     timestamp: {
         flexShrink: 0,

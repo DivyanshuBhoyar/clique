@@ -2,19 +2,22 @@ import { ThemedText } from '@/components/themed-text';
 import { UserAvatar } from '@/components/user-avatar';
 import { Radius, Spacing, Typography, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { Image } from 'expo-image';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 interface SquadHeroProps {
   squadName: string;
+  squadAvatarUrl?: string | null;
   memberCount: number;
   squadMembers: { userId: string; avatarUrl?: string | null; nickname: string }[] | undefined;
-  userSquads: { squad: { _id: string; name: string } | null }[];
+  userSquads: { squad: { _id: string; name: string; avatarUrl?: string | null } | null }[];
   activeSquadIndex: number;
   onSwitchSquad: (index: string) => void;
 }
 
 export function SquadHero({
   squadName,
+  squadAvatarUrl,
   memberCount,
   squadMembers,
   userSquads,
@@ -26,9 +29,13 @@ export function SquadHero({
   return (
     <View style={styles.hero}>
       <View style={[styles.avatar, { backgroundColor: theme.accent, borderColor: theme.outline }]}>
-        <ThemedText style={{ fontSize: Typography.display }}>🏠</ThemedText>
+        {squadAvatarUrl ? (
+          <Image source={{ uri: squadAvatarUrl }} style={styles.avatarImage} contentFit="cover" />
+        ) : (
+          <ThemedText style={styles.displayEmoji}>🏠</ThemedText>
+        )}
       </View>
-      <ThemedText type="title" style={{ textAlign: 'center' }}>
+      <ThemedText type="title" style={styles.centerText}>
         {squadName}
       </ThemedText>
       <ThemedText type="small" themeColor="textSecondary">
@@ -48,7 +55,7 @@ export function SquadHero({
               styles.avatarMore,
               { left: 4 * 20, backgroundColor: theme.surface, borderColor: theme.outline },
             ]}>
-              <ThemedText type="caption" style={{ fontWeight: Weight.bold, fontSize: Typography.caption }}>
+              <ThemedText type="caption" style={styles.boldCaption}>
                 +{memberCount - 4}
               </ThemedText>
             </View>
@@ -58,13 +65,13 @@ export function SquadHero({
 
       <View style={styles.badgeRow}>
         <View style={[styles.badge, { backgroundColor: theme.accent, borderColor: theme.outline }]}>
-          <ThemedText type="caption" style={{ fontWeight: Weight.bold, color: theme.text }}>
+          <ThemedText type="caption" style={styles.badgeText}>
             cozy mode
           </ThemedText>
         </View>
         <View style={[styles.badge, { backgroundColor: theme.surface, borderColor: theme.outline }]}>
           <View style={[styles.onlineDot, { backgroundColor: '#4CAF50' }]} />
-          <ThemedText type="caption" style={{ fontWeight: Weight.bold, color: theme.text }}>
+          <ThemedText type="caption" style={styles.badgeText}>
             {memberCount} online
           </ThemedText>
         </View>
@@ -114,6 +121,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.xs,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 88,
+    height: 88,
+  },
+  displayEmoji: {
+    fontSize: Typography.display,
+    lineHeight: Typography.display * 1.15,
+  },
+  centerText: {
+    textAlign: 'center',
+  },
+  boldCaption: {
+    fontWeight: Weight.bold,
+    fontSize: Typography.caption,
   },
   avatarStack: {
     flexDirection: 'row',
@@ -149,6 +172,9 @@ const styles = StyleSheet.create({
     borderRadius: Radius.full,
     paddingHorizontal: Spacing.md,
     paddingVertical: 4,
+  },
+  badgeText: {
+    fontWeight: Weight.bold,
   },
   onlineDot: {
     width: 8,

@@ -1,3 +1,4 @@
+import { CallSheet } from "@/components/call/call-sheet";
 import { DmMessageActions } from "@/components/chat/dm-message-actions";
 import { TypingIndicator } from "@/components/chat/typing-indicator";
 import { DmComposer, DmReplyTarget } from "@/components/dm/dm-composer";
@@ -22,8 +23,9 @@ import { useTheme } from "@/hooks/use-theme";
 import { useToast } from "@/hooks/use-toast";
 import { copyToClipboard } from "@/utils/clipboard";
 import { backOrReplace } from "@/utils/navigation";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { Phone } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     FlatList,
@@ -50,6 +52,7 @@ type DmListItem =
 export default function DmChatScreen() {
     const router = useRouter();
     const toast = useToast();
+    const theme = useTheme();
     const { conversationId } = useLocalSearchParams<{ conversationId: string }>();
     const convId = conversationId as Id<"dmConversations">;
 
@@ -70,6 +73,11 @@ export default function DmChatScreen() {
     // DM reactions (unencrypted, live Convex subscription)
     const rawReactions = useQuery(api.dmReactions.forConversation, { conversationId: convId });
     const toggleDmReaction = useMutation(api.dmReactions.toggle);
+    const joinCallMutation = useMutation(api.calls.joinCall);
+    const leaveCallMutation = useMutation(api.calls.leaveCall);
+    const touchCallParticipant = useMutation(api.calls.touchCallParticipant);
+    const createCallRoom = useAction(api.calls.createCallRoom);
+    const activeCall = useQuery(api.calls.getActiveDmCall, { dmConversationId: convId });
     const [pickerMessageId, setPickerMessageId] = useState<string | null>(null);
 
     // Group reactions by messageId for fast lookup in renderItem
@@ -174,91 +182,108 @@ export default function DmChatScreen() {
     }
     if (!conversation) {
         return (
-            <ThemedView style={styles.container}>
+            <ThemedView style={styles.container} type="chatCanvas">
                 <ScreenHeader title="Message" onBack={() => backOrReplace(router, "/(auth)/dm")} />
                 <View style={styles.centerWrap}>
-                    <ThemedText themeColor="textSecondary">Conversation not found</ThemedText>
+                    <ThemedText style={{ color: theme.chatTextMuted }}>Conversation not found</ThemedText>
                 </View>
             </ThemedView>
         );
     }
 
     return (
-        <ThemedView style={styles.container}>
+        <ThemedView style={styles.container} type="chatCanvas">
             <ScreenHeader
                 title={headerName}
                 onBack={() => backOrReplace(router, "/(auth)/dm")}
                 subtitle="🔒 end-to-end encrypted"
+                rightIcon={Phone}
+                onRightPress={async () => {
+                    if (activeCall) return; // already active — user can join via sheet
+                    await createCallRoom({ dmConversationId: convId });
+                }}
+            />
+
+            <CallSheet
+                callRoom={activeCall}
+                currentUserId={currentUser?._id}
+                displayName={currentUser?.name ?? "Anonymous"}
+                onJoin={(callRoomId) => joinCallMutation({ callRoomId, displayName: currentUser?.name ?? "Anonymous" })}
+                onLeave={(callRoomId) => leaveCallMutation({ callRoomId })}
+                onHeartbeat={(callRoomId) => touchCallParticipant({ callRoomId })}
             />
 
             <KeyboardAvoidingView
                 behavior={Platform.OS === "ios" ? "padding" : undefined}
                 style={styles.flex}
             >
-                <FlatList
-                    ref={flatListRef}
-                    data={listItems}
-                    keyExtractor={(item) => item.id}
-                    inverted
-                    initialNumToRender={18}
-                    maxToRenderPerBatch={10}
-                    windowSize={10}
-                    contentContainerStyle={styles.listContent}
-                    contentInsetAdjustmentBehavior="automatic"
-                    onEndReached={() => hasMore && loadOlder()}
-                    onEndReachedThreshold={0.5}
-                    onScroll={(e) => {
-                        const atBottom = e.nativeEvent.contentOffset.y < 150;
-                        setIsAtBottom(atBottom);
-                        if (atBottom) setHasNewBelow(false);
-                    }}
-                    scrollEventThrottle={100}
-                    ListEmptyComponent={
-                        <View style={styles.e2eeBanner}>
-                            <ThemedText type="caption" themeColor="textTertiary" style={styles.e2eeText}>
+                <View style={styles.flex}>
+                    <FlatList
+                        ref={flatListRef}
+                        data={listItems}
+                        keyExtractor={(item) => item.id}
+                        inverted
+                        initialNumToRender={18}
+                        maxToRenderPerBatch={10}
+                        windowSize={10}
+                        contentContainerStyle={styles.listContent}
+                        contentInsetAdjustmentBehavior="automatic"
+                        onEndReached={() => hasMore && loadOlder()}
+                        onEndReachedThreshold={0.5}
+                        onScroll={(e) => {
+                            const atBottom = e.nativeEvent.contentOffset.y < 150;
+                            setIsAtBottom(atBottom);
+                            if (atBottom) setHasNewBelow(false);
+                        }}
+                        scrollEventThrottle={100}
+                        renderItem={({ item }) => {
+                            if (item.type === "day") {
+                                return <DateSeparator label={item.label} />;
+                            }
+
+                            const message = item.message;
+                            const msgReactions = reactionsByMessage.get(message.messageId) ?? [];
+                            // Group by emoji with reacted flag for current user
+                            const grouped = (() => {
+                                const map = new Map<string, { count: number; reacted: boolean }>();
+                                for (const r of msgReactions) {
+                                    const e = map.get(r.emoji) ?? { count: 0, reacted: false };
+                                    e.count++;
+                                    if (r.userId === currentUser._id) e.reacted = true;
+                                    map.set(r.emoji, e);
+                                }
+                                return [...map.entries()].map(([emoji, { count, reacted }]) => ({ emoji, count, reacted }));
+                            })();
+
+                            return (
+                                <DmMessageItem
+                                    message={message}
+                                    isOwn={message.senderId === currentUser._id}
+                                    otherUserAvatar={conversation.otherUserAvatar}
+                                    otherUserName={conversation.otherUserName}
+                                    reactions={grouped}
+                                    onLongPress={() => setSelectedMsg(message)}
+                                    onToggleReaction={(emoji) => toggleDmReaction({
+                                        conversationId: convId,
+                                        messageId: message.messageId,
+                                        emoji,
+                                    }).catch(() => toast.show("Could not update reaction", "error"))}
+                                    onAddReaction={() => setPickerMessageId(message.messageId)}
+                                />
+                            );
+                        }}
+                        keyboardShouldPersistTaps="handled"
+                    />
+
+                    {listItems.length === 0 && (
+                        <View style={styles.e2eeBanner} pointerEvents="none">
+                            <ThemedText type="caption" style={[styles.e2eeText, { color: theme.chatTextMuted }]}>
                                 🔒 Messages are end-to-end encrypted.{"\n"}
                                 Only you and {conversation.otherUserName} can read them.
                             </ThemedText>
                         </View>
-                    }
-                    renderItem={({ item }) => {
-                        if (item.type === "day") {
-                            return <DateSeparator label={item.label} />;
-                        }
-
-                        const message = item.message;
-                        const msgReactions = reactionsByMessage.get(message.messageId) ?? [];
-                        // Group by emoji with reacted flag for current user
-                        const grouped = (() => {
-                            const map = new Map<string, { count: number; reacted: boolean }>();
-                            for (const r of msgReactions) {
-                                const e = map.get(r.emoji) ?? { count: 0, reacted: false };
-                                e.count++;
-                                if (r.userId === currentUser._id) e.reacted = true;
-                                map.set(r.emoji, e);
-                            }
-                            return [...map.entries()].map(([emoji, { count, reacted }]) => ({ emoji, count, reacted }));
-                        })();
-
-                        return (
-                            <DmMessageItem
-                                message={message}
-                                isOwn={message.senderId === currentUser._id}
-                                otherUserAvatar={conversation.otherUserAvatar}
-                                otherUserName={conversation.otherUserName}
-                                reactions={grouped}
-                                onLongPress={() => setSelectedMsg(message)}
-                                onToggleReaction={(emoji) => toggleDmReaction({
-                                    conversationId: convId,
-                                    messageId: message.messageId,
-                                    emoji,
-                                }).catch(() => toast.show("Could not update reaction", "error"))}
-                                onAddReaction={() => setPickerMessageId(message.messageId)}
-                            />
-                        );
-                    }}
-                    keyboardShouldPersistTaps="handled"
-                />
+                    )}
+                </View>
 
                 <TypingIndicator typingUsers={typingUsers ?? []} currentUserId={currentUser._id} />
 
@@ -348,8 +373,8 @@ function DateSeparator({ label }: { label: string }) {
 
     return (
         <View style={styles.dateSeparatorWrap}>
-            <View style={[styles.dateSeparatorPill, { backgroundColor: theme.surfaceWarm, borderColor: theme.outlineLight }]}>
-                <ThemedText type="caption" style={styles.dateSeparatorText}>
+            <View style={[styles.dateSeparatorPill, { backgroundColor: theme.chatSurface, borderColor: theme.chatBorder }]}>
+                <ThemedText type="caption" style={[styles.dateSeparatorText, { color: theme.chatTextMuted }]}>
                     {label}
                 </ThemedText>
             </View>
@@ -362,7 +387,14 @@ const styles = StyleSheet.create({
     flex: { flex: 1 },
     centerWrap: { flex: 1, justifyContent: "center", alignItems: "center" },
     listContent: { paddingVertical: Spacing.md },
-    e2eeBanner: { padding: Spacing.xl, alignItems: "center", transform: [{ scaleY: -1 }] },
+    e2eeBanner: {
+        position: "absolute",
+        left: 0,
+        right: 0,
+        bottom: 0,
+        padding: Spacing.xl,
+        alignItems: "center",
+    },
     e2eeText: { textAlign: "center" },
     dateSeparatorWrap: {
         alignItems: "center",

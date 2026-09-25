@@ -37,8 +37,8 @@ export function EphemeralChannelCard({ channel, squadId }: EphemeralChannelCardP
     <Link href={`/squad/${squadId}/chat/${channel._id}` as any} accessibilityRole="button" accessibilityLabel={`Open ${channel.name}`} style={[
       styles.card,
       {
-        backgroundColor: expired ? theme.backgroundElement : theme.surface,
-        borderColor: theme.outlineLight,
+        backgroundColor: expired ? theme.backgroundElement : theme.chatSurface,
+        borderColor: theme.chatBorder,
         shadowColor: theme.shadow,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.08,
@@ -48,16 +48,16 @@ export function EphemeralChannelCard({ channel, squadId }: EphemeralChannelCardP
       expired && { opacity: 0.6 },
     ]}>
       <View style={styles.inner}>
-        <View style={[styles.iconCircle, { backgroundColor: theme.errorSoft }]}>
+        <View style={[styles.iconCircle, { backgroundColor: theme.chatWarmTint }]}>
           <ThemedText style={styles.iconEmoji}>⏳</ThemedText>
         </View>
         <View style={styles.content}>
           <View style={styles.row}>
-            <ThemedText type="smallBold">{channel.name}</ThemedText>
+            <ThemedText type="smallBold" style={{ color: theme.chatBubbleInText }}>{channel.name}</ThemedText>
             <View style={styles.rowRight}>
               {channel.unreadCount > 0 && (
-                <View style={[styles.unreadDot, { backgroundColor: '#FFF1B8', borderColor: theme.accentDark }]}> 
-                  <ThemedText type="caption" style={{ color: theme.text, fontWeight: Weight.bold, fontVariant: ['tabular-nums'] }}>
+                <View style={[styles.unreadDot, { backgroundColor: theme.chatAccent, borderColor: theme.chatAccent }]}>
+                  <ThemedText type="caption" style={{ color: theme.chatOnAccent, fontWeight: Weight.bold, fontVariant: ['tabular-nums'] }}>
                     {channel.unreadCount}
                   </ThemedText>
                 </View>

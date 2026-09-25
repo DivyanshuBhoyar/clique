@@ -6,8 +6,14 @@
  *  - "Powered by GIPHY" attribution (see gif-picker-modal)
  *  - pingback calls on onload / onclick / onsent events
  */
+import Constants from 'expo-constants';
 
-const API_KEY = process.env.EXPO_PUBLIC_GIPHY_API_KEY ?? '';
+function readApiKey(): string {
+  const extraKey = Constants.expoConfig?.extra?.giphyApiKey;
+  return process.env.EXPO_PUBLIC_GIPHY_API_KEY || (typeof extraKey === 'string' ? extraKey : '');
+}
+
+const API_KEY = readApiKey();
 const BASE = 'https://api.giphy.com/v1/gifs';
 const LIMIT = 25;
 const RATING = 'pg-13';
@@ -57,19 +63,30 @@ function mapGif(raw: any): GiphyGif {
 // API calls
 // ---------------------------------------------------------------------------
 
+export function isGiphyConfigured(): boolean {
+  return API_KEY.length > 0;
+}
+
+function toQueryString(params: Record<string, string>): string {
+  return Object.entries(params)
+    .filter(([, value]) => value.length > 0)
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+    .join('&');
+}
+
 async function giphyFetch(path: string, params: Record<string, string>): Promise<GiphyGif[]> {
   if (!API_KEY) {
     console.warn('[giphy] EXPO_PUBLIC_GIPHY_API_KEY is not set');
-    return [];
+    throw new Error('GIPHY API key is missing');
   }
-  const qs = new URLSearchParams({ api_key: API_KEY, limit: String(LIMIT), rating: RATING, bundle: BUNDLE, ...params });
+  const qs = toQueryString({ api_key: API_KEY, limit: String(LIMIT), rating: RATING, bundle: BUNDLE, ...params });
   const resp = await fetch(`${BASE}${path}?${qs}`);
   if (!resp.ok) {
     console.warn('[giphy] fetch error', resp.status);
-    return [];
+    throw new Error(`GIPHY request failed: ${resp.status}`);
   }
   const json = await resp.json();
-  return (json.data as any[]).map(mapGif);
+  return Array.isArray(json.data) ? json.data.map(mapGif) : [];
 }
 
 /** Trending GIFs. Call on picker open with no search text. */
@@ -96,6 +113,7 @@ export function pingGiphy(event: PingEvent, gif: GiphyGif): void {
   // GIPHY Analytics endpoint format:
   // https://api.giphy.com/v1/gifs/<id>/related?api_key=KEY&random_id=...&ts=...&type=<event>
   if (!API_KEY || !gif.id) return;
-  const url = `https://api.giphy.com/v1/gifs/${gif.id}/related?api_key=${encodeURIComponent(API_KEY)}&ts=${Date.now()}&type=${event}`;
+  const qs = toQueryString({ api_key: API_KEY, ts: String(Date.now()), type: event });
+  const url = `https://api.giphy.com/v1/gifs/${encodeURIComponent(gif.id)}/related?${qs}`;
   fetch(url).catch(() => { /* fire-and-forget */ });
 }

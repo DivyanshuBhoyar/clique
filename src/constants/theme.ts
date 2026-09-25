@@ -1,5 +1,5 @@
 /**
- * Design tokens for the Homie Squad app.
+ * Design tokens for the Clique app.
  * Cozy & Playful with soft modern structure: warm surfaces, gentle elevation,
  * rounded corners, breathable spacing.
  */
@@ -48,8 +48,8 @@ const palette = {
   shadow: '#7A6E60',
 
   // FAB
-  fabBackground: '#6B4EE0',           // purple FAB — playful pop
-  fabText: '#FFFFFF',
+  fabBackground: '#FFDB63',           // matches accent — follows app theme color
+  fabText: '#1A1A1A',
 
   // Dashed borders inside cards
   dashedBorder: '#D4CCC0',            // warm but lighter — airy
@@ -62,12 +62,6 @@ const palette = {
   lifehackBg: '#FFEDA8', lifehackText: '#6B4A0E', // warm gold
   quoteBg: '#FFE8B0',   quoteText: '#5E4A1A',   // honey
   randomBg: '#EDE4FF',  randomText: '#4A2880',  // soft lavender
-
-  // Chat bubbles — yellow & purple for playful contrast
-  bubbleOwn: '#FFDB63',                // bright yellow own-message
-  bubbleOwnText: '#1A1A1A',            // dark text for contrast
-  bubbleOther: '#F0EAFF',              // soft lavender other-message
-  bubbleOtherText: '#1A1A1A',
 
   // Input
   inputBackground: '#FFFFFF',
@@ -91,9 +85,39 @@ const palette = {
   featureAccentDark: '#4F35BA',
 };
 
+// ---------------------------------------------------------------------------
+// Chat tokens — from tasks/chat-ui-refinement.md (light scheme only)
+// ---------------------------------------------------------------------------
+const chatTokens = {
+  chatCanvas: '#FCF4EA',              // chat screen background — warm cream
+  chatSurface: '#FFFBF4',             // raised surface (header, composer, pills)
+  chatBorder: '#EBDFCE',              // hairline
+
+  chatBubbleOut: '#FAD676',           // outgoing bubble — soft honey (ties to Lounge yellow)
+  chatBubbleOutText: '#4A3512',       // outgoing text
+  chatQuoteOutBg: '#F1C75D',          // outgoing quote fill
+  chatQuoteOutBar: '#C29733',         // outgoing quote bar
+  chatQuoteOutText: '#6B4E17',        // outgoing quote text
+
+  chatBubbleIn: '#E8E0F7',            // incoming bubble — soft lavender
+  chatBubbleInText: '#342C46',        // incoming text
+  chatQuoteInBg: '#DCD3F2',           // incoming quote fill
+  chatQuoteInBar: '#A292D6',          // incoming quote bar
+  chatQuoteInText: '#5E5580',         // incoming quote text
+
+  chatTextName: '#6B5D46',            // sender name
+  chatTextMuted: '#7A6A60',           // timestamp / meta
+
+  chatAccent: '#6B4EE0',              // send, unread, links, mentions — violet (matches featureAccent)
+  chatAccentHover: '#4F35BA',         // pressed state (matches featureAccentDark)
+  chatAccentTint: '#EAE5FC',          // link hover, mention chip, reacted pill — soft violet
+  chatWarmTint: '#FCEFC5',            // decorative icon/emoji circles — soft yellow (ties to Lounge hero)
+  chatOnAccent: '#FFFFFF',            // text on accent
+};
+
 export const Colors = {
-  light: palette,
-  dark: palette, // same — light-only app
+  light: { ...palette, ...chatTokens },
+  dark: { ...palette, ...chatTokens }, // same — light-only app
 } as const;
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
@@ -194,19 +218,19 @@ export const Radius = {
 
 export const Shadows = {
   sm: {
-    offset: { width: 0, height: 1 },
-    opacity: 0.08,
-    radius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
   },
   md: {
-    offset: { width: 0, height: 2 },
-    opacity: 0.10,
-    radius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.10,
+    shadowRadius: 6,
   },
   lg: {
-    offset: { width: 0, height: 4 },
-    opacity: 0.12,
-    radius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
   },
 } as const;
 

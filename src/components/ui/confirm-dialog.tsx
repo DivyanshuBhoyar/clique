@@ -64,9 +64,9 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
     gap: Spacing.md,
     shadowColor: Colors.light.shadow,
-    shadowOffset: Shadows.lg.offset,
-    shadowOpacity: Shadows.lg.opacity,
-    shadowRadius: Shadows.lg.radius,
+    shadowOffset: Shadows.lg.shadowOffset,
+    shadowOpacity: Shadows.lg.shadowOpacity,
+    shadowRadius: Shadows.lg.shadowRadius,
     elevation: 8,
   },
   title: {

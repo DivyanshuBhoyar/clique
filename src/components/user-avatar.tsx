@@ -1,7 +1,7 @@
-import { Image } from 'expo-image';
-import { StyleSheet, Text, View } from 'react-native';
 import { Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { Image } from 'expo-image';
+import { StyleSheet, Text, View } from 'react-native';
 
 const COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ef4444', '#14b8a6'];
 
@@ -50,7 +50,7 @@ export function UserAvatar({ uri, size = 32, fallbackText, vibeEmoji }: UserAvat
                     right: -2,
                     bottom: -2,
                 }]}>
-                    <Text style={{ fontSize: badgeSize * 0.65 }}>{vibeEmoji}</Text>
+                    <Text style={{ fontSize: badgeSize * 0.65, lineHeight: badgeSize }}>{vibeEmoji}</Text>
                 </View>
             ) : null}
         </View>

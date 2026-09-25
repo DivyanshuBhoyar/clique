@@ -3,7 +3,7 @@ import { StyleSheet, View, type ListRenderItem } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { PaginatedList } from '@/components/ui/paginated-list';
-import { Spacing } from '@/constants/theme';
+import { Spacing, Weight } from '@/constants/theme';
 
 interface CommentThreadLayoutProps<T> {
     comments: T[];
@@ -47,10 +47,14 @@ export function CommentThreadLayout<T>({
                     <View style={styles.header}>
                         {header}
                         <View style={styles.commentsTitleRow}>
-                            <ThemedText type="bodyBold" selectable>
+                            <ThemedText
+                                type="smallBold"
+                                style={styles.sectionTitle}
+                                selectable
+                            >
                                 {title}
                             </ThemedText>
-                            <ThemedText type="caption" themeColor="textSecondary" selectable>
+                            <ThemedText type="caption" themeColor="textSecondary" style={styles.countText} selectable>
                                 {commentCount === 1 ? '1 comment' : `${commentCount} comments`}
                             </ThemedText>
                         </View>
@@ -84,7 +88,13 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         gap: Spacing.md,
         paddingTop: Spacing.xs,
-        paddingBottom: Spacing.xs,
+        paddingBottom: Spacing.sm,
+    },
+    sectionTitle: {
+        fontWeight: Weight.semibold,
+    },
+    countText: {
+        fontVariant: ['tabular-nums'],
     },
     listContent: {
         paddingBottom: Spacing.xxxl,

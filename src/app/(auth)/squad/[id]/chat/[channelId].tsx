@@ -45,6 +45,7 @@ export default function ChannelChatScreen() {
     const updatePresence = useMutation(api.presence.updatePresence);
     const joinCallMutation = useMutation(api.calls.joinCall);
     const leaveCallMutation = useMutation(api.calls.leaveCall);
+    const touchCallParticipant = useMutation(api.calls.touchCallParticipant);
     const createCallRoom = useAction(api.calls.createCallRoom);
 
     const currentUser = useQuery(api.users.current);
@@ -220,7 +221,7 @@ export default function ChannelChatScreen() {
     }
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={[]}>
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.chatCanvas }]} edges={[]}>
             <ChatHeader
                 channelName={currentChannel?.name ?? 'Chat'}
                 channelEmoji={currentChannel?.emoji}
@@ -244,6 +245,7 @@ export default function ChannelChatScreen() {
                 displayName={currentUser?.name ?? 'Anonymous'}
                 onJoin={(callRoomId) => joinCallMutation({ callRoomId, displayName: currentUser?.name ?? 'Anonymous' })}
                 onLeave={(callRoomId) => leaveCallMutation({ callRoomId })}
+                onHeartbeat={(callRoomId) => touchCallParticipant({ callRoomId })}
             />
 
             <NewMessageBubble
@@ -260,7 +262,7 @@ export default function ChannelChatScreen() {
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 style={styles.inner}
             >
-                <ThemedView style={styles.inner}>
+                <ThemedView style={styles.inner} type="chatCanvas">
                     <ChatMessageList
                         messages={messages}
                         currentUserId={currentUser?._id}

@@ -17,7 +17,7 @@ export function WallQuoteCard({ content, title }: WallQuoteCardProps) {
       <View style={styles.header}>
         <ThemedText style={styles.quoteMark}>{'“'}</ThemedText>
         <View style={[styles.badge, { backgroundColor: theme.surface, borderColor: theme.outline }]}>
-          <ThemedText type="caption" style={{ fontWeight: Weight.bold }}>Quote</ThemedText>
+          <ThemedText type="caption" style={styles.badgeText}>Quote</ThemedText>
         </View>
       </View>
       <ThemedText style={styles.text}>{content}</ThemedText>
@@ -59,6 +59,9 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: Radius.sm,
     borderWidth: 1.5,
+  },
+  badgeText: {
+    fontWeight: Weight.bold,
   },
   text: {
     fontSize: Typography.subtitle,

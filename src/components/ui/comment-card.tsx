@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { GifAttachment } from '@/components/giphy/gif-attachment';
 import { ThemedText } from '@/components/themed-text';
 import { UserAvatar } from '@/components/user-avatar';
-import { LineHeight, Radius, Spacing, Typography, Weight } from '@/constants/theme';
+import { LineHeight, Spacing, Typography, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { formatRelativeTime } from '@/utils/time';
 
@@ -46,14 +46,16 @@ export function CommentCard({
       onLongPress={onLongPress}
       style={[
         styles.card,
-        { backgroundColor: theme.surface, borderColor: theme.outline },
+        { borderBottomColor: theme.outlineLight },
       ]}
       accessibilityRole="button"
       accessibilityLabel={`Comment by ${nickname}`}
     >
       <View style={styles.header}>
         <UserAvatar uri={avatarUrl} size={22} fallbackText={nickname} />
-        <ThemedText type="smallBold" style={styles.author}>@{nickname}</ThemedText>
+        <ThemedText type="smallBold" style={[styles.author, { color: theme.text }]}>
+          {nickname}
+        </ThemedText>
         <ThemedText type="caption" themeColor="textSecondary" style={styles.time}>
           {formatRelativeTime(createdAt)}
         </ThemedText>
@@ -128,11 +130,10 @@ export function CommentCard({
 const styles = StyleSheet.create({
   card: {
     marginHorizontal: Spacing.lg,
-    marginBottom: Spacing.sm,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    paddingHorizontal: Spacing.xs,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.md,
     gap: Spacing.xs,
   },
   header: {
@@ -148,10 +149,10 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   deleteBtn: {
-    width: 44,
-    height: 44,
-    marginVertical: -Spacing.sm,
-    marginRight: -Spacing.sm,
+    width: 32,
+    height: 32,
+    marginVertical: -Spacing.xs,
+    marginRight: -Spacing.xs,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -172,12 +173,13 @@ const styles = StyleSheet.create({
   votes: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs,
+    gap: 2,
     alignSelf: 'flex-start',
+    marginTop: -Spacing.xs,
   },
   voteButton: {
-    width: 32,
-    height: 32,
+    width: 28,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
   },

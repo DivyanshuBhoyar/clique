@@ -4,17 +4,16 @@
  *
  * Design from mockup:
  *   ┌──────────────────────────────────────┐
- *   │ [cover image or colour gradient]     │  ← 100px tall hero
+ *   │ [cover image or colour gradient]     │  ← roomy cover hero
  *   │ 🎉 Event / Trip          [badge]     │
  *   ├──────────────────────────────────────┤
  *   │ Title                                │
- *   │ 👤 by @nick  ·  2 reflections · 4📸 │
- *   │ ❤️2  🔥  +                           │
+ *   │ 👤 by @nick · 2 reflections ❤️ + 🔖 │
  *   └──────────────────────────────────────┘
  */
 import { Image } from 'expo-image';
-import { Bookmark, BookOpen, Camera, Link2 } from 'lucide-react-native';
-import { GestureResponderEvent, Pressable, StyleSheet, View } from 'react-native';
+import { BookOpen, Camera, Link2 } from 'lucide-react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { EmojiReactionStrip } from '@/components/ui/emoji-reaction-strip';
@@ -46,11 +45,10 @@ interface EventCardProps {
     onToggleBookmark?: (memoryId: string) => void;
 }
 
-// Warm pastel gradient cover fallback colours (index by title.length)
-const COVER_COLORS = ['#F5C542', '#F4A261', '#E76F51', '#2A9D8F', '#457B9D'];
+// Warm mature cover fallback colours (index by title.length)
+const COVER_COLORS = ['#E9B85E', '#D98652', '#B95F43', '#9E6A45', '#6F7F66'];
 
 export function EventCard({
-    memoryId,
     title,
     coverUrl,
     avatarUrl,
@@ -63,8 +61,6 @@ export function EventCard({
     currentUserId,
     onToggleReaction,
     onAddReaction,
-    isBookmarked,
-    onToggleBookmark,
 }: EventCardProps) {
     const theme = useTheme();
     const fallbackColor = COVER_COLORS[title.length % COVER_COLORS.length];
@@ -79,18 +75,19 @@ export function EventCard({
         }
         return [...map.entries()].map(([emoji, { count, reacted }]) => ({ emoji, count, reacted }));
     })();
+    const hasReactionActions = groupedReactions.length > 0 || Boolean(onAddReaction);
 
     return (
         <View
             style={[
                 styles.card,
                 {
-                    backgroundColor: theme.surface,
+                    backgroundColor: theme.surfaceWarm,
                     borderColor: theme.outline,
                     shadowColor: theme.shadow,
-                    shadowOffset: Shadows.sm.offset,
-                    shadowOpacity: Shadows.sm.opacity,
-                    shadowRadius: Shadows.sm.radius,
+                    shadowOffset: Shadows.sm.shadowOffset,
+                    shadowOpacity: Shadows.sm.shadowOpacity,
+                    shadowRadius: Shadows.sm.shadowRadius,
                     elevation: 3,
                 },
             ]}
@@ -103,7 +100,8 @@ export function EventCard({
                     <ThemedText style={styles.coverEmoji}>🎉</ThemedText>
                 )}
                 {/* Event label */}
-                <View style={[styles.eventBadge, { backgroundColor: 'rgba(0,0,0,0.45)' }]}>
+                <View style={styles.coverScrim} />
+                <View style={styles.eventBadge}>
                     <ThemedText style={styles.eventBadgeText}>Event / Trip</ThemedText>
                 </View>
             </View>
@@ -112,11 +110,28 @@ export function EventCard({
             <View style={styles.body}>
                 <ThemedText style={styles.title} numberOfLines={1}>{title}</ThemedText>
 
-                <View style={styles.authorRow}>
-                    <UserAvatar uri={avatarUrl} size={16} fallbackText={nickname} />
-                    <ThemedText type="caption" themeColor="textSecondary">
-                        {nickname} · {formatRelativeTime(createdAt)}
-                    </ThemedText>
+                <View style={styles.metaActionRow}>
+                    <View style={styles.authorRow}>
+                        <UserAvatar uri={avatarUrl} size={16} fallbackText={nickname} />
+                        <ThemedText type="caption" themeColor="textSecondary" numberOfLines={1}>
+                            {nickname} · {formatRelativeTime(createdAt)}
+                        </ThemedText>
+                    </View>
+
+                    <View style={styles.inlineActions}>
+                        {hasReactionActions && (
+                            <View style={styles.inlineReactions}>
+                                <EmojiReactionStrip
+                                    reactions={groupedReactions}
+                                    onToggle={onToggleReaction}
+                                    onAdd={onAddReaction}
+                                    compact
+                                />
+                            </View>
+                        )}
+
+                        {/* Bookmark button deferred — no bookmarks view exists for memories yet. */}
+                    </View>
                 </View>
 
                 {/* Stats row */}
@@ -142,35 +157,6 @@ export function EventCard({
                         )}
                     </View>
                 )}
-
-                {/* Reactions */}
-                {(groupedReactions.length > 0 || onAddReaction) && (
-                    <EmojiReactionStrip
-                        reactions={groupedReactions}
-                        onToggle={onToggleReaction}
-                        onAdd={onAddReaction}
-                        compact
-                    />
-                )}
-
-                {/* Bookmark */}
-                {onToggleBookmark && memoryId && (
-                    <View style={styles.bookmarkRow}>
-                        <Pressable
-                            onPress={(e: GestureResponderEvent) => { e.stopPropagation(); onToggleBookmark(memoryId); }}
-                            hitSlop={8}
-                            accessibilityRole="button"
-                            accessibilityLabel={isBookmarked ? 'Remove bookmark' : 'Bookmark'}
-                        >
-                            <Bookmark
-                                size={16}
-                                color={isBookmarked ? theme.accent : theme.textSecondary}
-                                fill={isBookmarked ? theme.accent : 'none'}
-                                strokeWidth={2}
-                            />
-                        </Pressable>
-                    </View>
-                )}
             </View>
         </View>
     );
@@ -184,7 +170,7 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
     },
     cover: {
-        height: 100,
+        height: 164,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -195,21 +181,32 @@ const styles = StyleSheet.create({
     coverEmoji: {
         fontSize: Typography.title,
     },
+    coverScrim: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        height: 52,
+        backgroundColor: 'rgba(58, 39, 25, 0.14)',
+    },
     eventBadge: {
         position: 'absolute',
-        bottom: 8,
-        left: 10,
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 10,
+        bottom: 12,
+        left: 14,
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: Radius.md,
+        backgroundColor: 'rgba(70, 45, 27, 0.72)',
     },
     eventBadgeText: {
-        color: '#fff',
+        color: '#FFF8EC',
         fontSize: Typography.caption,
         fontWeight: Weight.bold,
     },
     body: {
-        padding: Spacing.lg,
+        paddingHorizontal: Spacing.lg,
+        paddingTop: 10,
+        paddingBottom: 10,
         gap: Spacing.xs,
     },
     title: {
@@ -220,6 +217,26 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: Spacing.xs,
+        flex: 1,
+        minWidth: 0,
+    },
+    metaActionRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: Spacing.sm,
+    },
+    inlineActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+        gap: Spacing.xs,
+        flexShrink: 0,
+        maxWidth: '52%',
+    },
+    inlineReactions: {
+        flexShrink: 1,
+        maxWidth: 116,
     },
     statsRow: {
         flexDirection: 'row',
@@ -230,9 +247,5 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 3,
-    },
-    bookmarkRow: {
-        flexDirection: 'row',
-        justifyContent: 'flex-end',
     },
 });

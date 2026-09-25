@@ -55,7 +55,7 @@ export function CommentInputBar({
             styles.input,
             {
               backgroundColor: theme.surface,
-              borderColor: theme.outline,
+              borderColor: theme.cardBorder,
               color: theme.text,
             },
           ]}
@@ -66,7 +66,7 @@ export function CommentInputBar({
             disabled={sending}
             accessibilityRole="button"
             accessibilityLabel="Send a GIF"
-            style={[styles.gifButton, { borderColor: theme.outlineLight, backgroundColor: theme.surface }]}
+            style={[styles.gifButton, { borderColor: theme.cardBorder, backgroundColor: theme.surface }]}
           >
             <ThemedText style={[styles.gifLabel, { color: theme.textSecondary }]}>GIF</ThemedText>
           </Pressable>
@@ -80,7 +80,7 @@ export function CommentInputBar({
             styles.sendButton,
             {
               backgroundColor: theme.accent,
-              borderColor: theme.outline,
+              borderColor: theme.accentDark,
             },
             pressed && styles.sendButtonPressed,
             (!value.trim() || sending) && styles.sendButtonDisabled,
@@ -114,12 +114,12 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
-    borderTopWidth: 1.5,
+    borderTopWidth: 1,
   },
   input: {
     flex: 1,
     borderRadius: Radius.full,
-    borderWidth: 1.5,
+    borderWidth: 1,
     paddingHorizontal: Spacing.md,
     paddingTop: Spacing.sm,
     paddingBottom: Spacing.sm,
@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
     height: 44,
     paddingHorizontal: Spacing.sm,
     borderRadius: Radius.full,
-    borderWidth: 1.5,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: Radius.full,
-    borderWidth: 2,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },

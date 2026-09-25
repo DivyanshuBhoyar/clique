@@ -81,9 +81,9 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
     borderWidth: 2,
     borderRadius: Radius.xl,
-    shadowOffset: Shadows.md.offset,
-    shadowOpacity: Shadows.md.opacity,
-    shadowRadius: Shadows.md.radius,
+    shadowOffset: Shadows.md.shadowOffset,
+    shadowOpacity: Shadows.md.shadowOpacity,
+    shadowRadius: Shadows.md.shadowRadius,
     elevation: 3,
   },
   emoji: {

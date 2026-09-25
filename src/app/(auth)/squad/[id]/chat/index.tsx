@@ -22,7 +22,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useToast } from '@/hooks/use-toast';
 import { getMyDeviceId } from '@/lib/keyStore';
 
-type ChannelType = 'topic' | 'mood' | 'ephemeral' | 'private';
+type ChannelType = 'topic' | 'mood' | 'timed' | 'private';
 
 export default function ChatScreen() {
     const router = useRouter();
@@ -65,7 +65,7 @@ export default function ChatScreen() {
             await leaveSquad({ squadId });
             router.replace('/');
         } catch (err: any) {
-            toast.error(err.message ?? 'Failed to leave squad');
+            toast.error(err.message ?? 'Failed to Leave Space');
         }
     };
 
@@ -80,16 +80,18 @@ export default function ChatScreen() {
     const topicChannels = channels.filter(c => c.type === 'topic' && matchesSearch(c.name));
     const moodChannels = channels.filter(c => c.type === 'mood' && matchesSearch(c.name));
     const privateChannels = channels.filter(c => c.type === 'private' && matchesSearch(c.name));
-    const ephemeralChannels = channels.filter(c => c.type === 'ephemeral' && matchesSearch(c.name));
+    const timedChannels = channels.filter(c => c.type === 'timed' && matchesSearch(c.name));
 
     const hasResults = mainChannels.length > 0 || topicChannels.length > 0
-        || moodChannels.length > 0 || ephemeralChannels.length > 0 || privateChannels.length > 0;
+        || moodChannels.length > 0 || timedChannels.length > 0 || privateChannels.length > 0;
 
     return (
-        <ThemedView style={styles.container}>
+        <ThemedView style={styles.container} type="chatCanvas">
             <SafeAreaView style={styles.safeArea} edges={[]}>
                 <ScreenHeader
-                    title={squad ? `🏠 ${squad.name}` : 'Squad Name'}
+                    title={squad ? squad.name : 'Space name'}
+                    titleAvatarUri={squad?.avatarUrl ?? null}
+                    titleAvatarFallback={squad ? '🏠' : undefined}
                     leftIcon={Globe}
                     onLeftPress={() => router.navigate('/?switcher=1' as any)}
                     leftBadge={!!otherSquadsUnread && otherSquadsUnread > 0}
@@ -144,23 +146,23 @@ export default function ChatScreen() {
                         />
                     )}
 
-                    {ephemeralChannels.length > 0 && (
+                    {timedChannels.length > 0 && (
                         <View style={styles.section}>
                             <View style={styles.sectionHeader}>
                                 <View style={styles.sectionTitleRow}>
-                                    <View style={[styles.sectionEmoji, { backgroundColor: theme.errorSoft }]}> 
+                                    <View style={[styles.sectionEmoji, { backgroundColor: theme.chatWarmTint }]}>
                                         <ThemedText type="caption">⏳</ThemedText>
                                     </View>
                                     <View>
-                                        <ThemedText type="bodyBold" style={styles.sectionTitle}>Ephemeral</ThemedText>
-                                        <ThemedText type="caption" themeColor="textSecondary">{ephemeralChannels.length} temporary room{ephemeralChannels.length !== 1 ? 's' : ''}</ThemedText>
+                                        <ThemedText type="bodyBold" style={[styles.sectionTitle, { color: theme.chatBubbleInText }]}>Ephemeral</ThemedText>
+                                        <ThemedText type="caption" style={{ color: theme.chatTextMuted }}>{timedChannels.length} temporary room{timedChannels.length !== 1 ? 's' : ''}</ThemedText>
                                     </View>
                                 </View>
-                                <Pressable onPress={() => { setDefaultType('ephemeral'); setShowCreate(true); }} hitSlop={8} style={[styles.newButton, { backgroundColor: theme.surfaceAccent }]}> 
-                                    <ThemedText type="smallBold" style={{ color: theme.accentDark }}>+ New</ThemedText>
+                                <Pressable onPress={() => { setDefaultType('timed'); setShowCreate(true); }} hitSlop={8} style={[styles.newButton, { backgroundColor: theme.chatAccentTint }]}>
+                                    <ThemedText type="smallBold" style={{ color: theme.chatAccent }}>+ New</ThemedText>
                                 </Pressable>
                             </View>
-                            {ephemeralChannels.map(channel => (
+                            {timedChannels.map(channel => (
                                 <EphemeralChannelCard key={channel._id} channel={channel} squadId={squadId} />
                             ))}
                         </View>
@@ -168,31 +170,31 @@ export default function ChatScreen() {
 
                     {search.length > 0 && !hasResults && (
                         <View style={styles.emptySection}>
-                            <ThemedText type="small" themeColor="textSecondary">
-                                No channels match &quot;{search}&quot;
+                            <ThemedText type="small" style={{ color: theme.chatTextMuted }}>
+                                {'No channels match "'}{search}{'"'}
                             </ThemedText>
                         </View>
                     )}
 
-                    {search.length === 0 && topicChannels.length === 0 && moodChannels.length === 0 && ephemeralChannels.length === 0 && (
+                    {search.length === 0 && topicChannels.length === 0 && moodChannels.length === 0 && timedChannels.length === 0 && (
                         <View style={styles.emptySection}>
                             <ThemedText style={{ fontSize: Typography.title, marginBottom: Spacing.sm }}>🚀</ThemedText>
-                            <ThemedText type="small" themeColor="textSecondary">Create a channel to get started</ThemedText>
+                            <ThemedText type="small" style={{ color: theme.chatTextMuted }}>Create a channel to get started</ThemedText>
                             <Pressable
                                 onPress={() => { setDefaultType('topic'); setShowCreate(true); }}
                                 style={[styles.createBtn, {
-                                    backgroundColor: theme.accent,
-                                    borderColor: theme.cardBorder,
+                                    backgroundColor: theme.chatAccent,
+                                    borderColor: theme.chatBorder,
                                     borderWidth: BorderWidth.medium,
                                 }]}
                             >
-                                <ThemedText type="smallBold" style={{ color: theme.text }}>+ Create Channel</ThemedText>
+                                <ThemedText type="smallBold" style={{ color: theme.chatOnAccent }}>+ Create Channel</ThemedText>
                             </Pressable>
                         </View>
                     )}
 
-                    <Pressable onPress={() => setShowLeaveConfirm(true)} style={[styles.leave, { borderTopColor: theme.outlineLight }]}>
-                        <ThemedText type="small" style={{ color: theme.error }}>Leave Squad</ThemedText>
+                    <Pressable onPress={() => setShowLeaveConfirm(true)} style={[styles.leave, { borderTopColor: theme.chatBorder }]}>
+                        <ThemedText type="small" style={{ color: theme.error }}>Leave Space</ThemedText>
                     </Pressable>
                 </ScrollView>
             </SafeAreaView>
@@ -207,7 +209,7 @@ export default function ChatScreen() {
 
             <ConfirmDialog
                 visible={showLeaveConfirm}
-                title="Leave Squad"
+                title="Leave Space"
                 message="Are you sure? You'll need the password to rejoin."
                 confirmLabel="Leave"
                 destructive
@@ -231,16 +233,16 @@ function ChannelSection({ emoji, label, channels, squadId, type, onCreate }: {
         <View style={styles.section}>
             <View style={styles.sectionHeader}>
                 <View style={styles.sectionTitleRow}>
-                    <View style={[styles.sectionEmoji, { backgroundColor: theme.surfaceAccent }]}> 
+                    <View style={[styles.sectionEmoji, { backgroundColor: theme.chatWarmTint }]}>
                         <ThemedText type="caption">{emoji}</ThemedText>
                     </View>
                     <View>
-                        <ThemedText type="bodyBold" style={styles.sectionTitle}>{label}</ThemedText>
-                        <ThemedText type="caption" themeColor="textSecondary">{channels.length} room{channels.length !== 1 ? 's' : ''}</ThemedText>
+                        <ThemedText type="bodyBold" style={[styles.sectionTitle, { color: theme.chatBubbleInText }]}>{label}</ThemedText>
+                        <ThemedText type="caption" style={{ color: theme.chatTextMuted }}>{channels.length} room{channels.length !== 1 ? 's' : ''}</ThemedText>
                     </View>
                 </View>
-                <Pressable onPress={onCreate} hitSlop={8} style={[styles.newButton, { backgroundColor: theme.surfaceAccent }]}> 
-                    <ThemedText type="smallBold" style={{ color: theme.accentDark }}>+ New</ThemedText>
+                <Pressable onPress={onCreate} hitSlop={8} style={[styles.newButton, { backgroundColor: theme.chatAccentTint }]}>
+                    <ThemedText type="smallBold" style={{ color: theme.chatAccent }}>+ New</ThemedText>
                 </Pressable>
             </View>
             {channels.map(channel => (

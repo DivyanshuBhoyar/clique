@@ -9,6 +9,7 @@ import { LineHeight, Radius, Spacing, Typography, Weight } from '@/constants/the
 import { Id } from '@/convex/_generated/dataModel';
 import { useImageUpload } from '@/hooks/use-image-upload';
 import { useTheme } from '@/hooks/use-theme';
+import { getImageUploadPresetSummary } from '@/lib/image-upload';
 
 type AddDropType = 'reflection' | 'photo' | 'link';
 
@@ -30,7 +31,7 @@ export function AddItemModal({ visible, onClose, onAdd }: AddItemModalProps) {
   const [dropCaption, setDropCaption] = useState('');
   const [sendingDrop, setSendingDrop] = useState(false);
   const [photoStorageId, setPhotoStorageId] = useState<Id<"_storage"> | null>(null);
-  const { previewUri: dropPreviewUri, uploading: uploadingPhoto, pickAndUpload: pickDropPhoto, reset: resetDropPhoto } = useImageUpload();
+  const { previewUri: dropPreviewUri, uploading: uploadingPhoto, pickAndUpload: pickDropPhoto, reset: resetDropPhoto } = useImageUpload({ target: 'memoryPhoto' });
 
   const handleAdd = useCallback(async () => {
     const trimmed = dropContent.trim();
@@ -111,6 +112,8 @@ export function AddItemModal({ visible, onClose, onAdd }: AddItemModalProps) {
               onPick={handlePickPhoto}
               onRemove={handleRemovePhoto}
               placeholder="+ Pick a photo"
+              helperText={getImageUploadPresetSummary('memoryPhoto')}
+              accessibilityLabel="Pick a memory scrapbook photo"
             />
           )}
 

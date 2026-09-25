@@ -48,8 +48,8 @@ export function ChatHeader({ channelName, channelEmoji, onlineCount, otherUnread
         styles.container,
         {
           paddingTop: insets.top + Spacing.sm,
-          backgroundColor: theme.headerBackground,
-          borderBottomColor: theme.outlineLight,
+          backgroundColor: theme.chatSurface,
+          borderBottomColor: theme.chatBorder,
         },
       ]}
     >
@@ -59,9 +59,9 @@ export function ChatHeader({ channelName, channelEmoji, onlineCount, otherUnread
           accessibilityRole="button"
           accessibilityLabel="Go back"
           hitSlop={8}
-          style={[styles.iconButton, { backgroundColor: theme.surface, borderColor: theme.outlineLight }]}
+          style={[styles.iconButton, { backgroundColor: theme.chatSurface, borderColor: theme.chatBorder }]}
         >
-          <ChevronLeft size={22} color={theme.text} strokeWidth={2.4} />
+          <ChevronLeft size={22} color={theme.chatBubbleInText} strokeWidth={2.4} />
         </Pressable>
       </View>
 
@@ -75,7 +75,7 @@ export function ChatHeader({ channelName, channelEmoji, onlineCount, otherUnread
           {channelEmoji ? (
             <ThemedText style={styles.channelEmoji}>{channelEmoji}</ThemedText>
           ) : null}
-          <ThemedText style={[styles.title, { color: theme.text }]} numberOfLines={1}>
+          <ThemedText style={[styles.title, { color: theme.chatBubbleInText }]} numberOfLines={1}>
             {channelName} ▾
           </ThemedText>
           {otherUnreadCount > 0 ? (
@@ -83,21 +83,21 @@ export function ChatHeader({ channelName, channelEmoji, onlineCount, otherUnread
               style={[
                 styles.unreadBadge,
                 {
-                  backgroundColor: theme.surfaceAccent,
-                  borderColor: theme.accentDark,
+                  backgroundColor: theme.chatAccent,
+                  borderColor: theme.chatAccent,
                   shadowColor: theme.shadow,
                 },
                 badgeAnimatedStyle,
               ]}
             >
-              <ThemedText type="caption" style={[styles.unreadText, { color: theme.text }]}>
+              <ThemedText type="caption" style={[styles.unreadText, { color: theme.chatOnAccent }]}>
                 {displayUnreadCount}
               </ThemedText>
             </Animated.View>
           ) : null}
         </View>
         {onlineCount != null && onlineCount > 0 ? (
-          <ThemedText type="caption" style={[styles.subtitle, { color: theme.textTertiary }]}>
+          <ThemedText type="caption" style={[styles.subtitle, { color: theme.chatTextMuted }]}>
             {onlineCount} online
           </ThemedText>
         ) : null}
@@ -110,9 +110,9 @@ export function ChatHeader({ channelName, channelEmoji, onlineCount, otherUnread
             accessibilityRole="button"
             accessibilityLabel="Start audio call"
             hitSlop={8}
-            style={[styles.iconButton, { backgroundColor: theme.surface, borderColor: theme.outlineLight }]}
+            style={[styles.iconButton, { backgroundColor: theme.chatSurface, borderColor: theme.chatBorder }]}
           >
-            <Phone size={20} color={theme.text} strokeWidth={2} />
+            <Phone size={20} color={theme.chatBubbleInText} strokeWidth={2} />
           </Pressable>
         )}
         {onSettingsPress && (
@@ -121,9 +121,9 @@ export function ChatHeader({ channelName, channelEmoji, onlineCount, otherUnread
             accessibilityRole="button"
             accessibilityLabel="Channel settings"
             hitSlop={8}
-            style={[styles.iconButton, { backgroundColor: theme.surface, borderColor: theme.outlineLight }]}
+            style={[styles.iconButton, { backgroundColor: theme.chatSurface, borderColor: theme.chatBorder }]}
           >
-            <Settings size={22} color={theme.text} strokeWidth={2} />
+            <Settings size={22} color={theme.chatBubbleInText} strokeWidth={2} />
           </Pressable>
         )}
       </View>

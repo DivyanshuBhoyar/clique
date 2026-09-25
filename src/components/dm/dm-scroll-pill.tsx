@@ -17,13 +17,14 @@ export function DmScrollPill({ visible, onPress }: DmScrollPillProps) {
     return (
         <Pressable
             onPress={onPress}
-            style={[styles.pill, { backgroundColor: theme.accent, borderColor: theme.outline }]}
+            style={[styles.pill, { backgroundColor: theme.chatAccent, borderColor: theme.chatAccent }]}
         >
-            <ChevronDown size={14} color={theme.text} strokeWidth={2.5} />
-            <ThemedText type="caption" style={{ color: theme.text }}>
+            <ChevronDown size={14} color={theme.chatOnAccent} strokeWidth={2.5} />
+            <ThemedText type="caption" style={{ color: theme.chatOnAccent }}>
                 New messages
             </ThemedText>
         </Pressable>
+
     );
 }
 

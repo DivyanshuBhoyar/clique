@@ -1,8 +1,11 @@
 import { BookOpen, Camera, ChevronRight, Link2, MessageCircle, Music, Zap } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
+import { AnimatedPressable } from '@/components/ui/animated-pressable';
 import { Radius, Shadows, Spacing, Weight } from '@/constants/theme';
+import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { useTheme } from '@/hooks/use-theme';
 
 const ACTIVITY_COLORS: Record<string, string> = {
@@ -48,14 +51,14 @@ export function RecentActivitySection({ items, onOpenActivity }: RecentActivityS
             <View style={styles.sectionHeader}>
                 <ThemedText type="bodyBold">Recent Activity</ThemedText>
                 <Pressable hitSlop={8} accessibilityRole="button" accessibilityLabel="See all recent activity">
-                    <ThemedText type="small" style={{ color: theme.accent, fontWeight: Weight.semibold }}>
+                    <ThemedText type="small" style={[styles.seeAllText, { color: theme.accent }]}>
                         See all →
                     </ThemedText>
                 </Pressable>
             </View>
 
             {items.length === 0 ? (
-                <View style={[styles.emptyRow, { backgroundColor: theme.surface, borderColor: theme.outlineLight }]}> 
+                <View style={[styles.emptyRow, { backgroundColor: theme.surface, borderColor: theme.outlineLight }]}>
                     <ThemedText type="small" themeColor="textSecondary">
                         No activity yet. Start with a message, drop, note, or memory.
                     </ThemedText>
@@ -63,39 +66,76 @@ export function RecentActivitySection({ items, onOpenActivity }: RecentActivityS
             ) : null}
 
             {items.map((item) => (
-                <Pressable
-                    key={item.id}
-                    style={[
-                        styles.activityRow,
-                        {
-                            backgroundColor: theme.surface,
-                            borderColor: theme.outline,
-                            shadowColor: theme.shadow,
-                            shadowOffset: Shadows.sm.offset,
-                            shadowOpacity: Shadows.sm.opacity,
-                            shadowRadius: Shadows.sm.radius,
-                            elevation: 2,
-                        },
-                    ]}
-                    onPress={() => onOpenActivity(item)}
-                    accessibilityRole="button"
-                    accessibilityLabel={item.label}
-                >
-                    <View style={[styles.activityIcon, { backgroundColor: ACTIVITY_COLORS[item.type] ?? theme.backgroundElement }]}>
-                        {activityIcon(item.type, theme.text)}
-                    </View>
-                    <View style={styles.activityText}>
-                        <ThemedText type="small" style={{ fontWeight: Weight.semibold }} numberOfLines={1}>
-                            {item.label}
-                        </ThemedText>
-                        <ThemedText type="caption" themeColor="textSecondary" numberOfLines={1}>
-                            {item.sub}
-                        </ThemedText>
-                    </View>
-                    <ChevronRight size={14} color={theme.textTertiary} strokeWidth={2} />
-                </Pressable>
+                <RecentActivityRow key={item.id} item={item} onOpenActivity={onOpenActivity} />
             ))}
         </View>
+    );
+}
+
+function RecentActivityRow({
+    item,
+    onOpenActivity,
+}: {
+    item: RecentActivityItem;
+    onOpenActivity: (item: RecentActivityItem) => void;
+}) {
+    const theme = useTheme();
+    const reduceMotion = useReduceMotion();
+    const chevronX = useSharedValue(0);
+
+    const chevronStyle = useAnimatedStyle(() => ({
+        transform: [{ translateX: chevronX.value }],
+    }));
+
+    const handlePressIn = () => {
+        chevronX.value = reduceMotion
+            ? withTiming(2, { duration: 80 })
+            : withSpring(4, { damping: 18, stiffness: 300, mass: 0.6 });
+    };
+
+    const handlePressOut = () => {
+        chevronX.value = reduceMotion
+            ? withTiming(0, { duration: 80 })
+            : withSpring(0, { damping: 18, stiffness: 300, mass: 0.6 });
+    };
+
+    return (
+        <AnimatedPressable
+            style={[
+                styles.activityRow,
+                {
+                    backgroundColor: theme.surface,
+                    borderColor: theme.outline,
+                    shadowColor: theme.shadow,
+                    shadowOffset: Shadows.sm.shadowOffset,
+                    shadowOpacity: Shadows.sm.shadowOpacity,
+                    shadowRadius: Shadows.sm.shadowRadius,
+                    elevation: 2,
+                },
+            ]}
+            pressedScale={0.98}
+            pressedTranslateY={1}
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
+            onPress={() => onOpenActivity(item)}
+            accessibilityRole="button"
+            accessibilityLabel={item.label}
+        >
+            <View style={[styles.activityIcon, { backgroundColor: ACTIVITY_COLORS[item.type] ?? theme.backgroundElement }]}>
+                {activityIcon(item.type, theme.text)}
+            </View>
+            <View style={styles.activityText}>
+                <ThemedText type="small" style={styles.activityLabel} numberOfLines={1}>
+                    {item.label}
+                </ThemedText>
+                <ThemedText type="caption" themeColor="textSecondary" numberOfLines={1}>
+                    {item.sub}
+                </ThemedText>
+            </View>
+            <Animated.View style={chevronStyle}>
+                <ChevronRight size={14} color={theme.textTertiary} strokeWidth={2} />
+            </Animated.View>
+        </AnimatedPressable>
     );
 }
 
@@ -126,6 +166,12 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     activityText: { flex: 1 },
+    activityLabel: {
+        fontWeight: Weight.semibold,
+    },
+    seeAllText: {
+        fontWeight: Weight.semibold,
+    },
     emptyRow: {
         borderWidth: 1.5,
         borderRadius: Radius.lg,

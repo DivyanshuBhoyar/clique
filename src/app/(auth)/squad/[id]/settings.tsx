@@ -40,7 +40,7 @@ export default function SquadSettingsScreen() {
     }, [squad?.name]);
 
     if (squad === undefined || currentUser === undefined) {
-        return <LoadingState message="Opening squad settings…" />;
+        return <LoadingState message="Opening Space Settings…" />;
     }
 
     const canManage = squad?.createdBy === currentUser?._id;
@@ -50,7 +50,7 @@ export default function SquadSettingsScreen() {
         const trimmedName = name.trim();
         const trimmedPassword = password.trim();
         if (!trimmedName) {
-            toast.error('Squad name is required');
+            toast.error('Space name is required');
             return;
         }
 
@@ -62,7 +62,7 @@ export default function SquadSettingsScreen() {
                 password: trimmedPassword.length > 0 ? trimmedPassword : undefined,
             });
             setPassword('');
-            toast.success('Squad settings saved');
+            toast.success('Space Settings saved');
         } catch (err: any) {
             toast.error(err.message ?? 'Could not save settings');
         } finally {
@@ -77,14 +77,14 @@ export default function SquadSettingsScreen() {
             await leaveSquad({ squadId });
             router.replace('/');
         } catch (err: any) {
-            toast.error(err.message ?? 'Failed to leave squad');
+            toast.error(err.message ?? 'Failed to Leave Space');
         }
     };
 
     return (
         <ThemedView style={styles.container}>
             <SafeAreaView style={styles.safeArea} edges={[]}>
-                <ScreenHeader title="Squad settings" onBack={() => backOrReplace(router, `/squad/${squadId}/chat`)} />
+                <ScreenHeader title="Space Settings" onBack={() => backOrReplace(router, `/squad/${squadId}/chat`)} />
 
                 <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
                     <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.outline, shadowColor: theme.shadow }]}>
@@ -93,9 +93,9 @@ export default function SquadSettingsScreen() {
                                 <Crown size={18} color={theme.text} strokeWidth={2.5} />
                             </View>
                             <View style={styles.cardTitleCopy}>
-                                <ThemedText type="bodyBold">Squad identity</ThemedText>
+                                <ThemedText type="bodyBold">Space identity</ThemedText>
                                 <ThemedText type="caption" themeColor="textSecondary">
-                                    {canManage ? 'Rename your shared space.' : 'Only the squad creator can edit this.'}
+                                    {canManage ? 'Rename your shared space.' : 'Only the Space creator can edit this.'}
                                 </ThemedText>
                             </View>
                         </View>
@@ -103,7 +103,7 @@ export default function SquadSettingsScreen() {
                             value={name}
                             onChangeText={setName}
                             editable={canManage && !saving}
-                            placeholder="Squad name"
+                            placeholder="Space name"
                             placeholderTextColor={theme.placeholder}
                             style={[styles.input, { color: theme.text, backgroundColor: theme.backgroundElement, borderColor: theme.outline }]}
                         />
@@ -141,7 +141,7 @@ export default function SquadSettingsScreen() {
                                     pressed && !saving && styles.pressed,
                                 ]}
                                 accessibilityRole="button"
-                                accessibilityLabel="Save squad settings"
+                                accessibilityLabel="Save space settings"
                             >
                                 <ThemedText type="smallBold" style={{ color: theme.text }}>{saving ? 'Saving…' : 'Save changes'}</ThemedText>
                             </Pressable>
@@ -160,18 +160,18 @@ export default function SquadSettingsScreen() {
                             disabled={canManage}
                             style={[styles.leaveBtn, { borderColor: theme.error, backgroundColor: theme.errorSoft, opacity: canManage ? 0.5 : 1 }]}
                             accessibilityRole="button"
-                            accessibilityLabel={canManage ? 'Squad creators cannot leave yet' : 'Leave squad'}
+                            accessibilityLabel={canManage ? 'Space creators cannot leave yet' : 'Leave Space'}
                         >
                             <LogOut size={17} color={theme.error} strokeWidth={2.5} />
-                            <ThemedText type="smallBold" style={{ color: theme.error }}>{canManage ? 'Creator cannot leave yet' : 'Leave Squad'}</ThemedText>
+                            <ThemedText type="smallBold" style={{ color: theme.error }}>{canManage ? 'Creator cannot leave yet' : 'Leave Space'}</ThemedText>
                         </Pressable>
                     </View>
                 </ScrollView>
 
                 <ConfirmDialog
                     visible={showLeaveConfirm}
-                    title="Leave Squad?"
-                    message="You'll need the squad password to rejoin. Your existing posts stay visible to the group."
+                    title="Leave Space?"
+                    message="You'll need the space password to rejoin. Your existing posts stay visible to the group."
                     confirmLabel="Leave"
                     destructive
                     onCancel={() => setShowLeaveConfirm(false)}
@@ -195,9 +195,9 @@ const styles = StyleSheet.create({
         borderWidth: 2,
         borderRadius: Radius.xl,
         padding: Spacing.lg,
-        shadowOffset: Shadows.sm.offset,
-        shadowOpacity: Shadows.sm.opacity,
-        shadowRadius: Shadows.sm.radius,
+        shadowOffset: Shadows.sm.shadowOffset,
+        shadowOpacity: Shadows.sm.shadowOpacity,
+        shadowRadius: Shadows.sm.shadowRadius,
         elevation: 2,
     },
     cardHeader: {

@@ -7,3 +7,11 @@
   --font-rounded: 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif;
   --font-serif: Georgia, 'Times New Roman', serif;
 }
+
+/* Chat message inputs render as <textarea> on web. Suppress the browser's
+   default focus ring (backstop — the RN style props set outline-width: 0 too).
+   Scoped to chat inputs only so keyboard focus stays visible elsewhere. */
+textarea[data-testid="chat-message-input"]:focus,
+textarea[data-testid="dm-message-input"]:focus {
+  outline: none;
+}

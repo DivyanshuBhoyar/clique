@@ -59,7 +59,7 @@ export function ItemCommentsModal({
               <ThemedText type="smallBold">Close</ThemedText>
             </Pressable>
             <ThemedText style={styles.modalTitle}>Comments</ThemedText>
-            <View style={{ width: 50 }} />
+            <View style={styles.headerSpacer} />
           </View>
 
           <PaginatedList
@@ -71,7 +71,7 @@ export function ItemCommentsModal({
               <View style={[styles.commentCard, { backgroundColor: theme.surface, borderColor: theme.outline }]}>
                 <View style={styles.commentHeader}>
                   <ThemedText type="smallBold">@{item.nickname}</ThemedText>
-                  <ThemedText type="caption" themeColor="textSecondary" style={{ marginLeft: 'auto' }}>
+                  <ThemedText type="caption" themeColor="textSecondary" style={styles.commentTime}>
                     {formatRelativeTime(item.createdAt)}
                   </ThemedText>
                 </View>
@@ -129,6 +129,9 @@ const styles = StyleSheet.create({
     fontSize: Typography.body,
     fontWeight: Weight.bold,
   },
+  headerSpacer: {
+    width: 50,
+  },
   commentCard: {
     padding: Spacing.md,
     marginHorizontal: Spacing.lg,
@@ -141,6 +144,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
+  },
+  commentTime: {
+    marginLeft: 'auto',
   },
   commentContent: {
     fontSize: Typography.body,

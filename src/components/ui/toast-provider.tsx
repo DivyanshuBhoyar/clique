@@ -61,9 +61,9 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     borderWidth: BorderWidth.thin,
     shadowColor: Colors.light.shadow,
-    shadowOffset: Shadows.sm.offset,
-    shadowOpacity: Shadows.sm.opacity,
-    shadowRadius: Shadows.sm.radius,
+    shadowOffset: Shadows.sm.shadowOffset,
+    shadowOpacity: Shadows.sm.shadowOpacity,
+    shadowRadius: Shadows.sm.shadowRadius,
     elevation: 4,
   },
   message: {

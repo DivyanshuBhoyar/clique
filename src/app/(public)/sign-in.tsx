@@ -18,6 +18,7 @@
  */
 import { useAuthActions } from '@convex-dev/auth/react';
 import Constants from 'expo-constants';
+import * as WebBrowser from 'expo-web-browser';
 import { ArrowLeft, Mail, ShieldCheck } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -73,7 +74,24 @@ export default function SignInScreen() {
         }
         setIsLoading(true);
         try {
-            await signIn('google', { redirectTo: `${Constants.expoConfig?.scheme}://` });
+            const scheme = Constants.expoConfig?.scheme as string;
+            const redirectTo = `${scheme}://`;
+            // On React Native, @convex-dev/auth does NOT open the browser itself —
+            // it returns the OAuth URL and expects the caller to handle it.
+            const result = await signIn('google', { redirectTo });
+            if (result?.redirect) {
+                const returnUrl = await WebBrowser.openAuthSessionAsync(
+                    result.redirect.toString(),
+                    redirectTo,
+                );
+                if (returnUrl.type === 'success') {
+                    // Convex redirects back as clique://?code=XXX — exchange the code
+                    const code = new URL(returnUrl.url).searchParams.get('code');
+                    if (code) {
+                        await signIn('google', { code });
+                    }
+                }
+            }
         } catch (err: any) {
             console.error(err);
             toast.error('Google sign-in failed. Please try again.');
@@ -124,16 +142,16 @@ export default function SignInScreen() {
                     style={styles.inner}
                 >
                     {/* Hero Card */}
-                    <AuthHeroCard emoji="🏠" title="Homie Squad" subtitle="your cozy little corner ✨" />
+                    <AuthHeroCard emoji="🏠" title="Clique" subtitle="your cozy little corner ✨" />
 
                     {/* Auth Card */}
                     <View style={[styles.authCard, {
                         backgroundColor: theme.surface,
                         borderColor: theme.outline,
                         shadowColor: theme.shadow,
-                        shadowOffset: Shadows.sm.offset,
-                        shadowOpacity: Shadows.sm.opacity,
-                        shadowRadius: Shadows.sm.radius,
+                        shadowOffset: Shadows.sm.shadowOffset,
+                        shadowOpacity: Shadows.sm.shadowOpacity,
+                        shadowRadius: Shadows.sm.shadowRadius,
                         elevation: 3,
                     }]}>
                         {step === 'email' ? (
@@ -268,9 +286,9 @@ export default function SignInScreen() {
                                 backgroundColor: theme.surface,
                                 borderColor: theme.outline,
                                 shadowColor: theme.shadow,
-                                shadowOffset: Shadows.sm.offset,
-                                shadowOpacity: Shadows.sm.opacity,
-                                shadowRadius: Shadows.sm.radius,
+                                shadowOffset: Shadows.sm.shadowOffset,
+                                shadowOpacity: Shadows.sm.shadowOpacity,
+                                shadowRadius: Shadows.sm.shadowRadius,
                                 elevation: 2,
                             }]}
                             onPress={handleGoogleSignIn}

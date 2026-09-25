@@ -34,7 +34,7 @@ export function YourVibeCard({ userName, avatarUrl, vibe, vibeLabel, onEdit }: Y
         </View>
         <View style={styles.onlineRow}>
           <View style={[styles.onlineDot, { backgroundColor: theme.success }]} />
-          <ThemedText type="small" style={{ fontWeight: Weight.semibold }}>online</ThemedText>
+          <ThemedText type="small" style={styles.onlineLabel}>online</ThemedText>
         </View>
       </View>
 
@@ -48,14 +48,14 @@ export function YourVibeCard({ userName, avatarUrl, vibe, vibeLabel, onEdit }: Y
         <View style={styles.info}>
           <ThemedText type="bodyBold">
             {userName ?? 'you'}{' '}
-            <ThemedText style={{ fontWeight: Weight.regular }}>· you</ThemedText>
+            <ThemedText style={styles.regularText}>· you</ThemedText>
           </ThemedText>
           {vibeLabel ? (
-            <ThemedText type="small" style={{ marginTop: 2 }}>
+            <ThemedText type="small" style={styles.infoLabel}>
               {vibeLabel}
             </ThemedText>
           ) : (
-            <ThemedText type="small" style={{ marginTop: 2, opacity: 0.7 }}>
+            <ThemedText type="small" style={styles.infoLabelMuted}>
               no vibe set yet
             </ThemedText>
           )}
@@ -83,9 +83,9 @@ const styles = StyleSheet.create({
     borderRadius: Radius.xxl,
     padding: Spacing.lg,
     gap: Spacing.lg,
-    shadowOffset: Shadows.md.offset,
-    shadowOpacity: Shadows.md.opacity,
-    shadowRadius: Shadows.md.radius,
+    shadowOffset: Shadows.md.shadowOffset,
+    shadowOpacity: Shadows.md.shadowOpacity,
+    shadowRadius: Shadows.md.shadowRadius,
   },
   topRow: {
     flexDirection: 'row',
@@ -112,6 +112,9 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
   },
+  onlineLabel: {
+    fontWeight: Weight.semibold,
+  },
   body: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -120,6 +123,16 @@ const styles = StyleSheet.create({
   info: {
     flex: 1,
     gap: 2,
+  },
+  regularText: {
+    fontWeight: Weight.regular,
+  },
+  infoLabel: {
+    marginTop: 2,
+  },
+  infoLabelMuted: {
+    marginTop: 2,
+    opacity: 0.7,
   },
   vibeEmoji: {
     fontSize: Typography.subtitle,

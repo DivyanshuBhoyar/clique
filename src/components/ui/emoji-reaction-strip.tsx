@@ -10,13 +10,17 @@
  *     onAdd={() => setPickerOpen(true)}
  *   />
  *   <EmojiReactionStrip ... compact />   // smaller for chat bubbles
+ *   <EmojiReactionStrip ... chat />      // chat variant: surface bg + hairline border
  */
 import { ThemedText } from '@/components/themed-text';
 import { LineHeight, Radius, Spacing, Typography, Weight } from '@/constants/theme';
+import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { useTheme } from '@/hooks/use-theme';
 import { lightImpact } from '@/utils/haptics';
 import { Plus } from 'lucide-react-native';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 
 export interface Reaction {
   emoji: string;
@@ -31,6 +35,92 @@ interface EmojiReactionStripProps {
   compact?: boolean;
   wrap?: boolean; // wrap to next line instead of scrolling
   stacked?: boolean;
+  /** Chat variant: pills sit on --bg-surface with a --border hairline (chat refinement). */
+  chat?: boolean;
+}
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+function AnimatedPill({
+  reaction,
+  compact,
+  chat,
+  onToggle,
+}: {
+  reaction: Reaction;
+  compact: boolean;
+  chat: boolean;
+  onToggle: (emoji: string) => void;
+}) {
+  const theme = useTheme();
+  const reduceMotion = useReduceMotion();
+  const scale = useSharedValue(1);
+  const pillHeight = compact ? 28 : 34;
+  const fontSize = compact ? 12 : 14;
+  const paddingH = compact ? 7 : Spacing.md;
+
+  useEffect(() => {
+    if (!reaction.reacted) {
+      scale.value = withTiming(1, { duration: 120 });
+      return;
+    }
+    scale.value = reduceMotion
+      ? withTiming(1.04, { duration: 120 }, () => {
+          scale.value = withTiming(1, { duration: 120 });
+        })
+      : withSpring(1.06, { damping: 10, stiffness: 400, mass: 0.5 }, () => {
+          scale.value = withSpring(1, { damping: 14, stiffness: 300, mass: 0.5 });
+        });
+  }, [reaction.reacted, reaction.emoji, reduceMotion, scale]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <AnimatedPressable
+      onPress={() => { lightImpact(); onToggle(reaction.emoji); }}
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel={`${reaction.emoji} ${reaction.count} reactions, tap to ${reaction.reacted ? 'remove' : 'add'}`}
+      style={({ pressed }) => [
+        styles.pill,
+        animatedStyle,
+        {
+          height: pillHeight,
+          paddingHorizontal: paddingH,
+          borderWidth: chat ? 1 : 1.5,
+          borderColor: reaction.reacted
+            ? (chat ? theme.chatAccent : theme.accent)
+            : (chat ? theme.chatBorder : theme.outline),
+          backgroundColor: reaction.reacted
+            ? (chat ? theme.chatAccentTint : theme.accentSoft)
+            : (chat ? theme.chatSurface : theme.surface),
+        },
+        chat && styles.chatPillShadow,
+        pressed && styles.pillPressed,
+      ]}
+    >
+      <Text style={{ fontSize, color: chat ? theme.chatBubbleInText : theme.text }}>
+        {reaction.emoji}
+        <Text
+          style={[
+            styles.pillCount,
+            {
+              fontSize: fontSize - 1,
+              color: reaction.reacted
+                ? (chat ? theme.chatAccent : theme.accent)
+                : (chat ? theme.chatTextMuted : theme.textSecondary),
+              fontWeight: reaction.reacted ? Weight.bold : Weight.medium,
+            },
+          ]}
+        >
+          {'  '}
+          {reaction.count}
+        </Text>
+      </Text>
+    </AnimatedPressable>
+  );
 }
 
 export function EmojiReactionStrip({
@@ -40,44 +130,14 @@ export function EmojiReactionStrip({
   compact = false,
   wrap = false,
   stacked = false,
+  chat = false,
 }: EmojiReactionStripProps) {
   const theme = useTheme();
   const pillHeight = compact ? 28 : 34;
-  const fontSize = compact ? 12 : 14;
   const paddingH = compact ? 7 : Spacing.md;
 
   const pills = reactions.map((r) => (
-    <Pressable
-      key={r.emoji}
-      onPress={() => { lightImpact(); onToggle(r.emoji); }}
-      hitSlop={8}
-      accessibilityRole="button"
-      accessibilityLabel={`${r.emoji} ${r.count} reactions, tap to ${r.reacted ? 'remove' : 'add'}`}
-      style={({ pressed }) => [
-        styles.pill,
-        {
-          height: pillHeight,
-          paddingHorizontal: paddingH,
-          borderColor: r.reacted ? theme.accent : theme.outline,
-          backgroundColor: r.reacted ? theme.accentSoft : theme.surface,
-        },
-        pressed && styles.pillPressed,
-      ]}
-    >
-      <ThemedText style={{ fontSize }}>{r.emoji}</ThemedText>
-      <ThemedText
-        style={[
-          styles.pillCount,
-          {
-            fontSize: fontSize - 1,
-            color: r.reacted ? theme.accent : theme.textSecondary,
-            fontWeight: r.reacted ? Weight.bold : Weight.medium,
-          },
-        ]}
-      >
-        {r.count}
-      </ThemedText>
-    </Pressable>
+    <AnimatedPill key={r.emoji} reaction={r} compact={compact} chat={chat} onToggle={onToggle} />
   ));
 
   const addBtn = onAdd ? (
@@ -92,12 +152,14 @@ export function EmojiReactionStrip({
         {
           height: pillHeight,
           paddingHorizontal: paddingH,
-          borderColor: theme.dashedBorder,
+          borderWidth: chat ? 1 : 1.5,
+          borderColor: chat ? theme.chatBorder : theme.dashedBorder,
           borderStyle: 'dashed',
         },
+        chat && styles.chatPillShadow,
       ]}
     >
-      <Plus size={compact ? 12 : 14} color={theme.textSecondary} strokeWidth={2} />
+      <Plus size={compact ? 12 : 14} color={chat ? theme.chatTextMuted : theme.textSecondary} strokeWidth={2} />
     </Pressable>
   ) : null;
 
@@ -129,6 +191,63 @@ interface EmojiReactionStackProps {
   maxVisible?: number;
 }
 
+function AnimatedStackFace({
+  reaction,
+  index,
+  total,
+  onToggle,
+}: {
+  reaction: Reaction;
+  index: number;
+  total: number;
+  onToggle: (emoji: string) => void;
+}) {
+  const theme = useTheme();
+  const reduceMotion = useReduceMotion();
+  const scale = useSharedValue(1);
+
+  useEffect(() => {
+    if (!reaction.reacted) {
+      scale.value = withTiming(1, { duration: 120 });
+      return;
+    }
+    scale.value = reduceMotion
+      ? withTiming(1.08, { duration: 120 }, () => {
+          scale.value = withTiming(1, { duration: 120 });
+        })
+      : withSpring(1.12, { damping: 10, stiffness: 400, mass: 0.5 }, () => {
+          scale.value = withSpring(1, { duration: 120 });
+        });
+  }, [reaction.reacted, reaction.emoji, reduceMotion, scale]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <AnimatedPressable
+      key={reaction.emoji}
+      onPress={() => { lightImpact(); onToggle(reaction.emoji); }}
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel={`${reaction.emoji} ${reaction.count} reactions, tap to ${reaction.reacted ? 'remove' : 'add'}`}
+      style={({ pressed }) => [
+        styles.stackFace,
+        animatedStyle,
+        {
+          marginLeft: index === 0 ? 0 : -8,
+          zIndex: total - index,
+          borderColor: reaction.reacted ? theme.accentDark : theme.surface,
+          backgroundColor: reaction.reacted ? theme.accentSoft : theme.backgroundElement,
+        },
+        pressed && styles.pillPressed,
+      ]}
+    >
+      <ThemedText style={styles.stackEmoji}>{reaction.emoji}</ThemedText>
+    </AnimatedPressable>
+  );
+}
+
 export function EmojiReactionStack({
   reactions,
   onToggle,
@@ -144,25 +263,13 @@ export function EmojiReactionStack({
     <View style={styles.stackRow}>
       <View style={styles.stackFaces}>
         {visibleReactions.map((r, index) => (
-          <Pressable
+          <AnimatedStackFace
             key={r.emoji}
-            onPress={() => { lightImpact(); onToggle(r.emoji); }}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel={`${r.emoji} ${r.count} reactions, tap to ${r.reacted ? 'remove' : 'add'}`}
-            style={({ pressed }) => [
-              styles.stackFace,
-              {
-                marginLeft: index === 0 ? 0 : -8,
-                zIndex: visibleReactions.length - index,
-                borderColor: r.reacted ? theme.accentDark : theme.surface,
-                backgroundColor: r.reacted ? theme.accentSoft : theme.backgroundElement,
-              },
-              pressed && styles.pillPressed,
-            ]}
-          >
-            <ThemedText style={styles.stackEmoji}>{r.emoji}</ThemedText>
-          </Pressable>
+            reaction={r}
+            index={index}
+            total={visibleReactions.length}
+            onToggle={onToggle}
+          />
         ))}
         {hiddenCount > 0 && (
           <Pressable
@@ -245,6 +352,14 @@ const styles = StyleSheet.create({
   },
   pillPressed: {
     opacity: 0.75,
+  },
+  chatPillShadow: {
+    // Lift chat pills off the bubble/canvas so the tuck reads as floating, not glued
+    shadowColor: '#4A3512',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   stackRow: {
     flexDirection: 'row',

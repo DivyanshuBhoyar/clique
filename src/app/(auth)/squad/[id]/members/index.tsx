@@ -70,9 +70,9 @@ export default function MembersScreen() {
                                     backgroundColor: theme.surface,
                                     borderColor: theme.outline,
                                     shadowColor: theme.shadow,
-                                    shadowOffset: Shadows.sm.offset,
-                                    shadowOpacity: Shadows.sm.opacity,
-                                    shadowRadius: Shadows.sm.radius,
+                                    shadowOffset: Shadows.sm.shadowOffset,
+                                    shadowOpacity: Shadows.sm.shadowOpacity,
+                                    shadowRadius: Shadows.sm.shadowRadius,
                                 },
                                 pressed && styles.cardPressed,
                             ]}

@@ -11,19 +11,19 @@ import { Image } from 'expo-image';
 import { Search, X } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    FlatList,
-    Modal,
-    Pressable,
-    StyleSheet,
-    TextInput,
-    View,
+  ActivityIndicator,
+  FlatList,
+  Modal,
+  Pressable,
+  StyleSheet,
+  TextInput,
+  View,
 } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { LineHeight, Radius, Spacing, Typography, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { type GiphyGif, pingGiphy, searchGifs, trendingGifs } from '@/lib/giphy';
+import { type GiphyGif, isGiphyConfigured, pingGiphy, searchGifs, trendingGifs } from '@/lib/giphy';
 
 interface GifPickerModalProps {
   visible: boolean;
@@ -39,29 +39,36 @@ export function GifPickerModal({ visible, onClose, onSelect }: GifPickerModalPro
   const [query, setQuery] = useState('');
   const [gifs, setGifs] = useState<GiphyGif[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const load = useCallback(async (q: string) => {
+    if (!isGiphyConfigured()) {
+      setLoading(false);
+      setGifs([]);
+      setErrorMessage('GIF search is not configured in this build.');
+      return;
+    }
+
+    setLoading(true);
+    setErrorMessage(null);
+    try {
+      const results = q.trim() ? await searchGifs(q) : await trendingGifs();
+      setGifs(results);
+    } catch {
+      setErrorMessage('Couldn’t load GIFs. Check your connection and try again.');
+      setGifs([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   // Load trending when modal opens
   useEffect(() => {
     if (!visible) return;
     setQuery('');
     load('');
-  }, [visible]);
-
-  const load = useCallback(async (q: string) => {
-    setLoading(true);
-    setError(false);
-    try {
-      const results = q.trim() ? await searchGifs(q) : await trendingGifs();
-      setGifs(results);
-    } catch {
-      setError(true);
-      setGifs([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  }, [load, visible]);
 
   const handleQueryChange = (text: string) => {
     setQuery(text);
@@ -130,20 +137,22 @@ export function GifPickerModal({ visible, onClose, onSelect }: GifPickerModalPro
             <View style={styles.centerState}>
               <ActivityIndicator size="large" color={theme.accent} />
             </View>
-          ) : error ? (
+          ) : errorMessage ? (
             <View style={styles.centerState}>
-              <ThemedText type="small" themeColor="textSecondary">Couldn't load GIFs. Tap to retry.</ThemedText>
-              <Pressable
-                onPress={() => load(query)}
-                style={[styles.retryBtn, { backgroundColor: theme.accent, borderColor: theme.outline }]}
-                accessibilityRole="button"
-              >
-                <ThemedText type="small" style={{ color: theme.text, fontWeight: Weight.bold }}>Retry</ThemedText>
-              </Pressable>
+              <ThemedText type="small" themeColor="textSecondary">{errorMessage}</ThemedText>
+              {isGiphyConfigured() ? (
+                <Pressable
+                  onPress={() => load(query)}
+                  style={[styles.retryBtn, { backgroundColor: theme.accent, borderColor: theme.outline }]}
+                  accessibilityRole="button"
+                >
+                  <ThemedText type="small" style={[styles.retryBtnText, { color: theme.text }]}>Retry</ThemedText>
+                </Pressable>
+              ) : null}
             </View>
           ) : gifs.length === 0 ? (
             <View style={styles.centerState}>
-              <ThemedText style={{ fontSize: 32 }}>🔍</ThemedText>
+              <ThemedText style={styles.emptyEmoji}>🔍</ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
                 {query ? `No GIFs for "${query}"` : 'No trending GIFs right now'}
               </ThemedText>
@@ -178,8 +187,7 @@ interface GifThumbnailProps {
 
 function GifThumbnail({ gif, onPress }: GifThumbnailProps) {
   const theme = useTheme();
-  // Aspect-ratio-preserving height based on preview width (displayed in 2-col grid)
-  const aspectHeight = gif.width > 0 ? Math.round((gif.height / gif.width) * 100) : 100;
+  const aspectRatio = gif.width > 0 && gif.height > 0 ? gif.width / gif.height : 1;
 
   return (
     <Pressable
@@ -194,7 +202,7 @@ function GifThumbnail({ gif, onPress }: GifThumbnailProps) {
     >
       <Image
         source={{ uri: gif.previewUrl }}
-        style={[styles.thumbImage, { aspectRatio: gif.width > 0 ? gif.width / gif.height : 1 }]}
+        style={[styles.thumbImage, { aspectRatio }]}
         contentFit="cover"
         autoplay
         accessibilityLabel={gif.title}
@@ -278,10 +286,17 @@ const styles = StyleSheet.create({
     padding: Spacing.xxl,
   },
   retryBtn: {
-    borderWidth: 1.5,
-    borderRadius: Radius.md,
+    marginTop: Spacing.md,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
+    borderRadius: Radius.md,
+    borderWidth: 2,
+  },
+  retryBtnText: {
+    fontWeight: Weight.bold,
+  },
+  emptyEmoji: {
+    fontSize: 32,
   },
   gridContent: {
     padding: GRID_GAP,

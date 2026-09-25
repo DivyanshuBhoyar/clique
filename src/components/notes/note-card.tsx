@@ -11,7 +11,7 @@
  * The right edge gets a 4px accent-coloured left-border to differentiate
  * note type at a glance: warm yellow for journal, plain outline for personal.
  */
-import { Bookmark, Pin } from 'lucide-react-native';
+import { Pin } from 'lucide-react-native';
 import { GestureResponderEvent, Pressable, StyleSheet, View } from 'react-native';
 
 import { markdownToPlainText } from '@/components/notes/markdown-preview';
@@ -36,8 +36,6 @@ interface NoteCardProps {
         avatarUrl: string | null;
     }[];
     collaboratorCount?: number;
-    isBookmarked?: boolean;
-    onToggleBookmark?: (noteId: string) => void;
     onTogglePin?: (noteId: string) => void;
     noteId?: string;
 }
@@ -68,8 +66,6 @@ export function NoteCard({
     ownerNickname,
     collaborators,
     collaboratorCount,
-    isBookmarked,
-    onToggleBookmark,
     onTogglePin,
     noteId,
 }: NoteCardProps) {
@@ -131,22 +127,6 @@ export function NoteCard({
                             />
                         </Pressable>
                     ) : null}
-                    {onToggleBookmark && noteId ? (
-                        <Pressable
-                            onPress={(e: GestureResponderEvent) => { e.stopPropagation(); onToggleBookmark(noteId); }}
-                            hitSlop={8}
-                            style={styles.iconButton}
-                            accessibilityRole="button"
-                            accessibilityLabel={isBookmarked ? 'Remove bookmark' : 'Bookmark'}
-                        >
-                            <Bookmark
-                                size={16}
-                                color={isBookmarked ? theme.accent : theme.textSecondary}
-                                fill={isBookmarked ? theme.accent : 'none'}
-                                strokeWidth={2}
-                            />
-                        </Pressable>
-                    ) : null}
                 </View>
             </View>
 
@@ -191,7 +171,8 @@ export function NoteCard({
 const styles = StyleSheet.create({
     card: {
         width: '100%',
-        padding: Spacing.lg,
+        paddingVertical: Spacing.md,
+        paddingHorizontal: Spacing.lg,
         paddingLeft: Spacing.xl,
         borderWidth: BorderWidth.thin,
         borderRadius: Radius.lg,

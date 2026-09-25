@@ -54,16 +54,29 @@ export function DmComposer({
         setText("");
     };
 
+    // Web: plain Enter sends, Shift+Enter inserts a newline (default textarea behavior).
+    // react-native-web invokes onKeyPress with the DOM keyboard event and skips its
+    // own submit handling once preventDefault is called, so no double-send is possible.
+    // NOTE: a custom onKeyDown prop does NOT work — react-native-web overwrites it
+    // internally (supportedProps.onKeyDown = handleKeyDown).
+    const handleWebKeyPress = (e: any) => {
+        const key = e?.key ?? e?.nativeEvent?.key;
+        if (key !== "Enter" || e?.shiftKey) return;
+        if (e?.nativeEvent?.isComposing || e?.isComposing || e?.keyCode === 229) return;
+        e.preventDefault?.();
+        handleSend();
+    };
+
     return (
-        <View style={[styles.wrapper, { backgroundColor: theme.background }]}>
+        <View style={[styles.wrapper, { backgroundColor: theme.chatSurface }]}>
             {replyTarget && (
-                <View style={[styles.replyBar, { backgroundColor: theme.surfaceWarm, borderColor: theme.outlineLight }]}>
-                    <View style={[styles.replyAccent, { backgroundColor: theme.accent }]} />
+                <View style={[styles.replyBar, { backgroundColor: theme.chatAccentTint, borderColor: theme.chatBorder }]}>
+                    <View style={[styles.replyAccent, { backgroundColor: theme.chatAccent }]} />
                     <View style={styles.replyBarContent}>
-                        <ThemedText type="caption" themeColor="textSecondary" style={styles.replyLabel}>
+                        <ThemedText type="caption" style={[styles.replyLabel, { color: theme.chatTextMuted }]}>
                             {replyTarget.senderName}
                         </ThemedText>
-                        <ThemedText type="small" numberOfLines={1} themeColor="textSecondary">
+                        <ThemedText type="small" numberOfLines={1} style={{ color: theme.chatBubbleInText }}>
                             {replyTarget.text}
                         </ThemedText>
                     </View>
@@ -73,13 +86,13 @@ export function DmComposer({
                         accessibilityRole="button"
                         accessibilityLabel="Cancel reply"
                     >
-                        <X size={16} color={theme.textTertiary} strokeWidth={2.5} />
+                        <X size={16} color={theme.chatTextMuted} strokeWidth={2.5} />
                     </Pressable>
                 </View>
             )}
 
-            <View style={[styles.composer, { borderTopColor: theme.outlineLight }]}>
-                <View style={[styles.inputWrap, { backgroundColor: theme.surface, borderColor: theme.outlineLight }]}>
+            <View style={[styles.composer, { borderTopColor: theme.chatBorder }]}>
+                <View style={[styles.inputWrap, { backgroundColor: theme.chatSurface, borderColor: theme.chatBorder }]}>
                     <TextInput
                         value={text}
                         onChangeText={(val) => {
@@ -87,11 +100,14 @@ export function DmComposer({
                             onTyping();
                         }}
                         placeholder="Message…"
-                        placeholderTextColor={theme.textTertiary}
-                        style={[styles.input, { color: theme.text }]}
+                        placeholderTextColor={theme.chatTextMuted}
+                        style={[styles.input, Platform.OS === "web" && styles.webInput, { color: theme.chatBubbleInText }]}
                         multiline
                         returnKeyType="send"
-                        onSubmitEditing={handleSend}
+                        blurOnSubmit={false}
+                        onSubmitEditing={Platform.OS === "web" ? undefined : handleSend}
+                        onKeyPress={Platform.OS === "web" ? handleWebKeyPress : undefined}
+                        testID="dm-message-input"
                         accessibilityLabel="Message input"
                     />
                 </View>
@@ -104,19 +120,20 @@ export function DmComposer({
                         style={({ pressed }) => [
                             styles.sendBtn,
                             {
-                                backgroundColor: canSend ? theme.accent : theme.outlineLight,
-                                borderColor: canSend ? theme.outline : theme.outlineLight,
+                                backgroundColor: canSend ? theme.chatAccent : theme.chatBorder,
+                                borderColor: canSend ? theme.chatAccent : theme.chatBorder,
                                 opacity: pressed ? 0.78 : 1,
                             },
                         ]}
                     >
-                        <Send size={17} color={canSend ? "#2D2D2D" : theme.textTertiary} strokeWidth={2.5} />
+                        <Send size={17} color={canSend ? theme.chatOnAccent : theme.chatTextMuted} strokeWidth={2.5} />
                     </Pressable>
                 </Animated.View>
             </View>
         </View>
     );
 }
+
 
 const styles = StyleSheet.create({
     wrapper: {
@@ -163,6 +180,10 @@ const styles = StyleSheet.create({
         justifyContent: "center",
     },
     input: { fontSize: Typography.body, maxHeight: 120, lineHeight: 22 },
+    webInput: {
+        outlineWidth: 0,
+        outlineColor: "transparent",
+    },
     sendBtn: {
         width: 44,
         height: 44,

@@ -50,9 +50,9 @@ export function Card({
 
   if (shadowDef) {
     cardStyle.shadowColor = theme.shadow;
-    cardStyle.shadowOffset = shadowDef.offset;
-    cardStyle.shadowOpacity = shadowDef.opacity;
-    cardStyle.shadowRadius = shadowDef.radius;
+    cardStyle.shadowOffset = shadowDef.shadowOffset;
+    cardStyle.shadowOpacity = shadowDef.shadowOpacity;
+    cardStyle.shadowRadius = shadowDef.shadowRadius;
     cardStyle.elevation = shadow === 'sm' ? 3 : shadow === 'md' ? 5 : 7;
   }
 

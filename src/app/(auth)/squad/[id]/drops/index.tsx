@@ -32,7 +32,11 @@ const FILTER_CHIPS = [
   { label: 'Quote', emoji: '💬' },
   { label: 'Life Hack', emoji: '💡' },
   { label: 'Random', emoji: '🎲' },
+  { label: 'Saved', emoji: '🔖' },
 ];
+
+// Kept as the last chip so existing category indices below don't shift.
+const BOOKMARKS_FILTER_INDEX = FILTER_CHIPS.length - 1;
 
 const CHIP_CATEGORY: Record<number, string> = {
   2: 'song', 3: 'movie', 4: 'book', 5: 'quote', 6: 'lifehack', 7: 'random',
@@ -74,6 +78,7 @@ export default function DropsScreen() {
   const filteredDrops = (drops ?? []).filter((d) => {
     if (activeFilter === 0) return true;
     if (activeFilter === 1) return true;
+    if (activeFilter === BOOKMARKS_FILTER_INDEX) return !!d.isBookmarked;
     return d.category === CHIP_CATEGORY[activeFilter];
   }).sort((a, b) => {
     if (activeFilter !== 1) return 0;
@@ -107,15 +112,17 @@ export default function DropsScreen() {
 
         {filteredDrops.length === 0 ? (
           <EmptyState
-            emoji="🎁"
-            title="No drops yet"
+            emoji={activeFilter === BOOKMARKS_FILTER_INDEX ? '🔖' : '🎁'}
+            title={activeFilter === BOOKMARKS_FILTER_INDEX ? 'No saved drops yet' : 'No drops yet'}
             subtitle={activeFilter === 0
               ? 'Be the first to drop something!'
               : activeFilter === 1
                 ? 'No drops to rank yet'
+              : activeFilter === BOOKMARKS_FILTER_INDEX
+                ? 'Tap the 🔖 on a drop to save it here.'
               : `No ${FILTER_CHIPS[activeFilter].label.toLowerCase()} drops yet`}
-            actionLabel="Drop something"
-            onAction={() => router.push(`/squad/${squadId}/drops/new` as any)}
+            actionLabel={activeFilter === BOOKMARKS_FILTER_INDEX ? undefined : 'Drop something'}
+            onAction={activeFilter === BOOKMARKS_FILTER_INDEX ? undefined : () => router.push(`/squad/${squadId}/drops/new` as any)}
           />
         ) : (
           <PaginatedList
@@ -170,11 +177,11 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   listContent: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
+    paddingTop: Spacing.lg,
     paddingBottom: 100,
   },
   cardLink: {
     width: '100%',
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.xl,
   },
 });

@@ -1,14 +1,12 @@
-import {
-    HMSConfig,
+import type {
     HMSPeer,
-    HMSPeerUpdate,
+    HMSPeerUpdate as HMSPeerUpdateType,
     HMSSDK,
-    HMSTrackSettings,
-    HMSTrackSettingsInitState,
-    HMSUpdateListenerActions,
-    HMSVideoTrackSettings,
+    HMSTrack,
+    HMSTrackUpdate as HMSTrackUpdateType,
 } from "@100mslive/react-native-hms";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { PermissionsAndroid, Platform } from "react-native";
 
 export interface CallPeer {
     peerId: string;
@@ -60,6 +58,19 @@ export function useHmsCall(): UseHmsCallReturn {
     }, []);
 
     const join = useCallback(async (roomCode: string, userName: string) => {
+        await ensureMicrophonePermission();
+        const {
+            HMSConfig,
+            HMSSDK,
+            HMSPeerUpdate,
+            HMSTrackType,
+            HMSTrackSettings,
+            HMSTrackSettingsInitState,
+            HMSTrackUpdate,
+            HMSUpdateListenerActions,
+            HMSVideoTrackSettings,
+        } = await loadHmsModule();
+
         // Build SDK with video track disabled (audio-only mode)
         const videoSettings = new HMSVideoTrackSettings({
             initialState: HMSTrackSettingsInitState.MUTED,
@@ -71,7 +82,7 @@ export function useHmsCall(): UseHmsCallReturn {
         hmsRef.current = hms;
 
         // Register listeners before joining
-        hms.addEventListener(HMSUpdateListenerActions.ON_JOIN, ({ room }) => {
+        hms.addEventListener(HMSUpdateListenerActions.ON_JOIN, ({ room }: { room: { localPeer?: HMSPeer | null } }) => {
             setIsJoined(true);
             // Populate initial peers from the room
             const localPeer = room.localPeer;
@@ -79,7 +90,7 @@ export function useHmsCall(): UseHmsCallReturn {
                 setPeers([
                     {
                         peerId: localPeer.peerID,
-                        name: localPeer.name,
+                        name: localPeer.name ?? "You",
                         isAudioMuted: localPeer.audioTrack?.isMute() ?? false,
                         isLocal: true,
                     },
@@ -89,7 +100,7 @@ export function useHmsCall(): UseHmsCallReturn {
 
         hms.addEventListener(
             HMSUpdateListenerActions.ON_PEER_UPDATE,
-            ({ peer, type }: { peer: HMSPeer; type: HMSPeerUpdate }) => {
+            ({ peer, type }: { peer: HMSPeer; type: HMSPeerUpdateType }) => {
                 setPeers((current) => {
                     switch (type) {
                         case HMSPeerUpdate.PEER_JOINED: {
@@ -99,7 +110,7 @@ export function useHmsCall(): UseHmsCallReturn {
                                 ...current,
                                 {
                                     peerId: peer.peerID,
-                                    name: peer.name,
+                                    name: peer.name ?? "Guest",
                                     isAudioMuted: peer.audioTrack?.isMute() ?? true,
                                     isLocal: peer.isLocal ?? false,
                                 },
@@ -108,17 +119,25 @@ export function useHmsCall(): UseHmsCallReturn {
                         case HMSPeerUpdate.PEER_LEFT: {
                             return current.filter((p) => p.peerId !== peer.peerID);
                         }
-                        case HMSPeerUpdate.AUDIO_TOGGLED: {
-                            return current.map((p) =>
-                                p.peerId === peer.peerID
-                                    ? { ...p, isAudioMuted: peer.audioTrack?.isMute() ?? true }
-                                    : p,
-                            );
-                        }
                         default:
                             return current;
                     }
                 });
+            },
+        );
+
+        hms.addEventListener(
+            HMSUpdateListenerActions.ON_TRACK_UPDATE,
+            ({ peer, track, type }: { peer: HMSPeer; track?: HMSTrack; type: HMSTrackUpdateType }) => {
+                if (track?.type !== HMSTrackType.AUDIO) return;
+                if (type !== HMSTrackUpdate.TRACK_MUTED && type !== HMSTrackUpdate.TRACK_UNMUTED) return;
+
+                const isAudioMuted = type === HMSTrackUpdate.TRACK_MUTED;
+                setPeers((current) =>
+                    current.map((p) =>
+                        p.peerId === peer.peerID ? { ...p, isAudioMuted } : p,
+                    ),
+                );
             },
         );
 
@@ -130,7 +149,7 @@ export function useHmsCall(): UseHmsCallReturn {
             setIsReconnecting(false);
         });
 
-        hms.addEventListener(HMSUpdateListenerActions.ON_ERROR, (error) => {
+        hms.addEventListener(HMSUpdateListenerActions.ON_ERROR, (error: { code?: unknown; message?: unknown }) => {
             console.error("[HMS] Error:", error.code, error.message);
         });
 
@@ -157,8 +176,12 @@ export function useHmsCall(): UseHmsCallReturn {
     const toggleMute = useCallback(() => {
         const hms = hmsRef.current;
         if (!hms) return;
-        const localAudioTrack = hms.localPeer?.audioTrack;
-        if (localAudioTrack) {
+
+        void (async () => {
+            const localPeer = await hms.getLocalPeer();
+            const localAudioTrack = localPeer.localAudioTrack();
+            if (!localAudioTrack) return;
+
             const newMuted = !isMuted;
             localAudioTrack.setMute(newMuted);
             setIsMuted(newMuted);
@@ -166,8 +189,34 @@ export function useHmsCall(): UseHmsCallReturn {
             setPeers((current) =>
                 current.map((p) => (p.isLocal ? { ...p, isAudioMuted: newMuted } : p)),
             );
-        }
+        })().catch((error: unknown) => {
+            console.error("[HMS] Could not toggle microphone", error);
+        });
     }, [isMuted]);
 
     return { join, leave, toggleMute, isJoined, isMuted, isReconnecting, peers };
+}
+
+async function loadHmsModule() {
+    try {
+        return await import("@100mslive/react-native-hms");
+    } catch {
+        throw new Error("Voice calls require a development or production build. Expo Go cannot load the 100ms native SDK.");
+    }
+}
+
+async function ensureMicrophonePermission() {
+    if (Platform.OS === "android") {
+        const status = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
+        if (status !== PermissionsAndroid.RESULTS.GRANTED) {
+            throw new Error("Microphone permission is required to join calls.");
+        }
+        return;
+    }
+
+    const { Camera } = await import("expo-camera");
+    const permission = await Camera.requestMicrophonePermissionsAsync();
+    if (!permission.granted) {
+        throw new Error("Microphone permission is required to join calls.");
+    }
 }

@@ -3,7 +3,7 @@ import { EmojiReactionStrip, Reaction } from "@/components/ui/emoji-reaction-str
 import { LinkPreviewCard } from "@/components/ui/link-preview-card";
 import { LinkifiedText } from "@/components/ui/linkified-text";
 import { UserAvatar } from "@/components/user-avatar";
-import { LineHeight, Radius, Spacing, Typography } from "@/constants/theme";
+import { Radius, Spacing, Typography } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { extractUrls } from "@/utils/links";
 import { memo, useEffect, useRef } from "react";
@@ -117,34 +117,34 @@ export const DmMessageItem = memo(function DmMessageItem({
                         isOwn
                             ? [
                                 styles.bubbleOwn,
-                                { backgroundColor: theme.bubbleOwn ?? theme.accent },
+                                { backgroundColor: theme.chatBubbleOut },
                             ]
                             : [
                                 styles.bubbleOther,
-                                { backgroundColor: theme.bubbleOther ?? theme.surface, borderColor: theme.outlineLight },
+                                { backgroundColor: theme.chatBubbleIn },
                             ],
                     ]}
                     accessibilityRole="button"
                     accessibilityLabel={isOwn ? "Your message" : `${otherUserName} message`}
                 >
                     {isDeleted ? (
-                        <ThemedText type="caption" themeColor="textTertiary" style={styles.deletedText}>
+                        <ThemedText type="caption" style={[styles.deletedText, { color: theme.chatTextMuted }]}>
                             Message deleted
                         </ThemedText>
                     ) : (
                         <LinkifiedText
                             style={[
                                 styles.messageText,
-                                { color: isOwn ? (theme.bubbleOwnText ?? "#2D2D2D") : theme.text },
+                                { color: isOwn ? theme.chatBubbleOutText : theme.chatBubbleInText },
                             ]}
-                            linkColor={isOwn ? (theme.bubbleOwnText ?? "#2D2D2D") : theme.accentDark}
+                            linkColor={theme.chatAccent}
                         >
                             {message.text}
                         </LinkifiedText>
                     )}
                     {firstUrl ? (
                         <View style={styles.linkPreviewWrap}>
-                            <LinkPreviewCard url={firstUrl} compact embedded={isOwn} />
+                            <LinkPreviewCard url={firstUrl} compact embedded={isOwn} tone={isOwn ? "out" : "in"} />
                         </View>
                     ) : null}
                 </Pressable>
@@ -157,6 +157,7 @@ export const DmMessageItem = memo(function DmMessageItem({
                             onAdd={onAddReaction}
                             compact
                             wrap
+                            chat
                         />
                     </View>
                 )}
@@ -166,7 +167,7 @@ export const DmMessageItem = memo(function DmMessageItem({
                         type="caption"
                         style={[
                             styles.timestamp,
-                            { color: message.status === "failed" ? theme.error : theme.textTertiary },
+                            { color: message.status === "failed" ? theme.error : theme.chatTextMuted },
                             isOwn && styles.timestampOwn,
                         ]}
                     >
@@ -193,20 +194,31 @@ const styles = StyleSheet.create({
     bubbleWrapperOwn: { alignItems: "flex-end" },
     bubbleWrapperOther: { alignItems: "flex-start" },
     bubble: {
-        paddingHorizontal: Spacing.sm + 2,
-        paddingVertical: Spacing.sm,
+        // Deliberate chat ratio: roomier sides, cozy top/bottom
+        paddingHorizontal: 14,
+        paddingVertical: 8,
         borderRadius: Radius.lg,
     },
     bubbleOwn: {
-        borderBottomRightRadius: 5,
+        // outgoing: 16 16 4 16
+        borderBottomRightRadius: 4,
     },
     bubbleOther: {
-        borderWidth: 1.5,
-        borderBottomLeftRadius: 5,
+        // incoming: 16 16 16 4
+        borderBottomLeftRadius: 4,
     },
+    reactionsWrap: {
+        // Slight tuck under the bubble's bottom edge, inset from the corner curve
+        marginTop: -7,
+    },
+    reactionsOwn: { alignSelf: "flex-end", marginRight: 6 },
+    reactionsOther: { alignSelf: "flex-start", marginLeft: 6 },
     messageText: {
         fontSize: Typography.body,
-        lineHeight: LineHeight.body - 1,
+        // Tighter than body copy: keeps single-line bubbles short and multi-line gaps chat-like
+        lineHeight: 21,
+        // Android-only: drop the extra font-metric padding so 8/8 bubble padding renders symmetric
+        includeFontPadding: false,
     },
     linkPreviewWrap: {
         marginTop: Spacing.sm,
@@ -220,10 +232,4 @@ const styles = StyleSheet.create({
     deletedText: {
         fontStyle: "italic",
     },
-    reactionsWrap: {
-        marginTop: 4,
-    },
-    reactionsOwn: { alignSelf: "flex-end" },
-    reactionsOther: { alignSelf: "flex-start" },
 });
-

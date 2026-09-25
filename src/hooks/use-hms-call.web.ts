@@ -29,7 +29,7 @@ export function useHmsCall() {
     const isConnected = useHMSStore(selectIsConnectedToRoom);
     const isLocalAudioEnabled = useHMSStore(selectIsLocalAudioEnabled);
     const peers = useHMSStore(selectPeers);
-    const [isReconnecting, setIsReconnecting] = useState(false);
+    const [isReconnecting] = useState(false);
 
     const join = useCallback(
         async (roomCode: string, userName: string) => {
@@ -42,6 +42,7 @@ export function useHmsCall() {
                 });
             } catch (err) {
                 console.error("[HMS Web] Join failed:", err);
+                throw err;
             }
         },
         [hmsActions],
@@ -59,7 +60,7 @@ export function useHmsCall() {
     const callPeers: CallPeer[] = (peers ?? []).map((peer) => ({
         peerId: peer.id,
         name: peer.name,
-        isAudioMuted: !peer.audioEnabled,
+        isAudioMuted: peer.isLocal ? !isLocalAudioEnabled : false,
         isLocal: peer.isLocal,
     }));
 

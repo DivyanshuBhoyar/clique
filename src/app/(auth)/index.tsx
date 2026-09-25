@@ -26,28 +26,44 @@
 import { useAuthActions } from '@convex-dev/auth/react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useMutation, useQuery } from 'convex/react';
+import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { HomeMiniHeader } from '@/components/home/home-mini-header';
 import { HomeSettingsSheet } from '@/components/home/home-settings-sheet';
-import { NoSquadsLanding } from '@/components/home/no-squads-landing';
+import { NoSquadsLanding, SquadJoinForm } from '@/components/home/no-squads-landing';
 import { RecentActivitySection } from '@/components/home/recent-activity-section';
 import { SquadHero } from '@/components/home/squad-hero';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { AnimatedPressable } from '@/components/ui/animated-pressable';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { DashedSeparator } from '@/components/ui/dashed-separator';
 import { Fab } from '@/components/ui/fab';
 import { LoadingState } from '@/components/ui/loading-state';
-import { Radius, Shadows, Spacing, Typography } from '@/constants/theme';
+import { LineHeight, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { useTheme } from '@/hooks/use-theme';
 import { useToast } from '@/hooks/use-toast';
+import { useWebPushNotifications } from '@/hooks/use-web-push-notifications';
 import { heavyImpact } from '@/utils/haptics';
+
+const WEB_PUSH_DISMISS_KEY = 'webPushBannerDismissedAt';
+
+async function shouldShowWebPushBanner(): Promise<boolean> {
+    if (typeof window === 'undefined' || typeof Notification === 'undefined') return false;
+    if (Notification.permission === 'granted' || Notification.permission === 'denied') return false;
+    const dismissedAt = await AsyncStorage.getItem(WEB_PUSH_DISMISS_KEY);
+    if (dismissedAt) {
+        const elapsed = Date.now() - Number(dismissedAt);
+        if (!Number.isNaN(elapsed) && elapsed < 7 * 24 * 60 * 60 * 1000) return false;
+    }
+    return true;
+}
 
 export default function HomeScreen() {
     const router = useRouter();
@@ -64,6 +80,10 @@ export default function HomeScreen() {
     const [isJoining, setIsJoining] = useState(false);
     const [hasRedirected, setHasRedirected] = useState(false);
     const [activeSquadIndex, setActiveSquadIndex] = useState(0);
+    const [showWebPushBanner, setShowWebPushBanner] = useState(false);
+    const [webPushBusy, setWebPushBusy] = useState(false);
+
+    const webPush = useWebPushNotifications(Platform.OS === 'web' && showWebPushBanner);
 
     const joinSquad = useMutation(api.squad.joinSquad);
     const userSquads = useQuery(api.squad.getUserSquads);
@@ -95,7 +115,7 @@ export default function HomeScreen() {
         } catch (error) {
             const message = error instanceof Error && error.message
                 ? error.message
-                : 'Wrong password or squad name';
+                : 'Wrong password or Space name';
             toast.error(message);
         } finally {
             setIsJoining(false);
@@ -116,7 +136,18 @@ export default function HomeScreen() {
     );
     const memberCount = squadMembers?.length ?? 0;
 
-    /* ── No squads yet ─────────────────────────────────────────────── */
+    useEffect(() => {
+        if (Platform.OS !== 'web') return;
+        let cancelled = false;
+        void shouldShowWebPushBanner().then((show) => {
+            if (!cancelled) setShowWebPushBanner(show);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    /* ── No spaces yet ─────────────────────────────────────────────── */
     if (userSquads === undefined) return <LoadingState />;
 
     if (userSquads.length === 0) {
@@ -149,6 +180,28 @@ export default function HomeScreen() {
             <SafeAreaView style={styles.safeArea} edges={['top']}>
                 <HomeMiniHeader onSettingsPress={() => setShowSettings(true)} onMessagesPress={() => router.push('/(auth)/dm' as any)} />
 
+                {Platform.OS === 'web' && showWebPushBanner && (
+                    <View style={styles.bannerWrap}>
+                        <WebPushBannerCard
+                            standalone={webPush.standalone}
+                            busy={webPushBusy}
+                            onEnable={async () => {
+                                setWebPushBusy(true);
+                                await webPush.enable();
+                                setWebPushBusy(false);
+                                // Hide when permission settled (subscribed or blocked).
+                                if (webPush.status.state === 'subscribed' || webPush.status.state === 'denied') {
+                                    setShowWebPushBanner(false);
+                                }
+                            }}
+                            onDismiss={async () => {
+                                await AsyncStorage.setItem(WEB_PUSH_DISMISS_KEY, String(Date.now()));
+                                setShowWebPushBanner(false);
+                            }}
+                        />
+                    </View>
+                )}
+
                 <ScrollView
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}
@@ -160,7 +213,24 @@ export default function HomeScreen() {
                                 squadsUnreadSummary={squadsUnreadSummary ?? []}
                                 onSelect={(squadId) => router.push(`/squad/${squadId}/chat` as any)}
                                 onCreate={() => router.push('/create-squad')}
+                                onJoin={() => setShowJoinForm(true)}
                             />
+
+                            {showJoinForm && (
+                                <View style={{ paddingHorizontal: Spacing.lg }}>
+                                    <SquadJoinForm
+                                        squadName={squadName}
+                                        password={password}
+                                        nickname={nickname}
+                                        isJoining={isJoining}
+                                        onCancel={() => setShowJoinForm(false)}
+                                        onChangeSquadName={setSquadName}
+                                        onChangePassword={setPassword}
+                                        onChangeNickname={setNickname}
+                                        onSubmit={submitJoinSquad}
+                                    />
+                                </View>
+                            )}
 
                             <DashedSeparator />
 
@@ -179,6 +249,7 @@ export default function HomeScreen() {
                             {/* Squad hero */}
                             <SquadHero
                                 squadName={activeSquad?.name ?? 'Your Squad'}
+                                squadAvatarUrl={activeSquad?.avatarUrl}
                                 memberCount={memberCount}
                                 squadMembers={squadMembers}
                                 userSquads={userSquads}
@@ -207,7 +278,7 @@ export default function HomeScreen() {
 
                 <Fab
                     onPress={() => router.push('/create-squad')}
-                    accessibilityLabel="Create new squad"
+                    accessibilityLabel="Create new space"
                 />
 
                 <HomeSettingsSheet
@@ -228,7 +299,7 @@ export default function HomeScreen() {
                 <ConfirmDialog
                     visible={showSignOutConfirm}
                     title="Sign out?"
-                    message="You can always come back with your email and rejoin your squad."
+                    message="You can always come back with your email and rejoin your space."
                     confirmLabel="Sign out"
                     destructive
                     onCancel={() => setShowSignOutConfirm(false)}
@@ -243,19 +314,78 @@ export default function HomeScreen() {
     );
 }
 
-function SquadPickerList({ userSquads, squadsUnreadSummary, onSelect, onCreate }: {
-    userSquads: { squad: { _id: string; name: string } | null }[];
+function WebPushBannerCard({
+    standalone,
+    busy,
+    onEnable,
+    onDismiss,
+}: {
+    standalone: boolean;
+    busy: boolean;
+    onEnable: () => void;
+    onDismiss: () => void;
+}) {
+    const theme = useTheme();
+
+    const needsInstall = !standalone && isIosSafari();
+
+    return (
+        <View style={[styles.bannerCard, { backgroundColor: theme.surfaceAccent, borderColor: theme.outline }]}>
+            <ThemedText type="smallBold" style={styles.bannerTitle}>
+                {needsInstall ? 'Enable notifications on iPhone' : 'Stay in the loop'}
+            </ThemedText>
+            <ThemedText type="caption" themeColor="textSecondary" style={styles.bannerBody}>
+                {needsInstall
+                    ? 'Tap Share → “Add to Home Screen”, open Clique from your Home Screen, then enable notifications here.'
+                    : 'Get a gentle ping when your space needs you — even when this tab is closed.'}
+            </ThemedText>
+            <View style={styles.bannerActions}>
+                <Pressable
+                    onPress={onEnable}
+                    disabled={busy}
+                    accessibilityRole="button"
+                    accessibilityLabel="Enable browser notifications"
+                    style={[styles.bannerPrimary, { backgroundColor: theme.accent }]}
+                >
+                    <ThemedText type="smallBold" style={{ color: theme.text }}>
+                        {busy ? 'Asking…' : 'Enable'}
+                    </ThemedText>
+                </Pressable>
+                <Pressable
+                    onPress={onDismiss}
+                    accessibilityRole="button"
+                    accessibilityLabel="Not now"
+                    style={styles.bannerSecondary}
+                >
+                    <ThemedText type="small" themeColor="textSecondary">
+                        Not now
+                    </ThemedText>
+                </Pressable>
+            </View>
+        </View>
+    );
+}
+
+function isIosSafari() {
+    if (typeof navigator === 'undefined') return false;
+    const ua = navigator.userAgent;
+    return /iPhone|iPad|iPod/.test(ua) && /Safari/.test(ua) && !/CriOS|FxiOS|OPiOS/.test(ua);
+}
+
+function SquadPickerList({ userSquads, squadsUnreadSummary, onSelect, onCreate, onJoin }: {
+    userSquads: { squad: { _id: string; name: string; avatarUrl?: string | null } | null }[];
     squadsUnreadSummary: { squadId: string; hasUnread: boolean }[];
     onSelect: (squadId: string) => void;
     onCreate: () => void;
+    onJoin: () => void;
 }) {
     const theme = useTheme();
     const unreadSet = new Set(squadsUnreadSummary.filter(s => s.hasUnread).map(s => s.squadId));
     return (
         <View style={switcherStyles.container}>
-            <ThemedText type="title" style={switcherStyles.heading}>Your Squads</ThemedText>
+            <ThemedText type="title" style={switcherStyles.heading}>Your Spaces</ThemedText>
             <ThemedText type="small" themeColor="textSecondary" style={switcherStyles.subtitle}>
-                Pick a squad to jump into
+                Pick a space to jump into
             </ThemedText>
 
             <View style={switcherStyles.list}>
@@ -263,9 +393,11 @@ function SquadPickerList({ userSquads, squadsUnreadSummary, onSelect, onCreate }
                     if (!entry.squad) return null;
                     const hasUnread = unreadSet.has(entry.squad._id);
                     return (
-                        <Pressable
+                        <AnimatedPressable
                             key={entry.squad._id}
                             onPress={() => onSelect(entry.squad!._id)}
+                            pressedScale={0.98}
+                            pressedTranslateY={1}
                             style={[
                                 switcherStyles.card,
                                 {
@@ -277,7 +409,11 @@ function SquadPickerList({ userSquads, squadsUnreadSummary, onSelect, onCreate }
                         >
                             <View>
                                 <View style={[switcherStyles.cardIcon, { backgroundColor: theme.accent, borderColor: theme.outline }]}>
-                                    <ThemedText style={{ fontSize: Typography.title }}>🏠</ThemedText>
+                                    {entry.squad.avatarUrl ? (
+                                        <Image source={{ uri: entry.squad.avatarUrl }} style={switcherStyles.cardIconImage} contentFit="cover" />
+                                    ) : (
+                                        <ThemedText style={{ fontSize: Typography.title, lineHeight: LineHeight.title }}>🏠</ThemedText>
+                                    )}
                                 </View>
                                 {hasUnread ? (
                                     <View style={[switcherStyles.badge, { backgroundColor: theme.error, borderColor: theme.surface }]} />
@@ -285,24 +421,43 @@ function SquadPickerList({ userSquads, squadsUnreadSummary, onSelect, onCreate }
                             </View>
                             <ThemedText type="bodyBold" style={{ flex: 1 }}>{entry.squad.name}</ThemedText>
                             <ThemedText themeColor="textTertiary">→</ThemedText>
-                        </Pressable>
+                        </AnimatedPressable>
                     );
                 })}
 
-                <Pressable
+                <AnimatedPressable
                     onPress={onCreate}
+                    pressedScale={0.98}
+                    pressedTranslateY={1}
                     style={[
                         switcherStyles.createCard,
                         { backgroundColor: theme.accent, borderColor: theme.outline, shadowColor: theme.shadow },
                     ]}
                 >
-                    <ThemedText style={{ fontSize: Typography.title }}>🚀</ThemedText>
+                    <ThemedText style={{ fontSize: Typography.title, lineHeight: LineHeight.title }}>🚀</ThemedText>
                     <View style={{ flex: 1 }}>
                         <ThemedText type="smallBold">Start something new</ThemedText>
-                        <ThemedText type="caption" themeColor="textSecondary">Create or join a squad</ThemedText>
+                        <ThemedText type="caption" themeColor="textSecondary">Create a space</ThemedText>
                     </View>
                     <ThemedText style={{ fontSize: Typography.body }}>→</ThemedText>
-                </Pressable>
+                </AnimatedPressable>
+
+                <AnimatedPressable
+                    onPress={onJoin}
+                    pressedScale={0.98}
+                    pressedTranslateY={1}
+                    style={[
+                        switcherStyles.createCard,
+                        { backgroundColor: theme.surface, borderColor: theme.outline, shadowColor: theme.shadow },
+                    ]}
+                >
+                    <ThemedText style={{ fontSize: Typography.title, lineHeight: LineHeight.title }}>🔑</ThemedText>
+                    <View style={{ flex: 1 }}>
+                        <ThemedText type="smallBold">Join a space</ThemedText>
+                        <ThemedText type="caption" themeColor="textSecondary">Enter name & password</ThemedText>
+                    </View>
+                    <ThemedText style={{ fontSize: Typography.body }}>→</ThemedText>
+                </AnimatedPressable>
             </View>
         </View>
     );
@@ -331,9 +486,9 @@ const switcherStyles = StyleSheet.create({
         borderWidth: 2,
         borderRadius: Radius.lg,
         gap: Spacing.md,
-        shadowOffset: Shadows.md.offset,
-        shadowOpacity: Shadows.md.opacity,
-        shadowRadius: Shadows.md.radius,
+        shadowOffset: Shadows.md.shadowOffset,
+        shadowOpacity: Shadows.md.shadowOpacity,
+        shadowRadius: Shadows.md.shadowRadius,
         elevation: 3,
     },
     cardIcon: {
@@ -343,6 +498,11 @@ const switcherStyles = StyleSheet.create({
         borderWidth: 2,
         alignItems: 'center',
         justifyContent: 'center',
+        overflow: 'hidden',
+    },
+    cardIconImage: {
+        width: 44,
+        height: 44,
     },
     badge: {
         position: 'absolute',
@@ -360,9 +520,9 @@ const switcherStyles = StyleSheet.create({
         borderWidth: 2,
         borderRadius: Radius.lg,
         gap: Spacing.md,
-        shadowOffset: Shadows.sm.offset,
-        shadowOpacity: Shadows.sm.opacity,
-        shadowRadius: Shadows.sm.radius,
+        shadowOffset: Shadows.sm.shadowOffset,
+        shadowOpacity: Shadows.sm.shadowOpacity,
+        shadowRadius: Shadows.sm.shadowRadius,
         elevation: 2,
     },
 });
@@ -373,5 +533,44 @@ const styles = StyleSheet.create({
     scrollContent: {
         paddingBottom: 100,
         gap: Spacing.xl,
+    },
+    bannerWrap: {
+        paddingHorizontal: Spacing.lg,
+        paddingTop: Spacing.md,
+    },
+    bannerCard: {
+        borderWidth: 2,
+        borderRadius: Radius.lg,
+        padding: Spacing.md,
+        gap: Spacing.xs,
+        shadowOffset: Shadows.sm.shadowOffset,
+        shadowOpacity: Shadows.sm.shadowOpacity,
+        shadowRadius: Shadows.sm.shadowRadius,
+        elevation: 2,
+    },
+    bannerTitle: {},
+    bannerBody: {
+        lineHeight: LineHeight.small,
+    },
+    bannerActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.md,
+        marginTop: Spacing.xs,
+    },
+    bannerPrimary: {
+        minHeight: 40,
+        paddingHorizontal: Spacing.lg,
+        borderRadius: Radius.md,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 2,
+        borderColor: 'transparent',
+    },
+    bannerSecondary: {
+        minHeight: 40,
+        paddingHorizontal: Spacing.md,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
 });

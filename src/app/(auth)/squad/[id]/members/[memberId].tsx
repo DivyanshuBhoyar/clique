@@ -47,7 +47,7 @@ export default function MemberProfileScreen() {
         setShowRemoveConfirm(false);
         try {
             await removeMember({ squadId, memberUserId: profile.userId });
-            toast.success(`${profile.nickname} was removed from the squad`);
+            toast.success(`${profile.nickname} was removed from the space`);
             router.replace(`/squad/${squadId}/members` as any);
         } catch (err: any) {
             toast.error(err.message ?? 'Could not remove member');
@@ -91,7 +91,7 @@ export default function MemberProfileScreen() {
                     </InfoCard>
 
                     <InfoCard icon={<UserRound size={18} color={theme.text} strokeWidth={2.5} />} label="Squad role">
-                        <ThemedText type="bodyBold">{profile.isOwner ? 'Squad creator' : 'Member'}</ThemedText>
+                        <ThemedText type="bodyBold">{profile.isOwner ? 'Space creator' : 'Member'}</ThemedText>
                         <ThemedText type="small" themeColor="textSecondary">Joined {formatRelativeTime(profile.joinedAt)}</ThemedText>
                     </InfoCard>
 
@@ -104,7 +104,7 @@ export default function MemberProfileScreen() {
                     {canRemoveMember ? (
                         <View style={[styles.dangerCard, { backgroundColor: theme.errorSoft, borderColor: theme.error }]}>
                             <View style={styles.dangerCopy}>
-                                <ThemedText type="bodyBold" style={{ color: theme.error }}>Remove from squad</ThemedText>
+                                <ThemedText type="bodyBold" style={{ color: theme.error }}>Remove from space</ThemedText>
                                 <ThemedText type="caption" themeColor="textSecondary">
                                     They will lose access immediately and need the password to rejoin.
                                 </ThemedText>
@@ -163,9 +163,9 @@ const styles = StyleSheet.create({
         borderWidth: 2,
         borderRadius: Radius.xl,
         padding: Spacing.xl,
-        shadowOffset: Shadows.md.offset,
-        shadowOpacity: Shadows.md.opacity,
-        shadowRadius: Shadows.md.radius,
+        shadowOffset: Shadows.md.shadowOffset,
+        shadowOpacity: Shadows.md.shadowOpacity,
+        shadowRadius: Shadows.md.shadowRadius,
         elevation: 3,
     },
     avatarWrap: { position: 'relative' },

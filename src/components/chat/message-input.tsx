@@ -35,7 +35,7 @@ export function MessageInput({ onSend, onSendImage, onSendGif, onEdit, onTyping,
   const [gifPickerVisible, setGifPickerVisible] = useState(false);
   const [pendingGif, setPendingGif] = useState<GiphyGif | null>(null);
   const theme = useTheme();
-  const { previewUri, storageId, uploading, pickAndUpload, reset } = useImageUpload();
+  const { previewUri, storageId, uploading, pickAndUpload, reset } = useImageUpload({ target: 'chatImage' });
   const isEditing = editContent !== undefined && editContent !== null;
 
   useEffect(() => {
@@ -75,23 +75,36 @@ export function MessageInput({ onSend, onSendImage, onSendGif, onEdit, onTyping,
     }
   };
 
+  // Web: plain Enter sends, Shift+Enter inserts a newline (default textarea behavior).
+  // react-native-web invokes onKeyPress with the DOM keyboard event and skips its
+  // own submit handling once preventDefault is called, so no double-send is possible.
+  // NOTE: a custom onKeyDown prop does NOT work — react-native-web overwrites it
+  // internally (supportedProps.onKeyDown = handleKeyDown).
+  const handleWebKeyPress = (e: any) => {
+    const key = e?.key ?? e?.nativeEvent?.key;
+    if (key !== 'Enter' || e?.shiftKey) return;
+    if (e?.nativeEvent?.isComposing || e?.isComposing || e?.keyCode === 229) return;
+    e.preventDefault?.();
+    void handleSend();
+  };
+
   return (
     <>
     <View
       style={[
         styles.container,
         {
-          backgroundColor: theme.background,
-          borderTopColor: theme.outlineLight,
+          backgroundColor: theme.chatSurface,
+          borderTopColor: theme.chatBorder,
         },
       ]}
     >
       {isEditing ? (
-        <View style={[styles.replyComposer, { borderBottomColor: theme.outlineLight }]}>
-          <View style={[styles.replyBar, { backgroundColor: theme.accent }]} />
+        <View style={[styles.replyComposer, { borderBottomColor: theme.chatBorder }]}>
+          <View style={[styles.replyBar, { backgroundColor: theme.chatAccent }]} />
           <View style={styles.replyCopy}>
-            <ThemedText type="caption" style={[styles.replyLabel, { color: theme.textSecondary }]}>Editing message</ThemedText>
-            <ThemedText type="small" style={{ color: theme.text }} numberOfLines={1}>
+            <ThemedText type="caption" style={[styles.replyLabel, { color: theme.chatTextMuted }]}>Editing message</ThemedText>
+            <ThemedText type="small" style={{ color: theme.chatBubbleInText }} numberOfLines={1}>
               Save changes or cancel to keep the original.
             </ThemedText>
           </View>
@@ -102,17 +115,17 @@ export function MessageInput({ onSend, onSendImage, onSendGif, onEdit, onTyping,
             hitSlop={8}
             style={styles.cancelReplyButton}
           >
-            <X size={16} color={theme.textSecondary} />
+            <X size={16} color={theme.chatTextMuted} />
           </Pressable>
         </View>
       ) : replyTo ? (
-        <View style={[styles.replyComposer, { borderBottomColor: theme.outlineLight }]}>
-          <View style={[styles.replyBar, { backgroundColor: theme.accent }]} />
+        <View style={[styles.replyComposer, { borderBottomColor: theme.chatBorder }]}>
+          <View style={[styles.replyBar, { backgroundColor: theme.chatAccent }]} />
           <View style={styles.replyCopy}>
-            <ThemedText type="caption" style={[styles.replyLabel, { color: theme.textSecondary }]}>
+            <ThemedText type="caption" style={[styles.replyLabel, { color: theme.chatTextMuted }]}>
               Replying to {replyTo.nickname ?? 'someone'}
             </ThemedText>
-            <ThemedText type="small" style={{ color: theme.text }} numberOfLines={1}>
+            <ThemedText type="small" style={{ color: theme.chatBubbleInText }} numberOfLines={1}>
               {replyTo.content}
             </ThemedText>
           </View>
@@ -123,7 +136,7 @@ export function MessageInput({ onSend, onSendImage, onSendGif, onEdit, onTyping,
             hitSlop={8}
             style={styles.cancelReplyButton}
           >
-            <X size={16} color={theme.textSecondary} />
+            <X size={16} color={theme.chatTextMuted} />
           </Pressable>
         </View>
       ) : null}
@@ -138,7 +151,7 @@ export function MessageInput({ onSend, onSendImage, onSendGif, onEdit, onTyping,
             </Pressable>
             {uploading && (
               <View style={styles.uploadingOverlay}>
-                <ActivityIndicator size="small" color={theme.accent} />
+                <ActivityIndicator size="small" color={theme.chatAccent} />
               </View>
             )}
           </View>
@@ -163,14 +176,14 @@ export function MessageInput({ onSend, onSendImage, onSendGif, onEdit, onTyping,
           <Pressable
             accessibilityLabel="Add attachment"
             accessibilityRole="button"
-            style={[styles.sideBtn, { backgroundColor: theme.surface, borderColor: theme.outlineLight }]}
+            style={[styles.sideBtn, { backgroundColor: theme.chatSurface, borderColor: theme.chatBorder }]}
             onPress={pickAndUpload}
             disabled={uploading}
           >
             {uploading ? (
-              <ActivityIndicator size="small" color={theme.textSecondary} />
+              <ActivityIndicator size="small" color={theme.chatTextMuted} />
             ) : (
-              <Plus size={16} color={theme.textSecondary} strokeWidth={2} />
+              <Plus size={16} color={theme.chatTextMuted} strokeWidth={2} />
             )}
           </Pressable>
         ) : null}
@@ -180,11 +193,11 @@ export function MessageInput({ onSend, onSendImage, onSendGif, onEdit, onTyping,
           <Pressable
             accessibilityLabel="Send a GIF"
             accessibilityRole="button"
-            style={[styles.gifBtn, { backgroundColor: theme.surface, borderColor: theme.outlineLight }]}
+            style={[styles.gifBtn, { backgroundColor: theme.chatSurface, borderColor: theme.chatBorder }]}
             onPress={() => setGifPickerVisible(true)}
             disabled={uploading}
           >
-            <ThemedText style={[styles.gifBtnLabel, { color: theme.textSecondary }]}>GIF</ThemedText>
+            <ThemedText style={[styles.gifBtnLabel, { color: theme.chatTextMuted }]}>GIF</ThemedText>
           </Pressable>
         ) : null}
 
@@ -193,8 +206,8 @@ export function MessageInput({ onSend, onSendImage, onSendGif, onEdit, onTyping,
           style={[
             styles.inputWrap,
             {
-              backgroundColor: theme.surface,
-              borderColor: theme.outlineLight,
+              backgroundColor: theme.chatSurface,
+              borderColor: theme.chatBorder,
             },
           ]}
         >
@@ -202,16 +215,19 @@ export function MessageInput({ onSend, onSendImage, onSendGif, onEdit, onTyping,
             value={text}
             onChangeText={(v) => { setText(v); onTyping?.(); }}
             placeholder={isEditing ? "Edit message..." : previewUri ? "Add a caption..." : "Say something..."}
-            placeholderTextColor={theme.placeholder}
+            placeholderTextColor={theme.chatTextMuted}
             style={[
               styles.input,
               Platform.OS === 'web' && styles.webInput,
-              { color: theme.text },
+              { color: theme.chatBubbleInText },
             ]}
-            cursorColor={theme.text}
-            selectionColor={theme.accent}
+            cursorColor={theme.chatBubbleInText}
+            selectionColor={theme.chatAccent}
             returnKeyType="send"
-            onSubmitEditing={handleSend}
+            blurOnSubmit={false}
+            onSubmitEditing={Platform.OS === 'web' ? undefined : handleSend}
+            onKeyPress={Platform.OS === 'web' ? handleWebKeyPress : undefined}
+            testID="chat-message-input"
             multiline
           />
         </View>
@@ -225,15 +241,15 @@ export function MessageInput({ onSend, onSendImage, onSendGif, onEdit, onTyping,
           style={({ pressed }) => [
             styles.sendBtn,
             {
-              backgroundColor: canSend ? '#7357E8' : theme.backgroundElement,
-              borderColor: canSend ? '#7357E8' : theme.outlineLight,
+              backgroundColor: canSend ? theme.chatAccent : theme.chatBorder,
+              borderColor: canSend ? theme.chatAccent : theme.chatBorder,
             },
             pressed && canSend && styles.sendBtnPressed,
           ]}
         >
           <Send
             size={14}
-            color={canSend ? theme.surface : theme.textSecondary}
+            color={canSend ? theme.chatOnAccent : theme.chatTextMuted}
             strokeWidth={2.5}
           />
         </Pressable>
@@ -259,7 +275,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.xs,
     gap: Spacing.sm,
   },
   previewRow: {
@@ -351,7 +367,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: Radius.full,
     borderWidth: 1,
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
     maxHeight: 104,
   },
@@ -364,6 +380,7 @@ const styles = StyleSheet.create({
   },
   webInput: {
     outlineWidth: 0,
+    outlineColor: 'transparent',
   },
   sendBtn: {
     width: 36,

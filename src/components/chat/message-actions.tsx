@@ -38,8 +38,8 @@ export function MessageActions({
     return (
         <Modal transparent animationType="fade" onRequestClose={onClose}>
             <Pressable style={styles.overlay} onPress={onClose}>
-                <View style={[styles.sheet, { backgroundColor: theme.surface, borderColor: theme.outline, borderTopWidth: 2 }]}>
-                    <View style={[styles.reactionRow, { borderBottomColor: theme.outlineLight }]}>
+                <View style={[styles.sheet, { backgroundColor: theme.chatSurface, borderColor: theme.chatBorder, borderTopWidth: 2 }]}>
+                    <View style={[styles.reactionRow, { borderBottomColor: theme.chatBorder }]}>
                         {mostUsedEmojis.map((emoji) => (
                             <Pressable
                                 key={emoji}
@@ -63,7 +63,7 @@ export function MessageActions({
                                 accessibilityRole="button"
                                 accessibilityLabel="Open full emoji picker"
                             >
-                                <Text style={[styles.emoji, { color: theme.textSecondary }]}>+</Text>
+                                <Text style={[styles.emoji, { color: theme.chatTextMuted }]}>+</Text>
                             </Pressable>
                         )}
                     </View>
@@ -71,12 +71,12 @@ export function MessageActions({
                     {onReply && (
                         <Pressable
                             onPress={() => { onReply(); onClose(); }}
-                            style={[styles.actionRow, { borderBottomColor: theme.outlineLight }]}
+                            style={[styles.actionRow, { borderBottomColor: theme.chatBorder }]}
                             accessibilityRole="button"
                             accessibilityLabel="Reply to message"
                         >
-                            <Reply size={18} color={theme.text} strokeWidth={2} />
-                            <Text style={{ color: theme.text, fontSize: Typography.body, fontWeight: Weight.medium }}>
+                            <Reply size={18} color={theme.chatBubbleInText} strokeWidth={2} />
+                            <Text style={{ color: theme.chatBubbleInText, fontSize: Typography.body, fontWeight: Weight.medium }}>
                                 Reply
                             </Text>
                         </Pressable>
@@ -85,17 +85,17 @@ export function MessageActions({
                     {onBookmark && (
                         <Pressable
                             onPress={() => { onBookmark(); onClose(); }}
-                            style={[styles.actionRow, { borderBottomColor: theme.outlineLight }]}
+                            style={[styles.actionRow, { borderBottomColor: theme.chatBorder }]}
                             accessibilityRole="button"
                             accessibilityLabel={isBookmarked ? 'Remove bookmark' : 'Bookmark'}
                         >
                             <Bookmark
                                 size={18}
-                                color={isBookmarked ? theme.accent : theme.text}
-                                fill={isBookmarked ? theme.accent : 'none'}
+                                color={isBookmarked ? theme.chatAccent : theme.chatBubbleInText}
+                                fill={isBookmarked ? theme.chatAccent : 'none'}
                                 strokeWidth={2}
                             />
-                            <Text style={{ color: theme.text, fontSize: Typography.body, fontWeight: Weight.medium }}>
+                            <Text style={{ color: theme.chatBubbleInText, fontSize: Typography.body, fontWeight: Weight.medium }}>
                                 {isBookmarked ? 'Remove bookmark' : 'Bookmark'}
                             </Text>
                         </Pressable>
@@ -104,12 +104,12 @@ export function MessageActions({
                     {isOwnMessage && onEdit && (
                         <Pressable
                             onPress={() => { onEdit(); onClose(); }}
-                            style={[styles.actionRow, { borderBottomColor: theme.outlineLight }]}
+                            style={[styles.actionRow, { borderBottomColor: theme.chatBorder }]}
                             accessibilityRole="button"
                             accessibilityLabel="Edit message"
                         >
-                            <Pencil size={18} color={theme.text} strokeWidth={2} />
-                            <Text style={{ color: theme.text, fontSize: Typography.body, fontWeight: Weight.medium }}>
+                            <Pencil size={18} color={theme.chatBubbleInText} strokeWidth={2} />
+                            <Text style={{ color: theme.chatBubbleInText, fontSize: Typography.body, fontWeight: Weight.medium }}>
                                 Edit
                             </Text>
                         </Pressable>
@@ -118,7 +118,7 @@ export function MessageActions({
                     {isOwnMessage && (
                         <Pressable
                             onPress={() => { heavyImpact(); onDelete(); onClose(); }}
-                            style={[styles.actionButton, { borderBottomColor: theme.outlineLight }]}
+                            style={[styles.actionButton, { borderBottomColor: theme.chatBorder }]}
                             accessibilityRole="button"
                             accessibilityLabel="Delete message"
                         >
@@ -127,7 +127,7 @@ export function MessageActions({
                     )}
 
                     <Pressable onPress={onClose} style={styles.actionButton}>
-                        <Text style={{ color: theme.textSecondary }}>Cancel</Text>
+                        <Text style={{ color: theme.chatTextMuted }}>Cancel</Text>
                     </Pressable>
                 </View>
             </Pressable>

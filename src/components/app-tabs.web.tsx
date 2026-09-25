@@ -1,14 +1,14 @@
 import {
-  Tabs,
-  TabList,
-  TabTrigger,
-  TabSlot,
-  TabTriggerSlotProps,
-  TabListProps,
+    TabList,
+    TabListProps,
+    Tabs,
+    TabSlot,
+    TabTrigger,
+    TabTriggerSlotProps,
 } from 'expo-router/ui';
 import { SymbolView } from 'expo-symbols';
 import React from 'react';
-import { Pressable, useColorScheme, View, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, useColorScheme, View } from 'react-native';
 
 import { ExternalLink } from './external-link';
 import { ThemedText } from './themed-text';
@@ -56,7 +56,7 @@ export function CustomTabList(props: TabListProps) {
     <View {...props} style={styles.tabListContainer}>
       <ThemedView type="backgroundElement" style={styles.innerContainer}>
         <ThemedText type="smallBold" style={styles.brandText}>
-          Homie Squad
+          Clique
         </ThemedText>
 
         {props.children}

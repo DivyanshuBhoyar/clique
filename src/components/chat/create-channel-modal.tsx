@@ -9,7 +9,7 @@ import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { useTheme } from '@/hooks/use-theme';
 
-type ChannelType = 'topic' | 'mood' | 'ephemeral' | 'private';
+type ChannelType = 'topic' | 'mood' | 'timed' | 'private';
 
 const DURATIONS = [
     { label: '10 min', ms: 10 * 60 * 1000 },
@@ -68,7 +68,7 @@ export function CreateChannelModal({ visible, defaultType, squadId, onClose, onC
                 name: name.trim(),
                 type,
                 emoji: selectedEmoji,
-                expiresAt: type === 'ephemeral' ? Date.now() + duration : undefined,
+                expiresAt: type === 'timed' ? Date.now() + duration : undefined,
                 memberIds: type === 'private' ? [...selectedMembers] as Id<"users">[] : undefined,
             });
             setName('');
@@ -82,40 +82,40 @@ export function CreateChannelModal({ visible, defaultType, squadId, onClose, onC
     };
 
     const canCreate = name.trim().length > 0
-        && (type !== 'ephemeral' || duration > 0)
+        && (type !== 'timed' || duration > 0)
         && (type !== 'private' || selectedMembers.size > 0);
 
     return (
         <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
             <Pressable style={styles.overlay} onPress={onClose}>
-                <Pressable style={[styles.sheet, { backgroundColor: theme.surface, borderColor: theme.outline, borderTopWidth: 2 }]} onPress={(e) => e.stopPropagation()}>
-                    <ThemedText type="heading" style={styles.title}>Create Channel</ThemedText>
+                <Pressable style={[styles.sheet, { backgroundColor: theme.chatSurface, borderColor: theme.chatBorder, borderTopWidth: 2 }]} onPress={(e) => e.stopPropagation()}>
+                    <ThemedText type="heading" style={[styles.title, { color: theme.chatBubbleInText }]}>Create Channel</ThemedText>
 
                     <View style={styles.typeRow}>
-                        {(['topic', 'mood', 'ephemeral', 'private'] as const).map((t) => (
+                        {(['topic', 'mood', 'timed', 'private'] as const).map((t) => (
                             <Pressable
                                 key={t}
                                 onPress={() => setType(t)}
                                 style={[
                                     styles.typeButton,
                                     {
-                                        borderColor: type === t ? theme.text : theme.outlineLight,
-                                        backgroundColor: type === t ? theme.accent : theme.backgroundElement,
+                                        borderColor: type === t ? theme.chatAccent : theme.chatBorder,
+                                        backgroundColor: type === t ? theme.chatAccent : theme.chatSurface,
                                     },
                                 ]}
                                 accessibilityRole="button"
                                 accessibilityLabel={`${t} channel type`}
                             >
-                                <ThemedText type="small" style={{ color: type === t ? theme.text : theme.textSecondary, fontWeight: Weight.semibold }}>
+                                <ThemedText type="small" style={[styles.typeButtonText, { color: type === t ? theme.chatOnAccent : theme.chatTextMuted }]}>
                                     {t === 'private' ? '🔒 Private' : t.charAt(0).toUpperCase() + t.slice(1)}
                                 </ThemedText>
                             </Pressable>
                         ))}
                     </View>
 
-                    {type === 'ephemeral' && (
+                    {type === 'timed' && (
                         <View style={styles.durationSection}>
-                            <ThemedText type="small" themeColor="textSecondary">Duration</ThemedText>
+                            <ThemedText type="small" style={{ color: theme.chatTextMuted }}>Duration</ThemedText>
                             <View style={styles.durationRow}>
                                 {DURATIONS.map(d => (
                                     <Pressable
@@ -124,18 +124,18 @@ export function CreateChannelModal({ visible, defaultType, squadId, onClose, onC
                                         style={[
                                             styles.durationButton,
                                             {
-                                                borderColor: duration === d.ms ? theme.accent : theme.outlineLight,
-                                                backgroundColor: duration === d.ms ? theme.accentSoft : 'transparent',
+                                                borderColor: duration === d.ms ? theme.chatAccent : theme.chatBorder,
+                                                backgroundColor: duration === d.ms ? theme.chatAccentTint : 'transparent',
                                             },
                                         ]}
                                     >
-                                        <ThemedText type="small" style={{ color: duration === d.ms ? theme.accent : theme.textSecondary }}>
+                                        <ThemedText type="small" style={[styles.durationButtonText, { color: duration === d.ms ? theme.chatAccent : theme.chatTextMuted }]}>
                                             {d.label}
                                         </ThemedText>
                                     </Pressable>
                                 ))}
                             </View>
-                            <ThemedText type="caption" themeColor="textTertiary">
+                            <ThemedText type="caption" style={{ color: theme.chatTextMuted }}>
                                 Grace period: {formatGracePeriod(duration)}
                             </ThemedText>
                         </View>
@@ -143,7 +143,7 @@ export function CreateChannelModal({ visible, defaultType, squadId, onClose, onC
 
                     {type === 'private' && (
                         <View style={styles.membersSection}>
-                            <ThemedText type="small" themeColor="textSecondary">
+                            <ThemedText type="small" style={{ color: theme.chatTextMuted }}>
                                 Select members ({selectedMembers.size} selected)
                             </ThemedText>
                             <ScrollView style={styles.membersList} nestedScrollEnabled>
@@ -154,19 +154,19 @@ export function CreateChannelModal({ visible, defaultType, squadId, onClose, onC
                                         style={[
                                             styles.memberRow,
                                             {
-                                                borderColor: selectedMembers.has(m.userId) ? theme.accent : theme.outlineLight,
-                                                backgroundColor: selectedMembers.has(m.userId) ? theme.accentSoft : 'transparent',
+                                                borderColor: selectedMembers.has(m.userId) ? theme.chatAccent : theme.chatBorder,
+                                                backgroundColor: selectedMembers.has(m.userId) ? theme.chatAccentTint : 'transparent',
                                             },
                                         ]}
                                     >
-                                        <ThemedText type="small" style={{ flex: 1 }}>{m.nickname}</ThemedText>
+                                        <ThemedText type="small" style={[styles.memberRowText, { color: theme.chatBubbleInText }]}>{m.nickname}</ThemedText>
                                         {selectedMembers.has(m.userId) && (
-                                            <ThemedText type="small">✓</ThemedText>
+                                            <ThemedText type="small" style={{ color: theme.chatBubbleInText }}>✓</ThemedText>
                                         )}
                                     </Pressable>
                                 ))}
                                 {!members && (
-                                    <ThemedText type="caption" themeColor="textTertiary">Loading members…</ThemedText>
+                                    <ThemedText type="caption" style={{ color: theme.chatTextMuted }}>Loading members…</ThemedText>
                                 )}
                             </ScrollView>
                         </View>
@@ -177,7 +177,7 @@ export function CreateChannelModal({ visible, defaultType, squadId, onClose, onC
                             onPress={() => setShowEmojiPicker(true)}
                             style={[
                                 styles.iconButton,
-                                { borderColor: theme.outline, backgroundColor: theme.inputBackground },
+                                { borderColor: theme.chatBorder, backgroundColor: theme.chatSurface },
                             ]}
                             accessibilityLabel="Pick group icon"
                         >
@@ -189,8 +189,8 @@ export function CreateChannelModal({ visible, defaultType, squadId, onClose, onC
                             value={name}
                             onChangeText={setName}
                             placeholder="Channel name"
-                            placeholderTextColor={theme.textTertiary}
-                            style={[styles.input, { color: theme.text, borderColor: theme.outline, backgroundColor: theme.inputBackground }]}
+                            placeholderTextColor={theme.chatTextMuted}
+                            style={[styles.input, { color: theme.chatBubbleInText, borderColor: theme.chatBorder, backgroundColor: theme.chatSurface }]}
                             autoFocus
                             returnKeyType="done"
                             onSubmitEditing={handleCreate}
@@ -199,7 +199,7 @@ export function CreateChannelModal({ visible, defaultType, squadId, onClose, onC
 
                     <View style={styles.actions}>
                         <Pressable onPress={onClose} style={styles.actionBtn}>
-                            <ThemedText themeColor="textSecondary">Cancel</ThemedText>
+                            <ThemedText style={{ color: theme.chatTextMuted }}>Cancel</ThemedText>
                         </Pressable>
                         <Pressable
                             onPress={handleCreate}
@@ -208,13 +208,13 @@ export function CreateChannelModal({ visible, defaultType, squadId, onClose, onC
                                 styles.actionBtn,
                                 styles.createBtn,
                                 {
-                                    backgroundColor: canCreate && !creating ? theme.accent : theme.backgroundElement,
-                                    borderColor: theme.outline,
+                                    backgroundColor: canCreate && !creating ? theme.chatAccent : theme.chatBorder,
+                                    borderColor: theme.chatBorder,
                                     opacity: canCreate && !creating ? 1 : 0.5,
                                 },
                             ]}
                         >
-                            <ThemedText style={{ fontWeight: Weight.bold, color: theme.text }}>
+                            <ThemedText style={[styles.createBtnText, { color: canCreate && !creating ? theme.chatOnAccent : theme.chatTextMuted }]}>
                                 {creating ? 'Creating…' : 'Create'}
                             </ThemedText>
                         </Pressable>
@@ -263,6 +263,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
+    typeButtonText: {
+        fontWeight: Weight.semibold,
+    },
     durationSection: {
         marginBottom: Spacing.lg,
     },
@@ -281,6 +284,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
+    durationButtonText: {
+        fontWeight: Weight.semibold,
+    },
     membersSection: {
         marginBottom: Spacing.lg,
     },
@@ -297,6 +303,9 @@ const styles = StyleSheet.create({
         borderRadius: Radius.sm,
         marginBottom: Spacing.xs,
         minHeight: 44,
+    },
+    memberRowText: {
+        flex: 1,
     },
     input: {
         flex: 1,
@@ -322,22 +331,23 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     iconButtonText: {
-        fontSize: 24,
+        fontSize: Typography.subtitle,
     },
     actions: {
         flexDirection: 'row',
-        justifyContent: 'flex-end',
-        gap: Spacing.lg,
-        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: Spacing.md,
     },
     actionBtn: {
-        paddingHorizontal: Spacing.lg,
-        paddingVertical: Spacing.sm,
-        minHeight: 44,
-        justifyContent: 'center',
+        flex: 1,
+        alignItems: 'center',
+        paddingVertical: Spacing.md,
+        borderRadius: Radius.md,
     },
     createBtn: {
-        borderRadius: Radius.md,
         borderWidth: BorderWidth.medium,
+    },
+    createBtnText: {
+        fontWeight: Weight.bold,
     },
 });

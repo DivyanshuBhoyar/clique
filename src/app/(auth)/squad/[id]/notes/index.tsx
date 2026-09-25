@@ -29,24 +29,25 @@ import { SearchBar } from '@/components/ui/search-bar';
 import { Radius, Spacing, Weight } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { Doc, Id } from '@/convex/_generated/dataModel';
-import { useBookmarkToggle } from '@/hooks/use-bookmark-mutation';
 import { useJournalKey } from '@/hooks/use-journal-key';
 import { useTheme } from '@/hooks/use-theme';
 
 const PAGE_SIZE = 20;
 const FEED_CHIPS = [
     { label: 'All', key: 'all' as const },
+    { label: 'Mine', key: 'mine' as const },
     { label: 'Pinned', emoji: '📌', key: 'pinned' as const },
     { label: 'Recent', key: 'recent' as const },
-    { label: 'Mine', key: 'mine' as const },
 ];
+
+// Notes list opens on "Mine" by default.
+const DEFAULT_FILTER_INDEX = FEED_CHIPS.findIndex((chip) => chip.key === 'mine');
 
 type NotesFeedFilter = (typeof FEED_CHIPS)[number]['key'];
 type FeedNote = Doc<'notes'> & {
     ownerNickname: string;
     ownerAvatarUrl: string | null;
     isMine: boolean;
-    isBookmarked?: boolean;
     collaborators: {
         userId: Id<'users'>;
         nickname: string;
@@ -60,7 +61,7 @@ export default function NotesScreen() {
     const squadId = (typeof id === 'string' ? id : undefined) as Id<'squads'> | undefined;
     const router = useRouter();
     const theme = useTheme();
-    const [activeFilter, setActiveFilter] = useState(0);
+    const [activeFilter, setActiveFilter] = useState(DEFAULT_FILTER_INDEX);
     const [searchText, setSearchText] = useState('');
     const { status: keyStatus, setup: setupKey, unlock: unlockKey } = useJournalKey();
 
@@ -76,7 +77,6 @@ export default function NotesScreen() {
 
     const createNote = useMutation(api.notes.createNote);
     const toggleNotePin = useMutation(api.notes.toggleNotePin);
-    const bookmarkToggle = useBookmarkToggle();
     const selectedFilter: NotesFeedFilter = FEED_CHIPS[activeFilter]?.key ?? 'all';
     const normalizedSearch = searchText.trim();
 
@@ -307,9 +307,7 @@ export default function NotesScreen() {
                                     ownerNickname={item.ownerNickname}
                                     collaborators={item.collaborators}
                                     collaboratorCount={item.collaboratorCount}
-                                    isBookmarked={item.isBookmarked}
-                                    onTogglePin={item.isMine ? handleTogglePin : undefined}
-                                    onToggleBookmark={(noteId) => bookmarkToggle({ targetType: "note", noteId: noteId as any })}
+                                    onTogglePin={handleTogglePin}
                                 />
                             ) : (
                                 <NoteCard
@@ -323,9 +321,7 @@ export default function NotesScreen() {
                                     ownerNickname={item.ownerNickname}
                                     collaborators={item.collaborators}
                                     collaboratorCount={item.collaboratorCount}
-                                    isBookmarked={item.isBookmarked}
                                     onTogglePin={item.isMine ? handleTogglePin : undefined}
-                                    onToggleBookmark={(noteId) => bookmarkToggle({ targetType: "note", noteId: noteId as any })}
                                 />
                             )}
                         </Pressable>

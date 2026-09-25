@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Radius, Typography, Weight } from '@/constants/theme';
+import { Radius, Spacing, Typography, Weight } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 interface ImageUploadFieldProps {
@@ -11,6 +11,8 @@ interface ImageUploadFieldProps {
   onPick: () => void;
   onRemove: () => void;
   placeholder?: string;
+  helperText?: string;
+  accessibilityLabel?: string;
 }
 
 export function ImageUploadField({
@@ -19,34 +21,52 @@ export function ImageUploadField({
   onPick,
   onRemove,
   placeholder = '+ Add photo',
+  helperText,
+  accessibilityLabel,
 }: ImageUploadFieldProps) {
   const theme = useTheme();
 
   if (previewUri) {
     return (
-      <View style={styles.previewWrap}>
-        <Image source={{ uri: previewUri }} style={styles.preview} contentFit="cover" />
-        <Pressable onPress={onRemove} style={styles.removeBtn}>
-          <ThemedText style={styles.removeText}>Remove</ThemedText>
-        </Pressable>
+      <View style={styles.fieldWrap}>
+        <View style={styles.previewWrap}>
+          <Image source={{ uri: previewUri }} style={styles.preview} contentFit="cover" />
+          <Pressable
+            onPress={onRemove}
+            style={styles.removeBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Remove selected image"
+          >
+            <ThemedText style={styles.removeText}>Remove</ThemedText>
+          </Pressable>
+        </View>
+        {helperText ? <ThemedText type="caption" themeColor="textSecondary">{helperText}</ThemedText> : null}
       </View>
     );
   }
 
   return (
-    <Pressable
-      onPress={onPick}
-      style={[styles.pickerBtn, { borderColor: theme.textSecondary, backgroundColor: theme.surface }]}
-      disabled={uploading}
-    >
-      <ThemedText themeColor="textSecondary">
-        {uploading ? 'Uploading...' : placeholder}
-      </ThemedText>
-    </Pressable>
+    <View style={styles.fieldWrap}>
+      <Pressable
+        onPress={onPick}
+        style={[styles.pickerBtn, { borderColor: theme.textSecondary, backgroundColor: theme.surface }]}
+        disabled={uploading}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel ?? placeholder}
+      >
+        <ThemedText themeColor="textSecondary">
+          {uploading ? 'Uploading...' : placeholder}
+        </ThemedText>
+      </Pressable>
+      {helperText ? <ThemedText type="caption" themeColor="textSecondary">{helperText}</ThemedText> : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  fieldWrap: {
+    gap: Spacing.xs,
+  },
   pickerBtn: {
     height: 120,
     borderWidth: 2,

@@ -77,16 +77,16 @@ export function NewMessageBubble({ channel, extraChannelCount = 0, onPress, onDi
                 style={[
                     styles.bubble,
                     {
-                        backgroundColor: theme.surface,
-                        borderColor: theme.outline,
+                        backgroundColor: theme.chatSurface,
+                        borderColor: theme.chatBorder,
                         shadowColor: theme.shadow,
                     },
                 ]}
             >
-                <View style={[styles.tail, { backgroundColor: theme.surface, borderColor: theme.outline }]} />
+                <View style={[styles.tail, { backgroundColor: theme.chatSurface, borderColor: theme.chatBorder }]} />
 
-                <View style={[styles.iconBubble, { backgroundColor: theme.accent, borderColor: theme.outline }]}>
-                    <MessageCircleMore size={17} color={theme.text} strokeWidth={2.6} />
+                <View style={[styles.iconBubble, { backgroundColor: theme.chatWarmTint, borderColor: theme.chatBorder }]}>
+                    <MessageCircleMore size={17} color={theme.chatAccent} strokeWidth={2.6} />
                 </View>
 
                 <UserAvatar
@@ -97,32 +97,32 @@ export function NewMessageBubble({ channel, extraChannelCount = 0, onPress, onDi
 
                 <View style={styles.copy}>
                     <View style={styles.channelRow}>
-                        <ThemedText style={[styles.channelName, { color: theme.text }]} numberOfLines={1}>
+                        <ThemedText style={[styles.channelName, { color: theme.chatBubbleInText }]} numberOfLines={1}>
                             #{channel.channelName}
                         </ThemedText>
-                        <View style={[styles.experimentalChip, { backgroundColor: theme.surfaceAccent, borderColor: theme.outlineLight }]}>
-                            <ThemedText type="caption" style={[styles.experimentalText, { color: theme.textSecondary }]}>exp</ThemedText>
+                        <View style={[styles.experimentalChip, { backgroundColor: theme.chatAccentTint, borderColor: theme.chatBorder }]}>
+                            <ThemedText type="caption" style={[styles.experimentalText, { color: theme.chatTextMuted }]}>exp</ThemedText>
                         </View>
-                        <View style={[styles.unreadChip, { backgroundColor: theme.accent, borderColor: theme.outline }]}>
-                            <ThemedText type="caption" style={[styles.unreadText, { color: theme.text }]}>
+                        <View style={[styles.unreadChip, { backgroundColor: theme.chatAccent, borderColor: theme.chatAccent }]}>
+                            <ThemedText type="caption" style={[styles.unreadText, { color: theme.chatOnAccent }]}>
                                 {unreadLabel}
                             </ThemedText>
                         </View>
                         {extraChannelCount > 0 ? (
-                            <View style={[styles.moreChip, { backgroundColor: theme.backgroundElement, borderColor: theme.outline }]}>
-                                <ThemedText type="caption" style={[styles.moreText, { color: theme.text }]}>
+                            <View style={[styles.moreChip, { backgroundColor: theme.chatSurface, borderColor: theme.chatBorder }]}>
+                                <ThemedText type="caption" style={[styles.moreText, { color: theme.chatTextMuted }]}>
                                     +{extraChannelCount}
                                 </ThemedText>
                             </View>
                         ) : null}
                     </View>
-                    <ThemedText type="small" style={[styles.preview, { color: theme.textSecondary }]} numberOfLines={1}>
+                    <ThemedText type="small" style={[styles.preview, { color: theme.chatTextMuted }]} numberOfLines={1}>
                         {channel.lastMessageNickname}: {channel.lastMessagePreview}
                     </ThemedText>
                 </View>
 
-                <View style={[styles.jumpChip, { backgroundColor: theme.backgroundElement, borderColor: theme.outline }]}>
-                    <ThemedText type="caption" style={[styles.jumpText, { color: theme.text }]}>go →</ThemedText>
+                <View style={[styles.jumpChip, { backgroundColor: theme.chatSurface, borderColor: theme.chatBorder }]}>
+                    <ThemedText type="caption" style={[styles.jumpText, { color: theme.chatAccent }]}>go →</ThemedText>
                 </View>
             </Pressable>
         </Animated.View>

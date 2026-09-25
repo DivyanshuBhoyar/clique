@@ -42,6 +42,7 @@ export default function NoteEditorScreen() {
     const typedNoteId = noteId as Id<'notes'>;
     const { key: journalKey } = useJournalKey();
 
+    const currentUser = useQuery(api.users.current);
     const note = useQuery(api.notes.getNote, { noteId: typedNoteId });
     const updateNote = useMutation(api.notes.updateNote);
     const togglePin = useMutation(api.notes.toggleNotePin);
@@ -51,7 +52,8 @@ export default function NoteEditorScreen() {
     const [content, setContent] = useState('');
     const [initialized, setInitialized] = useState(false);
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
-    const [editorMode, setEditorMode] = useState<'write' | 'preview'>('write');
+    const [editorMode, setEditorMode] = useState<'write' | 'preview'>('preview');
+    const [editorModeInitialized, setEditorModeInitialized] = useState(false);
 
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const titleRef = useRef(title);
@@ -76,6 +78,14 @@ export default function NoteEditorScreen() {
         setContent(displayContent);
         setInitialized(true);
     }, [note, initialized, journalKey]);
+
+    useEffect(() => {
+        if (!note || editorModeInitialized || !currentUser?._id) return;
+
+        const shouldStartInWrite = !note.lastEditedBy && currentUser._id === note.ownerId;
+        setEditorMode(shouldStartInWrite ? 'write' : 'preview');
+        setEditorModeInitialized(true);
+    }, [note, currentUser?._id, editorModeInitialized]);
 
     const scheduleSave = useCallback(() => {
         if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -122,11 +132,11 @@ export default function NoteEditorScreen() {
 
     const handleMorePress = useCallback(() => {
         if (!note) return;
-        const isPersonal = note.type === 'personal' || note.type === 'journal';
+        const canPin = note.type === 'shared' || currentUser?._id === note.ownerId;
         const isPinned = note.pinned;
 
         const options = [
-            ...(isPersonal ? [isPinned ? '📌 Unpin' : '📌 Pin note'] : []),
+            ...(canPin ? [isPinned ? '📌 Unpin' : '📌 Pin note'] : []),
             '🗑 Delete note',
             'Cancel',
         ];
@@ -151,7 +161,7 @@ export default function NoteEditorScreen() {
                 'Note actions',
                 undefined,
                 [
-                    ...(isPersonal ? [{
+                    ...(canPin ? [{
                         text: isPinned ? '📌 Unpin' : '📌 Pin note',
                         onPress: () => togglePin({ noteId: typedNoteId }),
                     }] : []),
@@ -167,7 +177,7 @@ export default function NoteEditorScreen() {
                 ],
             );
         }
-    }, [note, typedNoteId, togglePin, deleteNote, router]);
+    }, [currentUser?._id, note, typedNoteId, togglePin, deleteNote, router, squadId]);
 
     if (note === undefined) {
         return <LoadingState />;
@@ -178,7 +188,6 @@ export default function NoteEditorScreen() {
     }
 
     const isShared = note.type === 'shared';
-    const isPersonal = note.type === 'personal' || note.type === 'journal';
 
     return (
         <ThemedView style={styles.container}>
@@ -199,7 +208,7 @@ export default function NoteEditorScreen() {
                         contentContainerStyle={styles.editorContent}
                         keyboardShouldPersistTaps="handled"
                     >
-                        {note.pinned && isPersonal && (
+                        {note.pinned && (
                             <View style={[styles.pinnedBadge, { backgroundColor: theme.accentSoft, borderColor: theme.accent }]}>
                                 <Pin size={11} color={theme.accent} strokeWidth={2.5} fill={theme.accent} />
                                 <ThemedText type="caption" style={{ color: theme.accent, fontWeight: Weight.bold }}>
@@ -243,7 +252,7 @@ export default function NoteEditorScreen() {
                         </View>
 
                         <View style={[styles.modeToggle, { backgroundColor: theme.surface, borderColor: theme.outline }]}>
-                            {(['write', 'preview'] as const).map((mode) => {
+                            {(['preview', 'write'] as const).map((mode) => {
                                 const isActive = editorMode === mode;
                                 return (
                                     <Pressable
@@ -255,7 +264,7 @@ export default function NoteEditorScreen() {
                                                 backgroundColor: isActive ? theme.accent : 'transparent',
                                                 borderRightColor: theme.outline,
                                             },
-                                            mode === 'write' && styles.modeButtonDivider,
+                                            mode === 'preview' && styles.modeButtonDivider,
                                         ]}
                                         accessibilityRole="tab"
                                         accessibilityState={{ selected: isActive }}

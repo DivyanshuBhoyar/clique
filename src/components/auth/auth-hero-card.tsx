@@ -17,14 +17,14 @@ export function AuthHeroCard({ emoji, title, subtitle }: AuthHeroCardProps) {
       backgroundColor: theme.accent,
       borderColor: theme.outline,
       shadowColor: theme.shadow,
-      shadowOffset: Shadows.md.offset,
-      shadowOpacity: Shadows.md.opacity,
-      shadowRadius: Shadows.md.radius,
+      shadowOffset: Shadows.md.shadowOffset,
+      shadowOpacity: Shadows.md.shadowOpacity,
+      shadowRadius: Shadows.md.shadowRadius,
       elevation: 6,
     }]}>
       <ThemedText style={styles.emoji}>{emoji}</ThemedText>
-      <ThemedText type="title" style={{ textAlign: 'center' }}>{title}</ThemedText>
-      <ThemedText type="small" style={{ color: theme.text, opacity: 0.75, textAlign: 'center' }}>
+      <ThemedText type="title" style={styles.centerText}>{title}</ThemedText>
+      <ThemedText type="small" style={[styles.centerText, { color: theme.text, opacity: 0.75 }]}>
         {subtitle}
       </ThemedText>
     </View>
@@ -39,5 +39,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     gap: Spacing.sm,
   },
-  emoji: { fontSize: Typography.display },
+  emoji: { fontSize: Typography.display, lineHeight: Typography.display * 1.2 },
+  centerText: { textAlign: 'center' },
 });

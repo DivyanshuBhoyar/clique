@@ -1,5 +1,5 @@
 import { ThemedText } from '@/components/themed-text';
-import { Radius, Spacing, Typography } from '@/constants/theme';
+import { LineHeight, Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -15,7 +15,7 @@ export function EmptySectionCard({ emoji, title, subtitle, onPress }: EmptySecti
 
   const content = (
     <>
-      <Text style={{ fontSize: Typography.heading }}>{emoji}</Text>
+      <Text style={styles.emoji}>{emoji}</Text>
       <ThemedText type="bodyBold">{title}</ThemedText>
       <ThemedText type="small" themeColor="textSecondary">
         {subtitle}
@@ -50,5 +50,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.xs,
     borderStyle: 'dashed',
+  },
+  emoji: {
+    fontSize: Typography.heading,
+    lineHeight: LineHeight.heading,
   },
 });

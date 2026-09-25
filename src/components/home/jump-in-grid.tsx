@@ -1,6 +1,8 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { AnimatedPressable } from '@/components/ui/animated-pressable';
 import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -18,44 +20,69 @@ interface JumpInGridProps {
 }
 
 export function JumpInGrid({ onOpenRoute }: JumpInGridProps) {
-    const theme = useTheme();
-
     return (
         <View style={styles.section}>
             <ThemedText type="bodyBold">Jump In</ThemedText>
             <View style={styles.jumpGrid}>
                 {JUMP_TILES.map((tile) => {
-                    const isDashed = 'dashed' in tile && tile.dashed;
                     return (
-                        <Pressable
+                        <JumpTile
                             key={tile.label}
-                            style={[
-                                styles.jumpTile,
-                                {
-                                    backgroundColor: isDashed ? theme.surface : tile.bg,
-                                    borderColor: theme.outline,
-                                    borderStyle: isDashed ? 'dashed' : 'solid',
-                                },
-                            ]}
-                            onPress={() => {
-                                if (!tile.route) return;
-                                onOpenRoute(tile.route);
-                            }}
-                            accessibilityRole="button"
-                            accessibilityLabel={`Open ${tile.label}`}
-                        >
-                            <ThemedText style={styles.jumpEmoji}>{tile.emoji}</ThemedText>
-                            <ThemedText type="bodyBold" style={styles.jumpLabel}>{tile.label}</ThemedText>
-                            {isDashed && (
-                                <ThemedText type="caption" themeColor="textTertiary">
-                                    discover more
-                                </ThemedText>
-                            )}
-                        </Pressable>
+                            tile={tile}
+                            onOpenRoute={onOpenRoute}
+                        />
                     );
                 })}
             </View>
         </View>
+    );
+}
+
+function JumpTile({
+    tile,
+    onOpenRoute,
+}: {
+    tile: typeof JUMP_TILES[number];
+    onOpenRoute: (route: string) => void;
+}) {
+    const theme = useTheme();
+    const [pressed, setPressed] = useState(false);
+    const isDashed = 'dashed' in tile && tile.dashed;
+
+    return (
+        <AnimatedPressable
+            style={[
+                styles.jumpTile,
+                {
+                    backgroundColor: isDashed ? theme.surface : tile.bg,
+                    borderColor: theme.outline,
+                    borderStyle: isDashed ? 'dashed' : 'solid',
+                    shadowColor: theme.shadow,
+                    shadowOffset: pressed ? styles.pressedShadow.shadowOffset : styles.restingShadow.shadowOffset,
+                    shadowOpacity: pressed ? styles.pressedShadow.shadowOpacity : styles.restingShadow.shadowOpacity,
+                    shadowRadius: 0,
+                    elevation: pressed ? 1 : 3,
+                },
+            ]}
+            pressedScale={0.97}
+            pressedTranslateY={2}
+            onPressIn={() => setPressed(true)}
+            onPressOut={() => setPressed(false)}
+            onPress={() => {
+                if (!tile.route) return;
+                onOpenRoute(tile.route);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={tile.route ? `Open ${tile.label}` : `${tile.label} coming soon`}
+        >
+            <ThemedText style={styles.jumpEmoji}>{tile.emoji}</ThemedText>
+            <ThemedText type="bodyBold" style={styles.jumpLabel}>{tile.label}</ThemedText>
+            {isDashed && (
+                <ThemedText type="caption" themeColor="textTertiary">
+                    discover more
+                </ThemedText>
+            )}
+        </AnimatedPressable>
     );
 }
 
@@ -76,6 +103,14 @@ const styles = StyleSheet.create({
         paddingHorizontal: Spacing.lg,
         paddingVertical: Spacing.xl,
         gap: Spacing.xs,
+    },
+    restingShadow: {
+        shadowOffset: { width: 3, height: 3 },
+        shadowOpacity: 0.18,
+    },
+    pressedShadow: {
+        shadowOffset: { width: 1, height: 1 },
+        shadowOpacity: 0.12,
     },
     jumpEmoji: { fontSize: Typography.heading },
     jumpLabel: { fontSize: Typography.body },

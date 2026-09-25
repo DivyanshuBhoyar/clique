@@ -6,7 +6,7 @@
  *  - Collaborator "edited by @name" shown as italic caption
  *  - 2-line content preview
  */
-import { Bookmark, Pin } from 'lucide-react-native';
+import { Pin } from 'lucide-react-native';
 import { GestureResponderEvent, Pressable, StyleSheet, View } from 'react-native';
 
 import { markdownToPlainText } from '@/components/notes/markdown-preview';
@@ -30,8 +30,6 @@ interface SharedNoteCardProps {
         avatarUrl: string | null;
     }[];
     collaboratorCount?: number;
-    isBookmarked?: boolean;
-    onToggleBookmark?: (noteId: string) => void;
     onTogglePin?: (noteId: string) => void;
     noteId?: string;
 }
@@ -45,8 +43,6 @@ export function SharedNoteCard({
     ownerNickname,
     collaborators,
     collaboratorCount,
-    isBookmarked,
-    onToggleBookmark,
     onTogglePin,
     noteId,
 }: SharedNoteCardProps) {
@@ -95,22 +91,6 @@ export function SharedNoteCard({
                             />
                         </Pressable>
                     ) : null}
-                    {onToggleBookmark && noteId ? (
-                        <Pressable
-                            onPress={(e: GestureResponderEvent) => { e.stopPropagation(); onToggleBookmark(noteId); }}
-                            hitSlop={8}
-                            style={styles.iconButton}
-                            accessibilityRole="button"
-                            accessibilityLabel={isBookmarked ? 'Remove bookmark' : 'Bookmark'}
-                        >
-                            <Bookmark
-                                size={16}
-                                color={isBookmarked ? theme.accent : theme.textSecondary}
-                                fill={isBookmarked ? theme.accent : 'none'}
-                                strokeWidth={2}
-                            />
-                        </Pressable>
-                    ) : null}
                 </View>
             </View>
 
@@ -155,7 +135,8 @@ export function SharedNoteCard({
 const styles = StyleSheet.create({
     card: {
         width: '100%',
-        padding: Spacing.lg,
+        paddingVertical: Spacing.md,
+        paddingHorizontal: Spacing.lg,
         paddingLeft: Spacing.xl,
         borderWidth: 2,
         borderRadius: Radius.lg,

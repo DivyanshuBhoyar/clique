@@ -66,29 +66,29 @@ export function ChannelMembersModal({ visible, channelId, squadId, channelName, 
     return (
         <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
             <Pressable style={styles.overlay} onPress={onClose}>
-                <Pressable style={[styles.sheet, { backgroundColor: theme.surface, borderColor: theme.outline, borderTopWidth: 2 }]} onPress={(e) => e.stopPropagation()}>
-                    <ThemedText type="heading" style={styles.title}>Channel Settings</ThemedText>
+                <Pressable style={[styles.sheet, { backgroundColor: theme.chatSurface, borderColor: theme.chatBorder, borderTopWidth: 2 }]} onPress={(e) => e.stopPropagation()}>
+                    <ThemedText type="heading" style={[styles.title, { color: theme.chatBubbleInText }]}>Channel Settings</ThemedText>
 
                     {isCreator && (
                         <View style={styles.renameSection}>
-                            <ThemedText type="small" themeColor="textSecondary" style={{ marginBottom: Spacing.xs }}>
+                            <ThemedText type="small" style={[styles.sectionLabel, { color: theme.chatTextMuted }]}>
                                 Channel name
                             </ThemedText>
                             <View style={styles.renameRow}>
                                 <TextInput
                                     value={newName}
                                     onChangeText={setNewName}
-                                    style={[styles.renameInput, { color: theme.text, borderColor: theme.outline, backgroundColor: theme.inputBackground }]}
+                                    style={[styles.renameInput, { color: theme.chatBubbleInText, borderColor: theme.chatBorder, backgroundColor: theme.chatSurface }]}
                                     placeholder="Channel name"
-                                    placeholderTextColor={theme.textTertiary}
+                                    placeholderTextColor={theme.chatTextMuted}
                                 />
                                 {newName.trim() !== channelName && newName.trim().length > 0 && (
                                     <Pressable
                                         onPress={handleRename}
                                         disabled={renaming}
-                                        style={[styles.renameBtn, { backgroundColor: theme.accent, borderColor: theme.outline }]}
+                                        style={[styles.renameBtn, { backgroundColor: theme.chatAccent, borderColor: theme.chatAccent }]}
                                     >
-                                        <ThemedText type="small" style={{ fontWeight: Weight.bold }}>
+                                        <ThemedText type="small" style={[styles.renameBtnText, { color: theme.chatOnAccent }]}>
                                             {renaming ? '…' : 'Save'}
                                         </ThemedText>
                                     </Pressable>
@@ -97,14 +97,14 @@ export function ChannelMembersModal({ visible, channelId, squadId, channelName, 
                         </View>
                     )}
 
-                    <ThemedText type="small" themeColor="textSecondary" style={{ marginBottom: Spacing.xs }}>
+                    <ThemedText type="small" style={[styles.sectionLabel, { color: theme.chatTextMuted }]}>
                         Members
                     </ThemedText>
                     <ScrollView style={styles.list} nestedScrollEnabled>
                         {channelMembers?.map(m => (
-                            <View key={m.userId} style={[styles.row, { borderColor: theme.outlineLight }]}>
-                                <View style={{ flex: 1 }}>
-                                    <ThemedText type="small">
+                            <View key={m.userId} style={[styles.row, { borderColor: theme.chatBorder }]}>
+                                <View style={styles.rowText}>
+                                    <ThemedText type="small" style={{ color: theme.chatBubbleInText }}>
                                         {m.nickname}{m.isCreator ? ' (creator)' : ''}
                                     </ThemedText>
                                 </View>
@@ -119,15 +119,15 @@ export function ChannelMembersModal({ visible, channelId, squadId, channelName, 
 
                     {isCreator && nonMembers.length > 0 && (
                         <View style={styles.addSection}>
-                            <ThemedText type="small" themeColor="textSecondary" style={{ marginBottom: Spacing.xs }}>
+                            <ThemedText type="small" style={[styles.sectionLabel, { color: theme.chatTextMuted }]}>
                                 Add members
                             </ThemedText>
                             <ScrollView style={styles.list} nestedScrollEnabled>
                                 {nonMembers.map(m => (
-                                    <View key={m.userId} style={[styles.row, { borderColor: theme.outlineLight }]}>
-                                        <ThemedText type="small" style={{ flex: 1 }}>{m.nickname}</ThemedText>
+                                    <View key={m.userId} style={[styles.row, { borderColor: theme.chatBorder }]}>
+                                        <ThemedText type="small" style={[styles.rowText, { color: theme.chatBubbleInText }]}>{m.nickname}</ThemedText>
                                         <Pressable onPress={() => handleAdd(m.userId as Id<"users">)} hitSlop={8}>
-                                            <ThemedText type="small" style={{ color: theme.accent, fontWeight: Weight.semibold }}>+ Add</ThemedText>
+                                            <ThemedText type="small" style={styles.addText}>+ Add</ThemedText>
                                         </Pressable>
                                     </View>
                                 ))}
@@ -135,8 +135,8 @@ export function ChannelMembersModal({ visible, channelId, squadId, channelName, 
                         </View>
                     )}
 
-                    <Pressable onPress={onClose} style={[styles.closeBtn, { borderColor: theme.outline }]}>
-                        <ThemedText style={{ fontWeight: Weight.semibold }}>Done</ThemedText>
+                    <Pressable onPress={onClose} style={[styles.closeBtn, { borderColor: theme.chatBorder }]}>
+                        <ThemedText style={[styles.closeBtnText, { color: theme.chatBubbleInText }]}>Done</ThemedText>
                     </Pressable>
                 </Pressable>
             </Pressable>
@@ -185,6 +185,9 @@ const styles = StyleSheet.create({
         minHeight: 40,
         justifyContent: 'center',
     },
+    renameBtnText: {
+        fontWeight: Weight.bold,
+    },
     list: {
         maxHeight: 200,
     },
@@ -195,6 +198,15 @@ const styles = StyleSheet.create({
         paddingHorizontal: Spacing.sm,
         borderBottomWidth: 1,
         minHeight: 44,
+    },
+    rowText: {
+        flex: 1,
+    },
+    sectionLabel: {
+        marginBottom: Spacing.xs,
+    },
+    addText: {
+        fontWeight: Weight.semibold,
     },
     addSection: {
         marginTop: Spacing.lg,
@@ -207,5 +219,8 @@ const styles = StyleSheet.create({
         borderRadius: Radius.md,
         minHeight: 44,
         justifyContent: 'center',
+    },
+    closeBtnText: {
+        fontWeight: Weight.semibold,
     },
 });

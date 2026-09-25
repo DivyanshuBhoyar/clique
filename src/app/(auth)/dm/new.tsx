@@ -85,7 +85,7 @@ export default function NewDmScreen() {
                 <TextInput
                     value={search}
                     onChangeText={setSearch}
-                    placeholder="Search by name or squad…"
+                    placeholder="Search by name or space…"
                     placeholderTextColor={theme.placeholder}
                     style={[styles.searchInput, { color: theme.text }]}
                     autoCapitalize="none"

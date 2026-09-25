@@ -5,10 +5,9 @@ import { usePushNotifications } from '@/hooks/use-push-notifications';
 import { initDevice } from '@/lib/keyStore';
 import { initLocalDb } from '@/lib/local-db';
 import { useConvexAuth, useMutation } from 'convex/react';
-import * as Notifications from 'expo-notifications';
 import { Redirect, Stack, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, Platform, View } from 'react-native';
 
 export default function AuthLayout() {
     const { isLoading, isAuthenticated } = useConvexAuth();
@@ -29,7 +28,10 @@ export default function AuthLayout() {
         async function initAuthenticatedDevice() {
             await Promise.all([
                 initLocalDb().catch(console.error),
-                initDevice(registerDevice),
+                // Non-fatal: a failed device registration (e.g. MAX_DEVICES_REACHED)
+                // must not block isDeviceReady — the push notification permission
+                // prompt and token registration run independently afterward.
+                initDevice(registerDevice).catch(console.error),
             ]);
             if (!cancelled) setIsDeviceReady(true);
         }
@@ -45,14 +47,33 @@ export default function AuthLayout() {
     useAppNotificationPresenceHeartbeat(isAuthenticated);
 
     useEffect(() => {
-        const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-            const path = response.notification.request.content.data?.path;
-            if (typeof path === 'string' && path.length > 0) {
-                router.push(path as any);
-            }
-        });
+        // Native-only: expo-notifications is not used on web (see use-push-notifications.web.ts + push-sw.js).
+        if (process.env.EXPO_OS === 'web' || Platform.OS === 'web') return;
 
-        return () => sub.remove();
+        let subscription: { remove: () => void } | null = null;
+        let cancelled = false;
+
+        async function listenForNotificationTaps() {
+            try {
+                const Notifications = await import('expo-notifications');
+                if (cancelled) return;
+                subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+                    const path = response.notification.request.content.data?.path;
+                    if (typeof path === 'string' && path.length > 0) {
+                        router.push(path as any);
+                    }
+                });
+            } catch (error) {
+                console.warn('Notification tap handling requires a development or production build on Android.', error);
+            }
+        }
+
+        void listenForNotificationTaps();
+
+        return () => {
+            cancelled = true;
+            subscription?.remove();
+        };
     }, [router]);
 
 

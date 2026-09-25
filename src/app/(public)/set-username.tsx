@@ -77,9 +77,9 @@ export default function SetUsernameScreen() {
                         backgroundColor: theme.surface,
                         borderColor: theme.outline,
                         shadowColor: theme.shadow,
-                        shadowOffset: Shadows.sm.offset,
-                        shadowOpacity: Shadows.sm.opacity,
-                        shadowRadius: Shadows.sm.radius,
+                        shadowOffset: Shadows.sm.shadowOffset,
+                        shadowOpacity: Shadows.sm.shadowOpacity,
+                        shadowRadius: Shadows.sm.shadowRadius,
                         elevation: 3,
                     }]}>
                         <View style={styles.inputHeader}>
@@ -88,7 +88,7 @@ export default function SetUsernameScreen() {
                         </View>
 
                         <ThemedText type="small" themeColor="textSecondary">
-                            Min. 3 characters · This is how your squad sees you
+                            Min. 3 characters · This is how your space sees you
                         </ThemedText>
 
                         <TextInput

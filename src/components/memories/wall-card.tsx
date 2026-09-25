@@ -10,8 +10,8 @@
  *   │ ❤️3  🔥  +                           │  ← EmojiReactionStrip
  *   └──────────────────────────────────────┘
  */
-import { Bookmark, MessageCircle } from 'lucide-react-native';
-import { GestureResponderEvent, Pressable, StyleSheet, View } from 'react-native';
+import { MessageCircle } from 'lucide-react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { DashedSeparator } from '@/components/ui/dashed-separator';
@@ -54,8 +54,6 @@ export function WallCard({
     onToggleReaction,
     onAddReaction,
     truncate,
-    isBookmarked,
-    onToggleBookmark,
 }: WallCardProps) {
     const theme = useTheme();
 
@@ -78,9 +76,9 @@ export function WallCard({
                     backgroundColor: theme.surface,
                     borderColor: theme.cardBorder,
                     shadowColor: theme.shadow,
-                    shadowOffset: Shadows.sm.offset,
-                    shadowOpacity: Shadows.sm.opacity,
-                    shadowRadius: Shadows.sm.radius,
+                    shadowOffset: Shadows.sm.shadowOffset,
+                    shadowOpacity: Shadows.sm.shadowOpacity,
+                    shadowRadius: Shadows.sm.shadowRadius,
                     elevation: 3,
                 },
             ]}
@@ -113,21 +111,7 @@ export function WallCard({
                             </ThemedText>
                         </View>
                     )}
-                    {onToggleBookmark && memoryId ? (
-                        <Pressable
-                            onPress={(e: GestureResponderEvent) => { e.stopPropagation(); onToggleBookmark(memoryId); }}
-                            hitSlop={8}
-                            accessibilityRole="button"
-                            accessibilityLabel={isBookmarked ? 'Remove bookmark' : 'Bookmark'}
-                        >
-                            <Bookmark
-                                size={16}
-                                color={isBookmarked ? theme.accent : theme.textSecondary}
-                                fill={isBookmarked ? theme.accent : 'none'}
-                                strokeWidth={2}
-                            />
-                        </Pressable>
-                    ) : null}
+                    {/* Bookmark button deferred — no bookmarks view exists for memories yet. */}
                 </View>
             </View>
 

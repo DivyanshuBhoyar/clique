@@ -38,10 +38,10 @@ export function DmMessageActions({
     return (
         <Modal transparent animationType="fade" onRequestClose={onClose}>
             <Pressable style={styles.overlay} onPress={onClose}>
-                <View style={[styles.sheet, { backgroundColor: theme.surface, borderColor: theme.outline }]}>
+                <View style={[styles.sheet, { backgroundColor: theme.chatSurface, borderColor: theme.chatBorder }]}>
                     {/* Quick emoji reactions */}
                     {onReact && (
-                        <View style={[styles.quickReactRow, { borderBottomColor: theme.outlineLight }]}>
+                        <View style={[styles.quickReactRow, { borderBottomColor: theme.chatBorder }]}>
                             {mostUsedEmojis.map((emoji) => (
                                 <Pressable
                                     key={emoji}
@@ -53,7 +53,7 @@ export function DmMessageActions({
                                     }}
                                     style={({ pressed }) => [
                                         styles.quickEmoji,
-                                        { backgroundColor: pressed ? theme.backgroundElement : "transparent" },
+                                        { backgroundColor: pressed ? theme.chatAccentTint : "transparent" },
                                     ]}
                                     accessibilityRole="button"
                                     accessibilityLabel={`React with ${emoji}`}
@@ -70,12 +70,12 @@ export function DmMessageActions({
                                     }}
                                     style={({ pressed }) => [
                                         styles.quickEmoji,
-                                        { backgroundColor: pressed ? theme.backgroundElement : "transparent" },
+                                        { backgroundColor: pressed ? theme.chatAccentTint : "transparent" },
                                     ]}
                                     accessibilityRole="button"
                                     accessibilityLabel="Open full emoji picker"
                                 >
-                                    <Plus size={24} color={theme.textSecondary} strokeWidth={2.5} />
+                                    <Plus size={24} color={theme.chatTextMuted} strokeWidth={2.5} />
                                 </Pressable>
                             )}
                         </View>
@@ -83,24 +83,24 @@ export function DmMessageActions({
 
                     <Pressable
                         onPress={() => { onReply(); onClose(); }}
-                        style={[styles.actionRow, { borderBottomColor: theme.outlineLight }]}
+                        style={[styles.actionRow, { borderBottomColor: theme.chatBorder }]}
                         accessibilityRole="button"
                         accessibilityLabel="Reply to message"
                     >
-                        <Reply size={18} color={theme.text} strokeWidth={2} />
-                        <Text style={{ color: theme.text, fontSize: Typography.body, fontWeight: Weight.medium }}>
+                        <Reply size={18} color={theme.chatBubbleInText} strokeWidth={2} />
+                        <Text style={{ color: theme.chatBubbleInText, fontSize: Typography.body, fontWeight: Weight.medium }}>
                             Reply
                         </Text>
                     </Pressable>
 
                     <Pressable
                         onPress={() => { onCopy(); onClose(); }}
-                        style={[styles.actionRow, { borderBottomColor: theme.outlineLight }]}
+                        style={[styles.actionRow, { borderBottomColor: theme.chatBorder }]}
                         accessibilityRole="button"
                         accessibilityLabel="Copy message text"
                     >
-                        <ClipboardCopy size={18} color={theme.text} strokeWidth={2} />
-                        <Text style={{ color: theme.text, fontSize: Typography.body, fontWeight: Weight.medium }}>
+                        <ClipboardCopy size={18} color={theme.chatBubbleInText} strokeWidth={2} />
+                        <Text style={{ color: theme.chatBubbleInText, fontSize: Typography.body, fontWeight: Weight.medium }}>
                             Copy
                         </Text>
                     </Pressable>
@@ -108,7 +108,7 @@ export function DmMessageActions({
                     {isOwnMessage && onDelete && (
                         <Pressable
                             onPress={() => { heavyImpact(); onDelete(); onClose(); }}
-                            style={[styles.actionRow, { borderBottomColor: theme.outlineLight }]}
+                            style={[styles.actionRow, { borderBottomColor: theme.chatBorder }]}
                             accessibilityRole="button"
                             accessibilityLabel="Delete message"
                         >
@@ -120,7 +120,7 @@ export function DmMessageActions({
                     )}
 
                     <Pressable onPress={onClose} style={styles.cancelRow}>
-                        <Text style={{ color: theme.textSecondary, fontSize: Typography.body }}>
+                        <Text style={{ color: theme.chatTextMuted, fontSize: Typography.body }}>
                             Cancel
                         </Text>
                     </Pressable>
