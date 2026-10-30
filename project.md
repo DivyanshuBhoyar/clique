@@ -2,7 +2,7 @@
 
 ### Product Direction
 
-Homie Squad is a private group app for close-knit friend groups ("squads"). Each squad gets a shared space with chat, recommendation drops, collective memories, notes/journals, and social vibes (polls, confessions, weekly questions). A blend between Discord, a shared journal, and a scrapbook — designed for small, real-life friend groups, not public communities.
+Clique is a private group app for close-knit friend groups ("squads"). Each squad gets a shared space with chat, recommendation drops, collective memories, notes/journals, and social vibes (polls, confessions, weekly questions). A blend between Discord, a shared journal, and a scrapbook — designed for small, real-life friend groups, not public communities.
 
 The neo-brutalist visual language (hard shadows, warm cream #F5F0E8, golden accent #F5C542) gives it a distinct, playful personality. The password-based squad join is intentionally low-friction.
 
@@ -94,7 +94,7 @@ The neo-brutalist visual language (hard shadows, warm cream #F5F0E8, golden acce
 3. Add basic error handling + toast feedback
 4. Unify auth patterns in backend
 5. Add input validation (length limits) on all mutations
-6. Replace "Expo Starter" text with "Homie Squad"
+6. Replace "Expo Starter" text with "Clique"
 7. Remove dead components or wire them up
 
 **Phase 2 — Core UX Polish:**
